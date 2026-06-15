@@ -309,7 +309,7 @@ function updateStatus(result, sql) {
   const nT = result.tables.length;
   const nR = result.relations.length;
   if (!hasTables && sql.trim()) {
-    statusEl.textContent = dialect === 'bigquery' ? 'No WITH block found' : 'No CREATE TABLE found';
+    statusEl.textContent = dialect === 'bigquery' ? (result.errors[0] || 'No WITH block found') : 'No CREATE TABLE found';
     statusEl.className = 'status warn';
   } else if (hasTables) {
     const fmt = result.format && result.format !== 'sql' ? `${FORMATS[result.format] || result.format} · ` : '';
@@ -323,7 +323,7 @@ function updateStatus(result, sql) {
 
 // ---- canvas editing: edit a table/column on the diagram -> rewrite SQL ----
 diagram.onEdit = (change) => {
-  if (dialect === 'bigquery') { console.warn('Canvas editing is not supported in BigQuery CTE mode'); return; }
+  if (dialect === 'bigquery') { statusEl.textContent = 'Canvas editing is not supported in BigQuery CTE mode'; statusEl.className = 'status warn'; return; }
   const sql = sqlEl.value;
   const fresh = parseSchema(sql, 'sql');   // SQL parser for accurate spans
   const result = applyEdit(sql, fresh, change);
@@ -356,7 +356,7 @@ diagram.typeSuggestions = DIALECTS[dialect].types;
 
 // ---- add column on the canvas -> insert into SQL with the dialect default ----
 diagram.onAddColumn = (tableKey) => {
-  if (dialect === 'bigquery') { console.warn('Canvas editing is not supported in BigQuery CTE mode'); return; }
+  if (dialect === 'bigquery') { statusEl.textContent = 'Canvas editing is not supported in BigQuery CTE mode'; statusEl.className = 'status warn'; return; }
   const sql = sqlEl.value;
   const fresh = parseSchema(sql, 'sql');
   const table = fresh.tables.find(t => t.key === tableKey);
