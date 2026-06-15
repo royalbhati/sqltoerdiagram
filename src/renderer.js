@@ -134,11 +134,17 @@ export function rasterizeTable(t, theme, dpr) {
       drawBadge(ctx, PAD_X - 2, y, 'FK', theme.fk);
     }
 
+    const nx = PAD_X + BADGE_W - 4;
+    // reserve only the space the type actually needs (not a fixed amount),
+    // so short types don't force the column name to truncate
+    let typeReserve = 0;
+    if (c.type) {
+      ctx.font = TYPE_FONT;
+      typeReserve = Math.min(ctx.measureText(c.type).width, 120) + GAP;
+    }
     ctx.font = FONT_STACK;
     ctx.fillStyle = theme.rowText;
-    const nx = PAD_X + BADGE_W - 4;
-    const label = c.name + (c.nn ? '' : '');
-    ctx.fillText(truncate(ctx, label, w - nx - PAD_X - 60), nx, y);
+    ctx.fillText(truncate(ctx, c.name, w - nx - PAD_X - typeReserve), nx, y);
 
     // type, right-aligned
     if (c.type) {
