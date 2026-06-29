@@ -78,6 +78,42 @@ leaving your browser.
 - **Hide the SQL panel** (⬚ in the toolbar) for a full-width diagram.
 - **Light + dark themes**, and it remembers your last schema locally.
 
+## CLI — headless SVG export
+
+Generate an SVG from a SQL file without a browser, useful for CI/CD pipelines:
+
+```bash
+# Install dependencies first (if not already done)
+npm install
+
+# From a file
+node bin/cli.js schema.sql > schema.svg
+
+# Write to a file directly
+node bin/cli.js schema.sql -o schema.svg
+
+# From stdin
+cat schema.sql | node bin/cli.js -o schema.svg
+
+# Options
+node bin/cli.js --help
+```
+
+| Option | Values | Default |
+| ----------------------- | ------------------------------------------------------ | ------------- |
+| `--format <fmt>`        | `auto` `sql` `bigquery` `prisma` `dbml` `mermaid` `plantuml` `sqlalchemy` `sequelize` | `auto` |
+| `--theme <theme>`       | `dark` `light`                                         | `dark`        |
+| `--direction <dir>`     | `LR` `TB`                                              | `LR`          |
+| `--spacing <s>`         | `compact` `comfortable` `spacious`                     | `comfortable` |
+| `-o, --output <file>`   | Path to write the SVG file                             | stdout        |
+
+**GitHub Actions example:**
+
+```yaml
+- name: Generate ERD
+  run: node bin/cli.js docs/schema.sql -o docs/schema.svg
+```
+
 ## Run locally
 
 ```bash

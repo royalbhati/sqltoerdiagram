@@ -1164,14 +1164,15 @@ export class Diagram {
           const owners = pkByCol.get(cl).filter(k => k !== t.key);
           if (owners.length === 1) { tk = owners[0]; tc = c.name; }
         }
-        // 2) <foo>_id / <foo>id -> table foo / foos, on its PK
+        // 2) <foo>_id / <foo>id / <foo>_uuid -> table foo / foos, on matching column or PK
         if (!tk) {
-          const m = cl.match(/^(.+?)_?id$/);
+          const m = cl.match(/^(.+?)_?(id|uuid)$/);
           if (m && m[1]) {
             const cand = tableByName.get(m[1]) || tableByName.get(m[1] + 's') || tableByName.get(m[1] + 'es');
             if (cand && cand !== t.key) {
-              const pk = (tables.find(x => x.key === cand)?.columns || []).find(x => x.pk);
-              if (pk) { tk = cand; tc = pk.name; }
+              const cols = (tables.find(x => x.key === cand)?.columns || []);
+              const col = cols.find(x => x.name.toLowerCase() === m[2]) || cols.find(x => x.pk);
+              if (col) { tk = cand; tc = col.name; }
             }
           }
         }

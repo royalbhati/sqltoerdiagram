@@ -60,6 +60,18 @@ function measureCtx() {
 }
 
 export function measureTable(t) {
+  if (typeof document === 'undefined') {
+    // Node.js fallback: approximate with per-font character widths.
+    // Monospace columns are highly predictable; sans-serif header is a reasonable average.
+    const nameW = t.name.length * 8.5 + PAD_X * 2 + 24;
+    let w = nameW;
+    for (const c of t.columns) {
+      const total = BADGE_W + c.name.length * 7.8 + GAP + (c.type || '').length * 7.2 + PAD_X * 2;
+      if (total > w) w = total;
+    }
+    w = Math.max(MIN_W, Math.min(MAX_W, Math.ceil(w)));
+    return { w, h: HEADER_H + t.columns.length * ROW_H, rowH: ROW_H, headerH: HEADER_H };
+  }
   const ctx = measureCtx();
   ctx.font = HEADER_FONT;
   let w = ctx.measureText(t.name).width + PAD_X * 2 + 24;

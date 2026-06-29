@@ -5,6 +5,9 @@
   "license": "MIT",
   "type": "module",
   "description": "Turn a SQL schema script into a clean, interactive ER diagram. Fast, free, runs in your browser.",
+  "bin": {
+    "sql-to-er-diagram": "./bin/cli.js"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
