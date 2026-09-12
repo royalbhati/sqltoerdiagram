@@ -52,6 +52,25 @@ export const THEMES = {
   },
 };
 
+export const EDGE_COLORS = [
+  '#4ea8de', // sky blue
+  '#f77f00', // vibrant orange
+  '#06d6a0', // emerald green
+  '#e63946', // coral crimson
+  '#a06cd5', // soft violet / purple
+  '#ffd166', // warm amber gold
+  '#48cae4', // bright cyan
+  '#f72585', // magenta pink
+  '#80ed99', // mint lime
+  '#b5179e', // deep orchid
+  '#3a86ff', // royal blue
+  '#fb8500', // orange peel
+  '#52b788', // seafoam green
+  '#9d4edd', // amethyst purple
+  '#ff758f', // rose pink
+  '#00b4d8', // cerulean blue
+];
+
 // A scratch context for text measurement (no DOM needed for sizing).
 let measureCanvas = null;
 function measureCtx() {
@@ -59,39 +78,85 @@ function measureCtx() {
   return measureCanvas.getContext('2d');
 }
 
-export function measureTable(t) {
+export function toLogicalType(rawType) {
+  if (!rawType) return '';
+  const s = String(rawType).trim().toLowerCase();
+  if (/^(bool|boolean)/.test(s)) return 'Boolean';
+  if (/^(bigint|bigserial)/.test(s)) return 'BigInt';
+  if (/^(int|integer|smallint|tinyint|mediumint|serial|smallserial|identity)/.test(s)) return 'Integer';
+  if (/^(decimal|numeric|money|smallmoney)/.test(s)) return 'Decimal';
+  if (/^(float|double|real)/.test(s)) return 'Float';
+  if (/^(timestamp|timestamptz|datetime|datetime2|smalldatetime)/.test(s)) return 'DateTime';
+  if (/^date$/.test(s)) return 'Date';
+  if (/^time/.test(s)) return 'Time';
+  if (/^(varchar|nvarchar|char|nchar|character|varying|string|enum)/.test(s)) return 'String';
+  if (/^(text|tinytext|mediumtext|longtext|citext|clob)/.test(s)) return 'Text';
+  if (/^(json|jsonb)/.test(s)) return 'JSON';
+  if (/^(uuid|guid)/.test(s)) return 'UUID';
+  if (/^(blob|bytea|binary|varbinary|image)/.test(s)) return 'Binary';
+  const clean = rawType.replace(/\(.*?\)/g, '').trim();
+  return clean ? clean.charAt(0).toUpperCase() + clean.slice(1) : '';
+}
+
+export function getVisibleColumns(t, level = 'physical') {
+  if (!t || !Array.isArray(t.columns)) return [];
+  if (level === 'conceptual') {
+    // Conceptual: show entity attributes but hide pure foreign keys (c.fk && !c.pk), and hide types
+    return t.columns
+      .filter(c => !(c.fk && !c.pk))
+      .map(c => ({ ...c, type: '', fk: false }));
+  }
+  if (level === 'logical') {
+    // Logical: show all columns and keys with simplified generic types
+    return t.columns.map(c => ({
+      ...c,
+      type: toLogicalType(c.type),
+    }));
+  }
+  return t.columns;
+}
+
+export function measureTable(t, level = 'physical') {
+  const visibleCols = getVisibleColumns(t, level);
+  const isConceptual = level === 'conceptual';
   if (typeof document === 'undefined') {
     // Node.js fallback: approximate with per-font character widths.
-    // Monospace columns are highly predictable; sans-serif header is a reasonable average.
     const nameW = t.name.length * 8.5 + PAD_X * 2 + 24;
     let w = nameW;
-    for (const c of t.columns) {
-      const total = BADGE_W + c.name.length * 7.8 + GAP + (c.type || '').length * 7.2 + PAD_X * 2;
+    for (const c of visibleCols) {
+      const typeW = isConceptual || !c.type ? 0 : (c.type.length * 7.2 + GAP);
+      const total = BADGE_W + c.name.length * 7.8 + typeW + PAD_X * 2;
       if (total > w) w = total;
     }
     w = Math.max(MIN_W, Math.min(MAX_W, Math.ceil(w)));
-    return { w, h: HEADER_H + t.columns.length * ROW_H, rowH: ROW_H, headerH: HEADER_H };
+    const h = HEADER_H + visibleCols.length * ROW_H;
+    return { w, h, rowH: ROW_H, headerH: HEADER_H, visibleCols };
   }
   const ctx = measureCtx();
   ctx.font = HEADER_FONT;
   let w = ctx.measureText(t.name).width + PAD_X * 2 + 24;
   ctx.font = FONT_STACK;
-  for (const c of t.columns) {
+  for (const c of visibleCols) {
     const nameW = ctx.measureText(c.name).width;
-    ctx.font = TYPE_FONT;
-    const typeW = ctx.measureText(c.type || '').width;
-    ctx.font = FONT_STACK;
-    const total = BADGE_W + nameW + GAP + typeW + PAD_X * 2;
+    let typeW = 0;
+    if (!isConceptual && c.type) {
+      ctx.font = TYPE_FONT;
+      typeW = ctx.measureText(c.type).width + GAP;
+      ctx.font = FONT_STACK;
+    }
+    const total = BADGE_W + nameW + typeW + PAD_X * 2;
     if (total > w) w = total;
   }
   w = Math.max(MIN_W, Math.min(MAX_W, Math.ceil(w)));
-  const h = HEADER_H + t.columns.length * ROW_H;
-  return { w, h, rowH: ROW_H, headerH: HEADER_H };
+  const h = HEADER_H + visibleCols.length * ROW_H;
+  return { w, h, rowH: ROW_H, headerH: HEADER_H, visibleCols };
 }
 
 // Rasterise one table to a bitmap at the given pixel ratio.
-export function rasterizeTable(t, theme, dpr) {
+export function rasterizeTable(t, theme, dpr, level = 'physical') {
+  const visibleCols = getVisibleColumns(t, level);
   const w = t.w, h = t.h;
+  const isConceptual = level === 'conceptual';
   const cv = document.createElement('canvas');
   cv.width = Math.ceil(w * dpr);
   cv.height = Math.ceil(h * dpr);
@@ -105,7 +170,7 @@ export function rasterizeTable(t, theme, dpr) {
   ctx.fill();
 
   // rows (alternating)
-  for (let i = 0; i < t.columns.length; i++) {
+  for (let i = 0; i < visibleCols.length; i++) {
     if (i % 2 === 1) {
       ctx.fillStyle = theme.rowAlt;
       ctx.fillRect(1, HEADER_H + i * ROW_H, w - 2, ROW_H);
@@ -125,32 +190,32 @@ export function rasterizeTable(t, theme, dpr) {
   ctx.textBaseline = 'middle';
   ctx.fillText(truncate(ctx, t.name, w - PAD_X * 2 - 18), PAD_X, HEADER_H / 2 + 1);
 
-  // header divider
-  ctx.strokeStyle = theme.divider;
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(0, HEADER_H + 0.5);
-  ctx.lineTo(w, HEADER_H + 0.5);
-  ctx.stroke();
+  // header divider (only when columns are present)
+  if (visibleCols.length > 0) {
+    ctx.strokeStyle = theme.divider;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, HEADER_H + 0.5);
+    ctx.lineTo(w, HEADER_H + 0.5);
+    ctx.stroke();
+  }
 
   // columns
   ctx.textBaseline = 'middle';
-  for (let i = 0; i < t.columns.length; i++) {
-    const c = t.columns[i];
+  for (let i = 0; i < visibleCols.length; i++) {
+    const c = visibleCols[i];
     const y = HEADER_H + i * ROW_H + ROW_H / 2;
 
     // PK / FK badge
     if (c.pk) {
       drawBadge(ctx, PAD_X - 2, y, 'PK', theme.pk);
-    } else if (c.fk) {
+    } else if (c.fk && !isConceptual) {
       drawBadge(ctx, PAD_X - 2, y, 'FK', theme.fk);
     }
 
     const nx = PAD_X + BADGE_W - 4;
-    // reserve only the space the type actually needs (not a fixed amount),
-    // so short types don't force the column name to truncate
     let typeReserve = 0;
-    if (c.type) {
+    if (!isConceptual && c.type) {
       ctx.font = TYPE_FONT;
       typeReserve = Math.min(ctx.measureText(c.type).width, 120) + GAP;
     }
@@ -159,7 +224,7 @@ export function rasterizeTable(t, theme, dpr) {
     ctx.fillText(truncate(ctx, c.name, w - nx - PAD_X - typeReserve), nx, y);
 
     // type, right-aligned
-    if (c.type) {
+    if (!isConceptual && c.type) {
       ctx.font = TYPE_FONT;
       ctx.fillStyle = theme.typeText;
       ctx.textAlign = 'right';
@@ -186,9 +251,16 @@ function drawBadge(ctx, x, y, text, color) {
 }
 
 // y-position (table-local) of a column's connection point.
-export function columnY(t, colName) {
+export function columnY(t, colName, level = 'physical', relIdx = 0, totalRels = 1) {
+  if (level === 'conceptual') {
+    if (totalRels <= 1) return t.h / 2;
+    const padding = 16;
+    const available = Math.max(10, t.h - padding * 2);
+    return padding + (relIdx + 0.5) * (available / totalRels);
+  }
+  const visibleCols = getVisibleColumns(t, level);
   if (!colName) return t.h / 2;
-  const idx = t.columns.findIndex(c => c.name.toLowerCase() === colName.toLowerCase());
+  const idx = visibleCols.findIndex(c => c.name.toLowerCase() === colName.toLowerCase());
   if (idx < 0) return HEADER_H / 2;
   return HEADER_H + idx * ROW_H + ROW_H / 2;
 }

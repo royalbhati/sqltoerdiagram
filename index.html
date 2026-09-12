@@ -90,6 +90,56 @@
         <button id="btn-infer" class="btn ghost" title="Auto-detect relationships by column name (for schemas without foreign keys)" data-umami-event="infer-links">Infer links</button>
       </div>
 
+      <!-- undo / redo history -->
+      <div class="tb-group undo-redo-group">
+        <button id="btn-undo" class="btn ghost icon" title="Undo (Ctrl+Z)" aria-label="Undo" disabled>
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px">
+            <path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>
+          </svg>
+        </button>
+        <button id="btn-redo" class="btn ghost icon" title="Redo (Ctrl+Y / Ctrl+Shift+Z)" aria-label="Redo" disabled>
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px">
+            <path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- diagram level (conceptual / logical / physical) -->
+      <div class="tb-group">
+        <div class="menu-wrap" id="diagram-level-wrap">
+          <button id="btn-diagram-level" class="btn ghost caret" title="Diagram abstraction level" data-umami-event="diagram-level-menu">
+            <span id="diagram-level-label">Physical</span>
+          </button>
+          <div id="diagram-level-menu" class="menu diagram-level-menu" hidden>
+            <div class="menu-label">Diagram Level</div>
+            <button class="menu-item active" data-level="physical">
+              <div class="dd-item-left">
+                <div class="dd-item-content">
+                  <span class="dd-item-name">Physical</span>
+                  <span class="dd-item-desc">Full schema with native types &amp; constraints</span>
+                </div>
+              </div>
+            </button>
+            <button class="menu-item" data-level="logical">
+              <div class="dd-item-left">
+                <div class="dd-item-content">
+                  <span class="dd-item-name">Logical</span>
+                  <span class="dd-item-desc">All attributes with generic logical types</span>
+                </div>
+              </div>
+            </button>
+            <button class="menu-item" data-level="conceptual">
+              <div class="dd-item-left">
+                <div class="dd-item-content">
+                  <span class="dd-item-name">Conceptual</span>
+                  <span class="dd-item-desc">Entities &amp; key attributes without types or FKs</span>
+                </div>
+              </div>
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- output: get the diagram out -->
       <div class="tb-group">
         <div class="menu-wrap">
@@ -140,8 +190,9 @@
       <div class="pane-head">
         <div class="pane-head-left">
           <div class="seg" id="mode-toggle" role="tablist" aria-label="Editor mode">
-            <button class="seg-btn active" data-mode="code" role="tab" title="Edit the SQL" data-umami-event="mode-code">Code</button>
+            <button class="seg-btn active" data-mode="code" role="tab" title="Edit the SQL / schema" data-umami-event="mode-code">Code</button>
             <button class="seg-btn" data-mode="visual" role="tab" title="Edit tables &amp; columns visually" data-umami-event="mode-visual">Visual</button>
+            <button class="seg-btn" data-mode="layout" role="tab" title="Edit layout JSON (dddbml format)" data-umami-event="mode-layout">Layout</button>
           </div>
           <span id="status" class="status"></span>
         </div>
@@ -167,6 +218,16 @@
           placeholder="Paste SQL (CREATE TABLE), BigQuery WITH…, Prisma, SQLAlchemy, or Sequelize…"></textarea>
       </div>
       <div class="visual-editor" id="visual-editor" hidden></div>
+      <div class="layout-editor" id="layout-editor" hidden>
+        <div class="layout-editor-bar">
+          <div class="layout-editor-bar-left">
+            <span class="layout-editor-title">schema.dbml.layout.json</span>
+            <span class="layout-editor-hint">Positions &amp; colors sync with diagram</span>
+          </div>
+          <button id="btn-dl-layout" class="btn ghost compact" title="Download schema.dbml.layout.json" data-umami-event="dl-layout">Download</button>
+        </div>
+        <textarea id="layout-json" class="layout-json-textarea" spellcheck="false" autocomplete="off" autocapitalize="off" placeholder="Layout JSON..."></textarea>
+      </div>
     </section>
 
     <div class="splitter" id="splitter" title="Drag to resize"></div>
@@ -215,17 +276,77 @@
       </div>
 
       <div class="zoom-controls">
+        <div class="tool-mode-group">
+          <button id="btn-tool-pan" class="btn ghost icon active" title="Hand tool: Pan the canvas (H / Space)" aria-label="Hand tool" data-umami-event="tool-pan">
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px">
+              <path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"/>
+              <path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"/>
+              <path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"/>
+              <path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/>
+            </svg>
+          </button>
+          <button id="btn-tool-select" class="btn ghost icon" title="Select tool: Area marquee selection (V / Drag)" aria-label="Select tool" data-umami-event="tool-select">
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px">
+              <path d="M3 3l7 18 3-7 7-3L3 3z"/>
+            </svg>
+          </button>
+        </div>
+        <span class="vsep" aria-hidden="true"></span>
         <div class="menu-wrap">
-          <button id="btn-arrange" class="btn ghost caret" title="Auto-arrange tables" data-umami-event="arrange">Arrange</button>
-          <div id="arrange-menu" class="menu up" hidden>
-            <div class="menu-label">Direction</div>
-            <button class="menu-item" data-dir="LR">Horizontal&nbsp;→</button>
-            <button class="menu-item" data-dir="TB">Vertical&nbsp;↓</button>
-            <div class="menu-sep"></div>
-            <div class="menu-label">Spacing</div>
-            <button class="menu-item" data-spacing="compact">Compact</button>
-            <button class="menu-item" data-spacing="comfortable">Comfortable</button>
-            <button class="menu-item" data-spacing="spacious">Spacious</button>
+          <button id="btn-edge-routing" class="btn ghost caret" title="The connections: line style, colors, and organizing them without moving a table" data-umami-event="edge-routing">Lines</button>
+          <div id="routing-menu" class="menu up" hidden style="min-width: 258px;">
+            <button class="menu-section" data-section="line-style" aria-expanded="false" title="How every connection is drawn">Line Style</button>
+            <div class="menu-body" data-section-body="line-style" hidden>
+              <button class="menu-item" data-routing="curved">Curved (Bezier)</button>
+              <button class="menu-item" data-routing="straight">Straight (Direct)</button>
+              <button class="menu-item" data-routing="ortho-sharp">90&deg; Step (Sharp)</button>
+              <button class="menu-item" data-routing="ortho-rounded">90&deg; Step (Rounded)</button>
+            </div>
+            <button class="menu-section" data-section="connection-colors" aria-expanded="false" title="Whether the connections are told apart by color">Connection Colors</button>
+            <div class="menu-body" data-section-body="connection-colors" hidden>
+              <button class="menu-item" data-edge-colors="multi" title="A color per source table, so each set of connections is easy to follow">Multicolor</button>
+              <button class="menu-item" data-edge-colors="single" title="Every connection in the theme color">Single color</button>
+            </div>
+            <button class="menu-section" data-section="organize-lines" aria-expanded="false" title="Re-draws the connections without moving a single table">Organize Lines</button>
+            <div class="menu-body" data-section-body="organize-lines" hidden>
+              <button class="menu-item" id="btn-route-reset-lines" title="Instant. Puts every connection back to its automatic straight route, dropping the vertices and the moved anchors. Measured on 35 tables laid out with Short lines, compact: 8 crossings, 1,452 px of line drawn on top of another line, and 26 stretches cutting straight through a table.">Direct</button>
+              <button class="menu-item" id="btn-route-elk-ports" title="Instant (8 ms). Spreads the connection points around each table and sends the lines down shared channels, so they almost never end up drawn on top of each other: 96 px of overlap against 1,452 with Direct. It does not go around the tables, so 17 stretches still cut through one, and it leaves more crossings (21 against 8).">Ports and channels</button>
+              <button class="menu-item" id="btn-route-astar-grid" title="Almost instant (28 ms on 35 tables, 130 ms with groups). Gives each line a 90 degree path around the tables in its way: only 5 stretches cut through a table, against 26 with Direct. Lines can still run on top of each other (1,350 px) and it leaves more crossings than Direct (20 against 8).">Around tables</button>
+              <button class="menu-item" id="btn-route-shortest-path" title="The works, and the slowest by far: 2 s on 35 tables, 7 s on 60, and 23 s when there are group boxes to get around. Clears the vertices and anchors and recalculates every line as the shortest 90 degree route between any two points of both perimeters. The only one that reaches zero: no line over another line, no line through a table, the fewest crossings (8) and the shortest total length.">Optimal Route<svg class="mi-hint" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 1.8"/></svg></button>
+            </div>
+          </div>
+        </div>
+        <span class="vsep" aria-hidden="true"></span>
+        <div class="menu-wrap">
+          <button id="btn-arrange" class="btn ghost caret" title="The tables and their groups: rearrange, direction and spacing" data-umami-event="arrange">Tables</button>
+          <div id="arrange-menu" class="menu up" hidden style="min-width: 252px;">
+            <button class="menu-section" data-section="rearrange" aria-expanded="false" title="Moves the tables with one of these methods. Only one of them can be picked.">Rearrange</button>
+            <div class="menu-body" data-section-body="rearrange" hidden>
+              <div class="menu-label" title="Places every table on its own. Group boxes are ignored, and none is created.">Tables without groups</div>
+              <button class="menu-item active" data-algo="dagre">Hierarchical (Dagre)</button>
+              <button class="menu-item" data-algo="force">Physics (Force-Directed)</button>
+              <button class="menu-item" data-algo="radial">Radial Hub &amp; Satellites</button>
+              <div class="menu-label" title="Keeps each group whole and places the groups themselves. With no groups on the canvas, all the tables are treated as one invisible group: they are arranged just the same, and no box is drawn.">Tables with groups</div>
+              <button class="menu-item" id="btn-groups-fast-grid" title="Instant (4 ms). Spreads the groups over a grid and the tables in list order, without looking at the relations. Square canvas (1.03:1). Measured on 35 tables / 8 groups: 84 crossings, 76,098 px of line, longest 4,247 px, 93 vertices, 21.8% of the canvas is table. Clears the current vertices and anchors.">Fast grid</button>
+              <button class="menu-item" id="btn-groups-single-axis" title="Packs the tables, and then the groups, into the cells of a grid: it tries every sensible number of columns and keeps swapping pairs while that shortens or untangles the lines. No dagre anywhere. With groups it tends to end up stacking them in one column, so the canvas comes out tall and narrow (3.54:1), and takes 186 ms on 35 tables / 8 groups: 59 crossings, 82,644 px of line, longest 6,282 px, 73 vertices, 13.2% of the canvas is table. Without groups it searches over the whole diagram, which gives the fewest crossings of the four but is by far the slowest: 1.5 s at 60 tables, 10 s at 100, 50 s at 150. Clears the current vertices and anchors.">Optimized grid</button>
+              <button class="menu-item" id="btn-groups-min-crossings" title="1.8 s. Dagre inside and outside the groups, with nothing constraining the shape. The fewest crossings and vertices of the four, but a wide canvas (2.85:1). Measured on 35 tables / 8 groups: 44 crossings, 55,915 px of line, longest 4,323 px, 68 vertices, 21.9% of the canvas is table. Without groups this is plain dagre over every table, which comes out as a strip. Clears the current vertices and anchors.">Fewest crossings</button>
+              <button class="menu-item" id="btn-groups-compact" title="2.4 s. Dagre orders and a grid decides the shape. The shortest lines and the best used canvas, close to screen proportions (1.36:1). Measured on 35 tables / 8 groups: 69 crossings, 44,748 px of line, longest 2,843 px, 78 vertices, 30.2% of the canvas is table. Without groups it wraps the dagre order into screen-shaped bands and polishes by swapping tables (35 tables without groups: 1.06:1, 16,136 px of line, 87 ms). Clears the current vertices and anchors. Then apply Optimal Route for the final drawing.">Short lines, compact<svg class="mi-hint" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 1.8"/></svg></button>
+              <div class="menu-label" title="Reads the table names and relations to group the schema into business domains, then arranges it.">Tables by AI</div>
+              <button class="menu-item" id="btn-arrange-ai" title="Groups the tables by semantic domain and rearranges the diagram, locally or with Gemini">Rearrange with AI...<svg class="mi-hint" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg></button>
+            </div>
+            <button class="menu-section" data-section="direction" aria-expanded="false" title="Turns the current diagram so it flows that way. Every table stays upright, the groups re-fit and the lines turn with it (only the ones that no longer run clean are re-routed). As long as you touch nothing, every direction is remembered, and coming back to one restores it exactly. Every rearrange starts left to right.">Direction</button>
+            <div class="menu-body" data-section-body="direction" hidden>
+              <button class="menu-item active" data-orient="LR" title="Horizontal, left to right"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;vertical-align:-2px;margin-right:6px" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>Left to right</button>
+              <button class="menu-item" data-orient="RL" title="Horizontal, right to left"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;vertical-align:-2px;margin-right:6px" aria-hidden="true"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>Right to left</button>
+              <button class="menu-item" data-orient="TB" title="Vertical, top to bottom"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;vertical-align:-2px;margin-right:6px" aria-hidden="true"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>Top to bottom</button>
+              <button class="menu-item" data-orient="BT" title="Vertical, bottom to top"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;vertical-align:-2px;margin-right:6px" aria-hidden="true"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>Bottom to top</button>
+            </div>
+            <button class="menu-section" data-section="spacing" aria-expanded="false" title="Applies to every rearrange method. Comfortable reproduces exactly the values each one was measured with; the corridors between groups scale at half the factor, because widening them costs routing quality more than widening the gaps between tables.">Spacing</button>
+            <div class="menu-body" data-section-body="spacing" hidden>
+              <button class="menu-item" data-spacing="compact">Compact</button>
+              <button class="menu-item active" data-spacing="comfortable">Comfortable</button>
+              <button class="menu-item" data-spacing="spacious">Spacious</button>
+            </div>
           </div>
         </div>
         <button id="btn-fit" class="btn ghost" title="Fit diagram to screen" data-umami-event="fit">Fit</button>
@@ -236,6 +357,62 @@
       </div>
     </section>
   </main>
+
+  <!-- Modal: Rearrange with AI -->
+  <div id="modal-ai-arrange" class="modal-backdrop" hidden>
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent); width: 20px; height: 20px;">
+            <path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/>
+          </svg>
+          <span>Rearrange with AI</span>
+        </div>
+        <button id="btn-close-ai-modal" class="btn ghost icon" aria-label="Close modal">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <p class="modal-desc">
+          Reads the table names, columns and relations to group your database into business domains, and lays them out as clearly as it can, with no line crossing a table.
+        </p>
+
+        <div class="form-group">
+          <label for="ai-gemini-key">Gemini API Key <span class="badge-optional">(optional)</span></label>
+          <input type="password" id="ai-gemini-key" class="input-text" placeholder="Paste your Gemini API key here..." autocomplete="off">
+          <div class="form-hint">
+            With no key, the built-in <strong>local semantic AI</strong> runs inside your browser and nothing is sent to the internet. A free key is available at <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Google AI Studio</a>.
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="ai-line-style">Line style when rearranging</label>
+          <select id="ai-line-style" class="input-text">
+            <option value="ortho-rounded" selected>90&deg; Step Rounded (recommended, lines through free channels)</option>
+            <option value="curved">Smart Curves (Bezier)</option>
+          </select>
+        </div>
+
+        <div class="form-check">
+          <label>
+            <input type="checkbox" id="ai-create-groups" checked>
+            <span>Create a group box (<code>TableGroup</code>) for every business domain</span>
+          </label>
+        </div>
+
+        <div id="ai-status" class="ai-status-box" hidden>
+          <div class="spinner"></div>
+          <span id="ai-status-text">Analyzing schema...</span>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button id="btn-cancel-ai" class="btn ghost">Cancel</button>
+        <button id="btn-run-existing-groups" class="btn ghost" title="Arranges the diagram keeping the groups you already have">Arrange current groups</button>
+        <button id="btn-run-local-ai" class="btn ghost">Run with local AI</button>
+        <button id="btn-run-gemini-ai" class="btn primary">Run with Gemini</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Crawlable content for search engines (long-tail keywords + matches the FAQ schema) -->
   <section class="sr-only" aria-label="About SQL to ER Diagram">

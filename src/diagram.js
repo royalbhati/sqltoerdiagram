@@ -1,8 +1,9 @@
 // Diagram controller: owns the camera, input handling (pan / zoom / drag),
 // the render loop, edge routing and export. Renders only when dirty and only
 // what is on screen.
-import { THEMES, rasterizeTable, columnY, measureTable, ROW_H, HEADER_H } from './renderer.js';
-import { NOTE_COLORS, GROUP_COLORS, NOTE_ORDER, GROUP_ORDER, makeAnnotation } from './annotations.js';
+import { THEMES, rasterizeTable, columnY, measureTable, getVisibleColumns, ROW_H, HEADER_H, EDGE_COLORS } from './renderer.js';
+import { NOTE_COLORS, GROUP_COLORS, NOTE_ORDER, GROUP_ORDER, makeAnnotation, resolveGroupColor, computeGroupBounds } from './annotations.js';
+import { ROUTING_STYLES, getTableAnchor, drawRoutePath, distanceToRoute, pointToSegmentDistance, buildOrthogonalPoints, getOrthogonalSegments, moveOrthogonalSegment, moveOrthogonalCorner, cleanOrthogonalPoints, filterRedundantWaypoints, projectPointToPerimeter } from './routing.js';
 import { relationCardinality } from './cardinality.js';
 import { inferLinks as inferLinksCore } from './infer-links.js';
 
@@ -13,6 +14,8 @@ export class Diagram {
     this.dpr = Math.min(window.devicePixelRatio || 1, 2);
     this.cam = { x: 0, y: 0, scale: 1 };
     this.model = { tables: [], relations: [] };
+    this.diagramLevel = 'physical'; // 'physical' | 'logical' | 'conceptual'
+    this.onDiagramLevelChange = null; // fired when diagramLevel changes
     this.themeName = 'dark';
     this.theme = THEMES.dark;
     this.bitmaps = new Map();      // table.key -> offscreen canvas
@@ -22,10 +25,28 @@ export class Diagram {
     this.dragGroup = null;         // active multi-table drag
     this.marquee = null;           // active rubber-band selection (world coords)
     this.selected = new Set();     // multi-selected tables (for group drag)
+    this.selectedAnnos = new Set();// multi-selected annotations/groups
+    this.toolMode = 'pan';         // 'pan' | 'select'
+    this._potentialSingleSelect = null; // clicked table in multi-selection to collapse on mouseup if not dragged
+    this._potentialSingleAnno = null;   // clicked annotation in multi-selection
+    this.onToolModeChange = null;  // fired when toolMode changes
     this.hidden = new Set();       // keys of hidden tables (node + edges suppressed)
     this.onHiddenChange = null;    // fired when the hidden set changes
     this.onSelectionChange = null; // fired when the selected set changes
     this.manualLinks = [];         // user-drawn / inferred links {from:{table,col},to:{table,col}}
+    this.edgeColorMode = 'multi';  // 'multi' | 'single'
+    this.edgeColors = new Map();   // relKey -> hex/color
+    this.edgeRouting = 'curved';   // 'curved' | 'straight' | 'ortho-sharp' | 'ortho-rounded'
+    this.orientation = 'LR';       // 'LR' | 'TB' — which way the canvas is turned (rotate-diagram.js)
+    this.edgeRoutings = new Map(); // relKey -> routing style override
+    this.edgeWaypoints = new Map();// relKey -> [{ x, y }, ...]
+    this.edgeAnchors = new Map();  // relKey -> { fromAnchor: { side, offset }, toAnchor: { side, offset } }
+    this.vertexDrag = null;        // active waypoint drag
+    this.segmentDrag = null;       // active orthogonal segment drag (dbdiagram.io style)
+    this.anchorDrag = null;        // active anchor drag along table perimeter
+    this.selectedEdgeKey = null;   // selected connection for waypoint editing
+    this.hoverEdge = null;         // edge under cursor {key, ...}
+    this.hoverVertex = null;       // vertex/anchor handle under cursor {key, index, isWaypoint, isAnchor}
     this.hoverConn = null;         // {t, colIndex} — column row showing connector dots
     this.linking = null;           // in-progress link drag {fromKey, fromCol, side, wx, wy, cx, cy}
     this.pan = null;               // active background pan
@@ -40,9 +61,10 @@ export class Diagram {
     this.editable = true;          // false for parse-only formats (Prisma/ORM) — no edit-back
     this.typeSuggestions = [];     // dialect type list for the type editor
     this.annotations = [];         // group boxes + sticky notes
-    this.selectedAnno = null;      // currently selected annotation
     this.annoDrag = null;          // annotation move
     this.annoResize = null;        // annotation resize
+    this.onHistorySnapshot = null; // callback(snapshot) for Undo/Redo
+    this._preDragSnapshot = null;  // snapshot taken before drag starts
 
     this._bindInput();
     this._loop = this._loop.bind(this);
@@ -54,23 +76,122 @@ export class Diagram {
     for (const t of model.tables) {
       // always size every table — layout() may be skipped on live edits, but
       // the renderer & fit need w/h regardless.
-      const dims = measureTable(t);
+      const dims = measureTable(t, this.diagramLevel);
       t.w = dims.w; t.h = dims.h; t.rowH = dims.rowH; t.headerH = dims.headerH;
       const old = prev.get(t.key);
       if (old && Number.isFinite(old.x)) { t.x = old.x; t.y = old.y; }
     }
     this.model = model;
+    this.fitAllGroups();
     this.bitmaps.clear();
     this._tmapDirty = true;
     this.pinned = null;
     this.pinnedKeys = null;
     this.selected = new Set();
     this.dragGroup = null;
-    this.marquee = null;
     this.linking = null;
     this.hoverConn = null;
     this.markDirty();
-    if (!keepCamera) {/* caller may fit */}
+    if (!keepCamera) {/* caller may fit */ }
+  }
+
+  setDiagramLevel(level) {
+    if (!['physical', 'logical', 'conceptual'].includes(level)) return;
+    if (this.diagramLevel === level) return;
+    this.diagramLevel = level;
+    for (const t of (this.model.tables || [])) {
+      const oldH = t.h;
+      const dims = measureTable(t, this.diagramLevel);
+      t.w = dims.w;
+      t.h = dims.h;
+      t.rowH = dims.rowH;
+      t.headerH = dims.headerH;
+      if (Number.isFinite(t.y) && Number.isFinite(oldH)) {
+        t.y = Math.round(t.y + (oldH - t.h) / 2);
+      }
+    }
+    this.fitAllGroups();
+    this.bitmaps.clear();
+    this._tmapDirty = true;
+    this.markDirty();
+    this.onDiagramLevelChange?.(this.diagramLevel);
+    this.onLayoutChange?.();
+  }
+
+  getSnapshot() {
+    const tables = {};
+    for (const t of this.model.tables) {
+      if (Number.isFinite(t.x)) tables[t.key] = { x: Math.round(t.x), y: Math.round(t.y) };
+    }
+    return {
+      tables,
+      diagramLevel: this.diagramLevel,
+      annotations: this.annotations.map(a => ({ ...a, tables: a.tables ? [...a.tables] : [] })),
+      edgeColorMode: this.edgeColorMode,
+      edgeColors: Array.from(this.edgeColors.entries()),
+      edgeRouting: this.edgeRouting,
+      orientation: this.orientation,
+      edgeRoutings: Array.from(this.edgeRoutings.entries()),
+      edgeWaypoints: Array.from(this.edgeWaypoints.entries()).map(([k, pts]) => [k, pts.map(p => ({ x: p.x, y: p.y }))]),
+      edgeAnchors: Array.from(this.edgeAnchors.entries()).map(([k, a]) => [k, { ...a }]),
+      manualLinks: this.manualLinks.map(l => ({ from: { ...l.from }, to: { ...l.to } })),
+      hidden: Array.from(this.hidden),
+    };
+  }
+
+  applySnapshot(snapshot) {
+    if (!snapshot) return;
+    if (snapshot.diagramLevel && snapshot.diagramLevel !== this.diagramLevel) {
+      this.setDiagramLevel(snapshot.diagramLevel);
+    }
+    if (snapshot.tables) {
+      for (const t of this.model.tables) {
+        const p = snapshot.tables[t.key] || snapshot.tables[t.name];
+        if (p && Number.isFinite(p.x)) { t.x = p.x; t.y = p.y; }
+      }
+    }
+    if (snapshot.annotations) {
+      this.annotations = snapshot.annotations.map(a => ({ ...a, tables: a.tables ? [...a.tables] : [] }));
+    }
+    if (snapshot.edgeColorMode) {
+      this.edgeColorMode = snapshot.edgeColorMode;
+    }
+    if (snapshot.edgeColors) {
+      this.edgeColors = new Map(snapshot.edgeColors);
+    }
+    if (snapshot.edgeRouting) {
+      this.edgeRouting = snapshot.edgeRouting;
+    }
+    // Undoing a turn has to un-turn the orientation too, or the Direction menu
+    // would claim "Vertical" over a diagram that is horizontal again.
+    if (snapshot.orientation) {
+      this.orientation = snapshot.orientation;
+    }
+    if (snapshot.edgeRoutings) {
+      this.edgeRoutings = new Map(snapshot.edgeRoutings);
+    }
+    if (snapshot.edgeWaypoints) {
+      this.edgeWaypoints = new Map(snapshot.edgeWaypoints.map(([k, pts]) => [k, pts.map(p => ({ x: p.x, y: p.y }))]));
+    } else {
+      this.edgeWaypoints.clear();
+    }
+    if (snapshot.edgeAnchors) {
+      this.edgeAnchors = new Map(snapshot.edgeAnchors.map(([k, a]) => [k, { ...a }]));
+    } else {
+      this.edgeAnchors.clear();
+    }
+    if (snapshot.manualLinks) {
+      this.manualLinks = snapshot.manualLinks.map(l => ({ from: { ...l.from }, to: { ...l.to } }));
+    }
+    if (snapshot.hidden) {
+      this.hidden = new Set(snapshot.hidden);
+    }
+    this.selectedEdgeKey = null;
+    this.hoverEdge = null;
+    this.hoverVertex = null;
+    this.fitAllGroups();
+    this.markDirty();
+    this.onHiddenChange?.();
   }
 
   // The table whose relationships should be emphasised: a click-pinned table
@@ -103,13 +224,15 @@ export class Diagram {
   editColumn(tableKey, colName) {
     const t = this.model.tables.find(x => x.key === tableKey);
     if (!t) return;
-    const idx = t.columns.findIndex(c => c.name === colName);
+    const visibleCols = getVisibleColumns(t, this.diagramLevel);
+    const idx = visibleCols.findIndex(c => c.name === colName);
     if (idx < 0) return;
     const rowY = t.y + HEADER_H + idx * ROW_H;
     const split = t.x + t.w * 0.58;
+    const w = this.diagramLevel === 'conceptual' ? t.w - 42 : split - (t.x + 30);
     this._beginEdit({
       table: t, kind: 'column-name', colName, value: colName,
-      rect: { x: t.x + 30, y: rowY, w: split - (t.x + 30), h: ROW_H },
+      rect: { x: t.x + 30, y: rowY, w, h: ROW_H },
       align: 'left', weight: 400,
     });
   }
@@ -164,7 +287,7 @@ export class Diagram {
   _bitmap(t) {
     let bm = this.bitmaps.get(t.key);
     if (!bm) {
-      bm = rasterizeTable(t, this.theme, this.dpr);
+      bm = rasterizeTable(t, this.theme, this.dpr, this.diagramLevel);
       this.bitmaps.set(t.key, bm);
     }
     return bm;
@@ -199,7 +322,7 @@ export class Diagram {
     for (const t of this.model.tables) {
       if (!Number.isFinite(t.x) || this.hidden.has(t.key)) continue;
       if (t.x > vx1 + margin || t.x + t.w < vx0 - margin ||
-          t.y > vy1 + margin || t.y + t.h < vy0 - margin) continue;
+        t.y > vy1 + margin || t.y + t.h < vy0 - margin) continue;
       const bm = this._bitmap(t);
       const dim = pinned && !this.pinnedKeys.has(t.key);
       ctx.save();
@@ -213,12 +336,21 @@ export class Diagram {
       ctx.drawImage(bm, t.x, t.y, t.w, t.h);
       ctx.restore();
 
-      const emphasised = this.hover === t || this.drag?.t === t || pinned === t || this.selected.has(t);
+      const isSelected = this.selected.has(t);
+      const emphasised = this.hover === t || this.drag?.t === t || pinned === t || isSelected;
       if (emphasised) {
         ctx.strokeStyle = theme.edgeHi;
-        ctx.lineWidth = (pinned === t || this.selected.has(t) ? 2.5 : 2) / cam.scale;
+        ctx.lineWidth = (pinned === t || isSelected ? 2.5 : 2) / cam.scale;
         roundRectPath(ctx, t.x, t.y, t.w, t.h, 10);
         ctx.stroke();
+
+        // If multiple tables are selected, draw an outer accent glow
+        if (isSelected && (this.selected.size > 1 || this.selectedAnnos.size > 0)) {
+          ctx.strokeStyle = hexA(theme.edgeHi, 0.35);
+          ctx.lineWidth = 4.5 / cam.scale;
+          roundRectPath(ctx, t.x - 2 / cam.scale, t.y - 2 / cam.scale, t.w + 4 / cam.scale, t.h + 4 / cam.scale, 12);
+          ctx.stroke();
+        }
       }
     }
 
@@ -272,6 +404,23 @@ export class Diagram {
       dot(ctx, k.wx, k.wy, 4 / cam.scale);
       ctx.restore();
     }
+
+    // in-progress anchor reconnect drag (preview highlight)
+    if (this.anchorDrag && this.anchorDrag.candidateTarget) {
+      const tgt = this.anchorDrag.candidateTarget.table;
+      ctx.save();
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 2.5 / cam.scale;
+      ctx.setLineDash([6 / cam.scale, 4 / cam.scale]);
+      if (ctx.roundRect) {
+        ctx.beginPath();
+        ctx.roundRect(tgt.x - 3, tgt.y - 3, tgt.w + 6, tgt.h + 6, 12);
+        ctx.stroke();
+      } else {
+        ctx.strokeRect(tgt.x - 3, tgt.y - 3, tgt.w + 6, tgt.h + 6);
+      }
+      ctx.restore();
+    }
   }
 
   // left/right connector dot positions for a column row (world coords)
@@ -287,18 +436,18 @@ export class Diagram {
 
   _drawGroup(a, cull) {
     if (!this._annoVisible(a, cull)) return;
-    const { ctx, cam } = this;
-    const color = GROUP_COLORS[a.color] || GROUP_COLORS.blue;
+    const { ctx, cam, theme } = this;
+    const color = resolveGroupColor(a.color);
     ctx.save();
     roundRectPath(ctx, a.x, a.y, a.w, a.h, 12);
     ctx.fillStyle = hexA(color, 0.08);
     ctx.fill();
-    ctx.strokeStyle = hexA(color, 0.7);
-    ctx.lineWidth = 1.5 / cam.scale;
+    ctx.strokeStyle = (this.selectedAnnos.has(a) || this.selectedAnno === a) ? theme.edgeHi : hexA(color, 0.7);
+    ctx.lineWidth = ((this.selectedAnnos.has(a) || this.selectedAnno === a) ? 2.5 : 1.5) / cam.scale;
     ctx.stroke();
     // label in the header strip
     if (a.text) {
-      ctx.fillStyle = color;
+      ctx.fillStyle = (this.selectedAnnos.has(a) || this.selectedAnno === a) ? theme.edgeHi : color;
       ctx.font = `600 ${13 / cam.scale}px ui-sans-serif, system-ui, sans-serif`;
       ctx.textBaseline = 'middle';
       ctx.textAlign = 'left';
@@ -310,7 +459,7 @@ export class Diagram {
 
   _drawNote(a, cull) {
     if (!this._annoVisible(a, cull)) return;
-    const { ctx, cam } = this;
+    const { ctx, cam, theme } = this;
     const c = NOTE_COLORS[a.color] || NOTE_COLORS.yellow;
     ctx.save();
     ctx.shadowColor = 'rgba(0,0,0,0.25)';
@@ -400,10 +549,36 @@ export class Diagram {
   setAnnotations(arr) {
     this.annotations = Array.isArray(arr) ? arr : [];
     this.selectedAnno = null;
+    this.fitAllGroups();
     this.markDirty();
   }
 
+  fitAllGroups() {
+    if (!this.annotations?.length || !this.model?.tables?.length) return false;
+    let changed = false;
+    for (const a of this.annotations) {
+      if (a.type === 'group' && Array.isArray(a.tables) && a.tables.length > 0) {
+        const bounds = computeGroupBounds(a, this.model.tables);
+        if (bounds) {
+          if (a.x !== bounds.x || a.y !== bounds.y || a.w !== bounds.w || a.h !== bounds.h) {
+            a.x = bounds.x;
+            a.y = bounds.y;
+            a.w = bounds.w;
+            a.h = bounds.h;
+            changed = true;
+          }
+        }
+      }
+    }
+    if (changed) {
+      this.markDirty();
+      this.onLayoutChange?.();
+    }
+    return changed;
+  }
+
   addAnnotation(type) {
+    this.onHistorySnapshot?.(this.getSnapshot());
     const center = this.screenToWorld(this.viewW / 2, this.viewH / 2);
     const a = makeAnnotation(type, center.x, center.y);
     this.annotations.push(a);
@@ -417,11 +592,28 @@ export class Diagram {
 
   deleteSelectedAnnotation() {
     if (!this.selectedAnno) return;
+    this.onHistorySnapshot?.(this.getSnapshot());
     const i = this.annotations.indexOf(this.selectedAnno);
     if (i >= 0) this.annotations.splice(i, 1);
     this.selectedAnno = null;
     this.markDirty();
     this.onLayoutChange?.();
+  }
+
+  _fitGroupsForTable(tableKey) {
+    if (!this.annotations?.length || !tableKey) return;
+    const tk = String(tableKey).toLowerCase();
+    for (const a of this.annotations) {
+      if (a.type === 'group' && Array.isArray(a.tables) && a.tables.includes(tk)) {
+        const bounds = computeGroupBounds(a, this.model.tables);
+        if (bounds) {
+          a.x = bounds.x;
+          a.y = bounds.y;
+          a.w = bounds.w;
+          a.h = bounds.h;
+        }
+      }
+    }
   }
 
   // topmost note, then group (notes render above groups)
@@ -438,11 +630,26 @@ export class Diagram {
     return null;
   }
 
-  _groupAt(sx, sy) {
+  _groupAt(sx, sy, headerOrBorderOnly = false) {
     const w = this.screenToWorld(sx, sy);
+    const tol = Math.max(8, 10 / this.cam.scale);
     for (let i = this.annotations.length - 1; i >= 0; i--) {
       const a = this.annotations[i];
-      if (a.type === 'group' && inside(w, a)) return a;
+      if (a.type !== 'group') continue;
+      if (!inside(w, a)) continue;
+
+      if (!headerOrBorderOnly) return a;
+
+      const headerH = Math.max(28, 30 / this.cam.scale);
+      const isHeader = w.y <= a.y + headerH;
+      const isNearLeft = Math.abs(w.x - a.x) <= tol;
+      const isNearRight = Math.abs(w.x - (a.x + a.w)) <= tol;
+      const isNearBottom = Math.abs(w.y - (a.y + a.h)) <= tol;
+      const isNearTop = Math.abs(w.y - a.y) <= tol;
+
+      if (isHeader || isNearLeft || isNearRight || isNearBottom || isNearTop) {
+        return a;
+      }
     }
     return null;
   }
@@ -454,7 +661,17 @@ export class Diagram {
     this.pinned = null; this.pinnedKeys = null;
     const ai = this.annotations.indexOf(a);
     this.annotations.splice(ai, 1); this.annotations.push(a);
-    this.annoDrag = { a, dx: w.x - a.x, dy: w.y - a.y, moved: false };
+
+    const tableOffsets = [];
+    if (a.type === 'group' && a.tables && a.tables.length) {
+      const keys = new Set(a.tables.map(k => String(k).toLowerCase()));
+      for (const t of this.model.tables) {
+        if (keys.has(t.key) && Number.isFinite(t.x)) {
+          tableOffsets.push({ t, ox: t.x - a.x, oy: t.y - a.y });
+        }
+      }
+    }
+    this.annoDrag = { a, dx: w.x - a.x, dy: w.y - a.y, moved: false, tableOffsets };
     this.markDirty();
   }
 
@@ -471,7 +688,7 @@ export class Diagram {
     if ((w.x - del.cx) ** 2 + (w.y - del.cy) ** 2 <= (del.r * 1.4) ** 2) return { kind: 'delete' };
     const rz = rects.resize;
     if (w.x >= rz.x - 4 / this.cam.scale && w.x <= rz.x + rz.w + 4 / this.cam.scale &&
-        w.y >= rz.y - 4 / this.cam.scale && w.y <= rz.y + rz.h + 4 / this.cam.scale) return { kind: 'resize' };
+      w.y >= rz.y - 4 / this.cam.scale && w.y <= rz.y + rz.h + 4 / this.cam.scale) return { kind: 'resize' };
     return null;
   }
 
@@ -562,24 +779,80 @@ export class Diagram {
     ctx.stroke();
   }
 
-  // bezier segment between two table columns (or null if not drawable / off-screen)
-  _edgeSeg(fromKey, fromCol, toKey, toCol, cull) {
+  // Compute connection endpoint anchors and route data for an edge
+  _edgeSeg(fromKey, fromCol, toKey, toCol, cull, key = '', fromLaneOffset = 0, toLaneOffset = null, corridorLaneOffset = null) {
+    const effectiveToOffset = toLaneOffset !== null ? toLaneOffset : fromLaneOffset;
+    const effectiveCorridorOffset = corridorLaneOffset !== null ? corridorLaneOffset : fromLaneOffset;
+
     const byKey = this._tableMap();
     const from = byKey.get(fromKey), to = byKey.get(toKey);
     if (!from || !to || !Number.isFinite(from.x) || !Number.isFinite(to.x)) return null;
     if (this.hidden.has(from.key) || this.hidden.has(to.key)) return null;
-    const fy = from.y + columnY(from, fromCol);
-    const ty = to.y + columnY(to, toCol);
-    const fromRight = (from.x + from.w / 2) < (to.x + to.w / 2);
-    const fx = fromRight ? from.x + from.w : from.x;
-    const tx = fromRight ? to.x : to.x + to.w;
-    if (cull) {
-      const minX = Math.min(fx, tx), maxX = Math.max(fx, tx);
-      const minY = Math.min(fy, ty), maxY = Math.max(fy, ty);
-      if (maxX < cull.x0 || minX > cull.x1 || maxY < cull.y0 || minY > cull.y1) return null;
+
+    const lk = key ? key.toLowerCase() : '';
+    const waypoints = (lk ? this.edgeWaypoints.get(lk) : null) || this.edgeWaypoints.get(key) || [];
+    const anchorCfg = (lk ? this.edgeAnchors.get(lk) : null) || this.edgeAnchors.get(key);
+
+    const targetForFrom = waypoints.length
+      ? waypoints[0]
+      : (to ? { x: to.x + to.w / 2, y: to.y + to.h / 2 } : null);
+    const targetForTo = waypoints.length
+      ? waypoints[waypoints.length - 1]
+      : (from ? { x: from.x + from.w / 2, y: from.y + from.h / 2 } : null);
+
+    const p1 = getTableAnchor(from, fromCol, targetForFrom, anchorCfg?.fromAnchor, fromLaneOffset, this.diagramLevel);
+    const p2 = getTableAnchor(to, toCol, targetForTo, anchorCfg?.toAnchor, effectiveToOffset, this.diagramLevel);
+
+    const routingStyle = (lk ? this.edgeRoutings.get(lk) : null) || this.edgeRoutings.get(key) || this.edgeRouting || 'curved';
+    const isOrthogonal = routingStyle === 'ortho-sharp' || routingStyle === 'ortho-rounded';
+
+    const obstacles = [];
+    for (const t of this.model.tables) {
+      if (t.key !== fromKey && t.key !== toKey && Number.isFinite(t.x) && !this.hidden.has(t.key)) {
+        obstacles.push(t);
+      }
     }
-    const dx = Math.max(28, Math.abs(tx - fx) * 0.4);
-    return { fx, fy, tx, ty, c1x: fx + (fromRight ? dx : -dx), c2x: tx + (fromRight ? -dx : dx), fromKey, toKey };
+
+    return {
+      key,
+      p1, p2,
+      fx: p1.x, fy: p1.y, tx: p2.x, ty: p2.y,
+      c1x: p1.x + (p1.nx || 1) * 30, c2x: p2.x + (p2.nx || -1) * 30,
+      fromKey, toKey,
+      fromTable: from, toTable: to,
+      waypoints,
+      obstacles,
+      routingStyle,
+      isOrthogonal,
+      laneOffset: effectiveCorridorOffset,
+    };
+  }
+
+  _edgeSegForDrag(key) {
+    if (!key) return null;
+    const lk = key.toLowerCase();
+    for (const r of this.model.relations) {
+      const k = `${r.fromTable.toLowerCase()}.${(r.fromCols[0] || '').toLowerCase()}->${r.toTable.toLowerCase()}.${(r.toCols[0] || '').toLowerCase()}`;
+      if (k === lk) {
+        return this._edgeSeg(r.fromTable.toLowerCase(), r.fromCols[0], r.toTable.toLowerCase(), r.toCols[0], null, key);
+      }
+    }
+    for (const l of this.manualLinks) {
+      const k = `${l.from.table.toLowerCase()}.${(l.from.col || '').toLowerCase()}->${l.to.table.toLowerCase()}.${(l.to.col || '').toLowerCase()}`;
+      if (k === lk) {
+        return this._edgeSeg(l.from.table.toLowerCase(), l.from.col, l.to.table.toLowerCase(), l.to.col, null, key);
+      }
+    }
+    const parts = key.split('->');
+    if (parts.length !== 2) return null;
+    const [fPart, tPart] = parts;
+    const lastDotF = fPart.lastIndexOf('.');
+    const lastDotT = tPart.lastIndexOf('.');
+    const fTable = lastDotF !== -1 ? fPart.slice(0, lastDotF) : fPart;
+    const fCol = lastDotF !== -1 ? fPart.slice(lastDotF + 1) : '';
+    const tTable = lastDotT !== -1 ? tPart.slice(0, lastDotT) : tPart;
+    const tCol = lastDotT !== -1 ? tPart.slice(lastDotT + 1) : '';
+    return this._edgeSeg(fTable, fCol, tTable, tCol, null, key);
   }
 
   _drawEdges(vx0, vy0, vx1, vy1) {
@@ -594,48 +867,246 @@ export class Diagram {
     // FK relations carry crow's-foot cardinality; manual links stay neutral.
     const byKey = this._tableMap();
     const edges = [];
-    for (const r of this.model.relations) edges.push({ fk: r.fromTable.toLowerCase(), tk: r.toTable.toLowerCase(), fc: r.fromCols[0], tc: r.toCols[0], manual: false, card: relationCardinality(r, byKey) });
-    for (const l of this.manualLinks) edges.push({ fk: l.from.table, tk: l.to.table, fc: l.from.col, tc: l.to.col, manual: true, card: null });
+    for (const r of this.model.relations) {
+      const fk = r.fromTable.toLowerCase();
+      const tk = r.toTable.toLowerCase();
+      const fc = r.fromCols[0];
+      const tc = r.toCols[0];
+      const key = `${fk}.${(fc || '').toLowerCase()}->${tk}.${(tc || '').toLowerCase()}`;
+      edges.push({ fk, tk, fc, tc, manual: false, card: relationCardinality(r, byKey), key });
+    }
+    for (const l of this.manualLinks) {
+      const fk = l.from.table.toLowerCase();
+      const tk = l.to.table.toLowerCase();
+      const fc = l.from.col;
+      const tc = l.to.col;
+      const key = `${fk}.${(fc || '').toLowerCase()}->${tk}.${(tc || '').toLowerCase()}`;
+      edges.push({ fk, tk, fc, tc, manual: true, card: null, key });
+    }
 
+    // Calculate lane offsets for parallel edges
+    const pairCounts = new Map();
+    const pairIndices = new Map();
     for (const e of edges) {
-      const seg = this._edgeSeg(e.fk, e.fc, e.tk, e.tc, cull);
-      if (!seg) continue;
-      seg.manual = e.manual;
-      seg.card = e.card;
-      const connected = focusKey && (seg.fromKey === focusKey || seg.toKey === focusKey);
-      if (focusKey) {
-        if (connected) { highlighted.push(seg); continue; }
-        this._stroke(seg, theme.edge, 1.2, fadeAlpha, e.manual);
-      } else {
-        this._stroke(seg, theme.edge, 1.5, 0.5, e.manual);
+      const pairKey = `${e.fk}->${e.tk}`;
+      pairCounts.set(pairKey, (pairCounts.get(pairKey) || 0) + 1);
+    }
+    const fromCounts = new Map();
+    const fromIndices = new Map();
+    for (const e of edges) {
+      fromCounts.set(e.fk, (fromCounts.get(e.fk) || 0) + 1);
+    }
+    const toCounts = new Map();
+    const toIndices = new Map();
+    for (const e of edges) {
+      toCounts.set(e.tk, (toCounts.get(e.tk) || 0) + 1);
+    }
+
+    // Map each source table to a consistent distinct color from EDGE_COLORS
+    const srcTableColors = new Map();
+    let srcColorIdx = 0;
+    for (const e of edges) {
+      if (!srcTableColors.has(e.fk)) {
+        srcTableColors.set(e.fk, EDGE_COLORS[srcColorIdx % EDGE_COLORS.length]);
+        srcColorIdx++;
       }
     }
-    for (const seg of highlighted) this._stroke(seg, theme.edgeHi, 2.2, 1, seg.manual);
+
+    let idx = 0;
+    for (const e of edges) {
+      const pairKey = `${e.fk}->${e.tk}`;
+      const pIdx = pairIndices.get(pairKey) || 0;
+      pairIndices.set(pairKey, pIdx + 1);
+      const pCount = pairCounts.get(pairKey) || 1;
+
+      const fIdx = fromIndices.get(e.fk) || 0;
+      fromIndices.set(e.fk, fIdx + 1);
+      const fCount = fromCounts.get(e.fk) || 1;
+
+      const tIdx = toIndices.get(e.tk) || 0;
+      toIndices.set(e.tk, tIdx + 1);
+      const tCount = toCounts.get(e.tk) || 1;
+
+      let fromLaneOffset = 0;
+      let toLaneOffset = 0;
+      let corridorLaneOffset = 0;
+
+      if (pCount > 1) {
+        const offset = (pIdx - (pCount - 1) / 2) * 14;
+        fromLaneOffset = offset;
+        toLaneOffset = offset;
+        corridorLaneOffset = offset;
+      } else {
+        if (fCount > 1) {
+          fromLaneOffset = (fIdx - (fCount - 1) / 2) * 12;
+        }
+        if (tCount > 1) {
+          toLaneOffset = (tIdx - (tCount - 1) / 2) * 12;
+        }
+        if (tCount > 1 && tCount >= fCount) {
+          corridorLaneOffset = (tIdx - (tCount - 1) / 2) * 14;
+        } else if (fCount > 1) {
+          corridorLaneOffset = (fIdx - (fCount - 1) / 2) * 14;
+        }
+      }
+
+      const seg = this._edgeSeg(e.fk, e.fc, e.tk, e.tc, cull, e.key, fromLaneOffset, toLaneOffset, corridorLaneOffset);
+      if (!seg) { idx++; continue; }
+      seg.manual = e.manual;
+      seg.card = e.card;
+      seg.key = e.key;
+
+      const customColor = this.edgeColors.get(e.key);
+      let edgeColor;
+      if (customColor) {
+        edgeColor = customColor;
+      } else if (this.edgeColorMode === 'single') {
+        edgeColor = theme.edge;
+      } else {
+        // Color by source table so all lines originating from a table share a consistent, unique hue
+        edgeColor = srcTableColors.get(e.fk) || EDGE_COLORS[idx % EDGE_COLORS.length];
+      }
+      seg.color = edgeColor;
+      idx++;
+
+      const isSelectedEdge = this.selectedEdgeKey === e.key;
+      const isHoveredEdge = this.hoverEdge?.key === e.key;
+      const connected = (focusKey && (seg.fromKey === focusKey || seg.toKey === focusKey)) || isSelectedEdge || isHoveredEdge;
+
+      if (focusKey || this.selectedEdgeKey || this.hoverEdge) {
+        if (connected) { highlighted.push(seg); continue; }
+        this._strokeRoute(seg, edgeColor, 1.2, fadeAlpha, e.manual, false, false);
+      } else {
+        const baseAlpha = this.edgeColorMode === 'single' ? 0.6 : 0.85;
+        this._strokeRoute(seg, edgeColor, 1.6, baseAlpha, e.manual, false, false);
+      }
+    }
+    for (const seg of highlighted) {
+      const isSelectedEdge = this.selectedEdgeKey === seg.key;
+      const isHoveredEdge = this.hoverEdge?.key === seg.key;
+      const hiColor = (this.edgeColorMode === 'single' && !this.edgeColors.get(seg.key)) ? theme.edgeHi : seg.color;
+      const width = isSelectedEdge ? 3.0 : 2.5;
+      this._strokeRoute(seg, hiColor, width, 1.0, seg.manual, isSelectedEdge, isHoveredEdge);
+    }
     for (const seg of highlighted) this._drawEdgeLabel(seg);   // words, on top of the lines
   }
 
-  _stroke(seg, color, width, alpha, dashed) {
+  _strokeRoute(seg, color, width, alpha, dashed, isSelectedEdge = false, isHoveredEdge = false) {
     const { ctx, cam } = this;
+    const { p1, p2, waypoints, routingStyle, card, isOrthogonal } = seg;
     ctx.globalAlpha = alpha;
     ctx.strokeStyle = color;
     ctx.fillStyle = color;
     ctx.lineWidth = width / cam.scale;
     if (dashed) ctx.setLineDash([6 / cam.scale, 5 / cam.scale]);
     ctx.beginPath();
-    ctx.moveTo(seg.fx, seg.fy);
-    ctx.bezierCurveTo(seg.c1x, seg.fy, seg.c2x, seg.ty, seg.tx, seg.ty);
+    drawRoutePath(ctx, routingStyle, p1, p2, waypoints, 8, seg.obstacles, seg.laneOffset || 0);
     ctx.stroke();
     if (dashed) ctx.setLineDash([]);
-    if (seg.card) {
+
+    if (card) {
       // markers sit just outside each table, pointing along the line
       const s = 1 / cam.scale;
       const mw = Math.max(width, 1.4) / cam.scale;
-      drawMarker(ctx, seg.fx, seg.fy, Math.sign(seg.c1x - seg.fx) || 1, seg.card.from, s, mw);
-      drawMarker(ctx, seg.tx, seg.ty, Math.sign(seg.c2x - seg.tx) || 1, seg.card.to, s, mw);
+      let nx1 = p1.nx, ny1 = p1.ny;
+      if ((nx1 === undefined || nx1 === null || (nx1 === 0 && ny1 === 0)) && (waypoints?.length || p2)) {
+        const nextPt = waypoints?.length ? waypoints[0] : p2;
+        const dx = nextPt.x - p1.x, dy = nextPt.y - p1.y;
+        const d = Math.hypot(dx, dy) || 1;
+        nx1 = dx / d; ny1 = dy / d;
+      }
+      let nx2 = p2.nx, ny2 = p2.ny;
+      if ((nx2 === undefined || nx2 === null || (nx2 === 0 && ny2 === 0)) && (waypoints?.length || p1)) {
+        const prevPt = waypoints?.length ? waypoints[waypoints.length - 1] : p1;
+        const dx = prevPt.x - p2.x, dy = prevPt.y - p2.y;
+        const d = Math.hypot(dx, dy) || 1;
+        nx2 = dx / d; ny2 = dy / d;
+      }
+      drawMarker(ctx, p1.x, p1.y, nx1 ?? 1, ny1 ?? 0, card.from, s, mw);
+      drawMarker(ctx, p2.x, p2.y, nx2 ?? -1, ny2 ?? 0, card.to, s, mw);
     } else {
-      dot(ctx, seg.fx, seg.fy, 3 / cam.scale);
-      dot(ctx, seg.tx, seg.ty, 3 / cam.scale);
+      dot(ctx, p1.x, p1.y, 3 / cam.scale);
+      dot(ctx, p2.x, p2.y, 3 / cam.scale);
     }
+
+    // If edge is selected or hovered, draw handles
+    if (isSelectedEdge || isHoveredEdge) {
+      const s = 1 / cam.scale;
+
+      if (isOrthogonal) {
+        // Orthogonal mode (dbdiagram.io style): segment midpoint handles + corner dots
+        const { segments, points } = getOrthogonalSegments(p1, p2, waypoints);
+
+        // 1) Segment midpoint handles (interactive sliding bars)
+        for (const segment of segments) {
+          const isHoveredSeg = (this.hoverEdge?.key === seg.key && this.hoverEdge?.segmentIndex === segment.index) ||
+            (this.segmentDrag?.key === seg.key && this.segmentDrag?.segIndex === segment.index);
+          const barW = segment.isVertical ? 6 * s : (isHoveredSeg ? 18 * s : 14 * s);
+          const barH = segment.isVertical ? (isHoveredSeg ? 18 * s : 14 * s) : 6 * s;
+          const rx = barW / 2, ry = barH / 2;
+
+          ctx.beginPath();
+          if (ctx.roundRect) {
+            ctx.roundRect(segment.mid.x - rx, segment.mid.y - ry, barW, barH, 3 * s);
+          } else {
+            ctx.rect(segment.mid.x - rx, segment.mid.y - ry, barW, barH);
+          }
+          ctx.fillStyle = isHoveredSeg ? '#ffe600' : (isSelectedEdge ? '#ffffff' : 'rgba(255,255,255,0.85)');
+          ctx.fill();
+          ctx.strokeStyle = isHoveredSeg ? '#000000' : color;
+          ctx.lineWidth = 1.5 * s;
+          ctx.stroke();
+        }
+
+        // 2) Corner dots (intermediate corners)
+        if (points.length > 2) {
+          for (let i = 1; i < points.length - 1; i++) {
+            const pt = points[i];
+            const isDraggedVertex = (this.vertexDrag?.key?.toLowerCase() === seg.key?.toLowerCase()) && this.vertexDrag?.index === (i - 1);
+            const isHoveredVertex = (!this.vertexDrag && this.hoverVertex?.key?.toLowerCase() === seg.key?.toLowerCase() && this.hoverVertex?.index === (i - 1) && this.hoverVertex?.isWaypoint) || isDraggedVertex;
+            const r = (isHoveredVertex ? 5.5 : 4) * s;
+            ctx.beginPath();
+            ctx.arc(pt.x, pt.y, r, 0, Math.PI * 2);
+            ctx.fillStyle = isHoveredVertex ? '#ffe600' : '#ffffff';
+            ctx.fill();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1.8 * s;
+            ctx.stroke();
+          }
+        }
+      } else {
+        // Curved / Straight mode: circular waypoint handles
+        const r = (isSelectedEdge ? 5.5 : 4.5) * s;
+        if (waypoints && waypoints.length) {
+          for (let i = 0; i < waypoints.length; i++) {
+            const pt = waypoints[i];
+            const isDraggedVertex = (this.vertexDrag?.key?.toLowerCase() === seg.key?.toLowerCase()) && this.vertexDrag?.index === i;
+            const isHoveredVertex = (!this.vertexDrag && this.hoverVertex?.key?.toLowerCase() === seg.key?.toLowerCase() && this.hoverVertex?.index === i && this.hoverVertex?.isWaypoint) || isDraggedVertex;
+            ctx.beginPath();
+            ctx.arc(pt.x, pt.y, isHoveredVertex ? r * 1.3 : r, 0, Math.PI * 2);
+            ctx.fillStyle = isHoveredVertex ? '#ffe600' : (isSelectedEdge ? '#ffffff' : 'rgba(255,255,255,0.85)');
+            ctx.fill();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = (isHoveredVertex ? 2.5 : 2) * s;
+            ctx.stroke();
+          }
+        }
+      }
+
+      // Anchor handles on table edge
+      const isHoveredFrom = this.hoverVertex?.key === seg.key && this.hoverVertex?.isAnchor && this.hoverVertex?.isFrom;
+      const isHoveredTo = this.hoverVertex?.key === seg.key && this.hoverVertex?.isAnchor && !this.hoverVertex?.isFrom;
+
+      ctx.beginPath();
+      ctx.arc(p1.x, p1.y, (isHoveredFrom ? 5.5 : 4) * s, 0, Math.PI * 2);
+      ctx.arc(p2.x, p2.y, (isHoveredTo ? 5.5 : 4) * s, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.4 * s;
+      ctx.stroke();
+    }
+
     ctx.globalAlpha = 1;
   }
 
@@ -646,6 +1117,7 @@ export class Diagram {
     const s = 1 / cam.scale;
     const mx = (seg.fx + 3 * seg.c1x + 3 * seg.c2x + seg.tx) / 8;
     const my = (seg.fy + seg.ty) / 2;
+    const edgeColor = seg.color || this.theme.edgeHi;
     ctx.save();
     ctx.font = `${11 * s}px ui-sans-serif, system-ui, sans-serif`;
     ctx.textAlign = 'center';
@@ -653,14 +1125,14 @@ export class Diagram {
     const text = seg.card.label;
     const w = ctx.measureText(text).width + 10 * s;
     const h = 16 * s;
-    ctx.globalAlpha = 0.92;
+    ctx.globalAlpha = 0.95;
     ctx.fillStyle = this.theme.tableBg;
     roundRectPath(ctx, mx - w / 2, my - h / 2, w, h, 5 * s);
     ctx.fill();
-    ctx.strokeStyle = this.theme.edgeHi;
-    ctx.lineWidth = 1 * s;
+    ctx.strokeStyle = edgeColor;
+    ctx.lineWidth = 1.2 * s;
     ctx.stroke();
-    ctx.fillStyle = this.theme.edgeHi;
+    ctx.fillStyle = edgeColor;
     ctx.fillText(text, mx, my);
     ctx.restore();
   }
@@ -693,7 +1165,8 @@ export class Diagram {
     c.addEventListener('mousedown', (e) => {
       if (e.button !== 0) return;   // ignore right/middle click (right-click = context menu)
       const r = c.getBoundingClientRect();
-      this._pointerDown(e.clientX - r.left, e.clientY - r.top, e.shiftKey);
+      const additive = e.shiftKey || e.ctrlKey || e.metaKey;
+      this._pointerDown(e.clientX - r.left, e.clientY - r.top, additive);
       c.style.cursor = 'grabbing';
     });
 
@@ -701,28 +1174,82 @@ export class Diagram {
       const r = c.getBoundingClientRect();
       const sx = e.clientX - r.left, sy = e.clientY - r.top;
       if (this._pointerMove(sx, sy)) return;   // active drag/pan handled it
-      // idle hover (mouse only)
-      const t = this.tableAt(sx, sy);
-      if (t !== this.hover) { this.hover = t; this.markDirty(); }
+
+      if (this.toolMode === 'pan') {
+        if (this.hover || this.hoverEdge || this.hoverVertex || this.hoverConn) {
+          this.hover = null;
+          this.hoverEdge = null;
+          this.hoverVertex = null;
+          this.hoverConn = null;
+          this.markDirty();
+        }
+        c.style.cursor = 'grab';
+        return;
+      }
+
+      // 1) vertex or anchor handle under cursor
+      const vHit = this.vertexAt(sx, sy);
+
+      // 2) edge line under cursor
+      const eHit = !vHit ? this.edgeAt(sx, sy) : null;
+
+      // 3) table under cursor
+      const t = !vHit && !eHit ? this.tableAt(sx, sy) : null;
+
+      let changed = false;
+      if (this.hoverVertex?.key !== vHit?.key || this.hoverVertex?.index !== vHit?.index || this.hoverVertex?.isAnchor !== vHit?.isAnchor || this.hoverVertex?.isFrom !== vHit?.isFrom) {
+        this.hoverVertex = vHit;
+        changed = true;
+      }
+      if (this.hoverEdge?.key !== eHit?.key) {
+        this.hoverEdge = eHit;
+        changed = true;
+      }
+      if (this.hover !== t) {
+        this.hover = t;
+        changed = true;
+      }
+
       // connector dots on the hovered column row
       let conn = null;
       if (t) {
         const w = this.screenToWorld(sx, sy);
+        const visibleCols = getVisibleColumns(t, this.diagramLevel);
         const idx = Math.floor((w.y - t.y - HEADER_H) / ROW_H);
-        if (idx >= 0 && idx < t.columns.length) conn = { t, colIndex: idx };
+        if (idx >= 0 && idx < visibleCols.length) conn = { t, colIndex: idx };
       }
-      const changed = (conn?.t !== this.hoverConn?.t) || (conn?.colIndex !== this.hoverConn?.colIndex);
-      if (changed) { this.hoverConn = conn; this.markDirty(); }
-      if (this._connectorAt(sx, sy)) c.style.cursor = 'crosshair';
-      else if (this._annoChromeAt(sx, sy) || this._addButtonAt(sx, sy)) c.style.cursor = 'pointer';
-      else if (t) c.style.cursor = 'grab';
-      else if (this._noteAt(sx, sy) || this._groupAt(sx, sy)) c.style.cursor = 'grab';
-      else c.style.cursor = 'default';
+      const connChanged = (conn?.t !== this.hoverConn?.t) || (conn?.colIndex !== this.hoverConn?.colIndex);
+      if (connChanged) { this.hoverConn = conn; changed = true; }
+
+      if (changed) this.markDirty();
+
+      if (vHit) {
+        c.style.cursor = 'move';
+      } else if (eHit) {
+        if (eHit.isOrthogonal) {
+          c.style.cursor = eHit.isVertical ? 'ew-resize' : 'ns-resize';
+        } else {
+          c.style.cursor = 'pointer';
+        }
+      } else if (this._connectorAt(sx, sy)) {
+        c.style.cursor = 'crosshair';
+      } else if (this._annoChromeAt(sx, sy) || this._addButtonAt(sx, sy)) {
+        c.style.cursor = 'pointer';
+      } else if (t) {
+        c.style.cursor = 'grab';
+      } else if (this._noteAt(sx, sy) || this._groupAt(sx, sy, true)) {
+        c.style.cursor = 'grab';
+      } else {
+        c.style.cursor = this.toolMode === 'select' ? 'crosshair' : 'default';
+      }
     });
 
-    window.addEventListener('mouseup', () => {
+    window.addEventListener('mouseup', (e) => {
+      if (e.button !== 0) return;
       this._pointerUp();
-      c.style.cursor = this.hover ? 'grab' : 'default';
+      c.style.cursor = this.toolMode === 'pan'
+        ? 'grab'
+        : (this.hoverVertex ? 'move' : (this.hoverEdge ? (this.hoverEdge.isOrthogonal ? (this.hoverEdge.isVertical ? 'ew-resize' : 'ns-resize') : 'pointer') : (this.hover ? 'grab' : (this.toolMode === 'select' ? 'crosshair' : 'default'))));
     });
 
     // ---- touch (mobile): 1 finger = drag/pan, 2 fingers = pinch-zoom + pan ----
@@ -807,22 +1334,166 @@ export class Diagram {
       this._zoomAt(sx, sy, factor);
     }, { passive: false });
 
-    // double-click: edit annotation text, else a table/column, else zoom in
+    // double-click: vertex deletion, or new vertex creation on edge, else inline edit
     c.addEventListener('dblclick', (e) => {
+      if (this.toolMode === 'pan') return;
       const r = c.getBoundingClientRect();
-      this._editAt(e.clientX - r.left, e.clientY - r.top);
+      const sx = e.clientX - r.left, sy = e.clientY - r.top;
+      const vHit = this.vertexAt(sx, sy);
+      if (vHit && vHit.isWaypoint) {
+        console.log('[Diagram dblclick Remove] ' + JSON.stringify({
+          key: vHit.key,
+          index: vHit.index,
+          coord: { x: vHit.x, y: vHit.y }
+        }));
+        this.removeWaypoint(vHit.key, vHit.index);
+        this.markDirty();
+        this.onLayoutChange?.();
+        return;
+      }
+      const eHit = this.edgeAt(sx, sy);
+      if (eHit) {
+        const w = this.screenToWorld(sx, sy);
+        const lk = eHit.key.toLowerCase();
+        const currentWps = this.edgeWaypoints.get(lk) || [];
+        console.log('[Diagram dblclick Add] ' + JSON.stringify({
+          key: eHit.key,
+          routingStyle: eHit.routingStyle,
+          clickWorld: { x: Math.round(w.x), y: Math.round(w.y) },
+          insertIndex: eHit.insertIndex,
+          currentWaypointsCount: currentWps.length,
+          currentWaypoints: currentWps.map(p => ({ x: p.x, y: p.y })),
+          p1: { x: eHit.p1.x, y: eHit.p1.y },
+          p2: { x: eHit.p2.x, y: eHit.p2.y }
+        }));
+        this.addWaypoint(eHit.key, Math.round(w.x), Math.round(w.y), eHit.insertIndex);
+        this.selectedEdgeKey = eHit.key;
+        this.markDirty();
+        this.onLayoutChange?.();
+        return;
+      }
+      this._editAt(sx, sy);
     });
   }
 
   // ---- shared pointer logic (used by both mouse and touch) ----
-  // `additive` (Shift) drives multi-select: Shift+click toggles a table,
+  // `additive` (Shift/Ctrl) drives multi-select: Shift+click toggles a table,
   // Shift+drag on empty draws a marquee box.
   _pointerDown(sx, sy, additive = false, allowConnect = true) {
+    if (this.toolMode === 'pan') {
+      // In Hand / Pan mode: strictly pan the canvas, cannot select or move elements
+      this.pan = { sx, sy, camx: this.cam.x, camy: this.cam.y, moved: false };
+      return;
+    }
+
+    this._preDragSnapshot = this.getSnapshot();
+
+    // 0) Vertex handle (waypoint / anchor)
+    const vHit = this.vertexAt(sx, sy);
+    if (vHit) {
+      if (vHit.isWaypoint) {
+        const seg = this._edgeSegForDrag(vHit.key);
+        let originalPoints = null;
+        if (vHit.isOrthogonal && seg) {
+          const orthoData = getOrthogonalSegments(seg.p1, seg.p2, seg.waypoints, seg.obstacles);
+          originalPoints = orthoData.points.map(p => ({ ...p }));
+        }
+        this.vertexDrag = {
+          key: vHit.key,
+          index: vHit.index,
+          isOrthogonal: vHit.isOrthogonal,
+          originalPoints,
+          currentPoints: originalPoints ? originalPoints.map(p => ({ ...p })) : null,
+          p1: seg ? { ...seg.p1 } : null,
+          p2: seg ? { ...seg.p2 } : null,
+          fromTable: seg?.fromTable,
+          toTable: seg?.toTable,
+          moved: false
+        };
+        console.log('[Diagram pointerDown vertexHit] ' + JSON.stringify({
+          key: vHit.key,
+          index: vHit.index,
+          isOrthogonal: vHit.isOrthogonal,
+          vHitCoord: { x: vHit.x, y: vHit.y },
+          storedWaypoints: (this.edgeWaypoints.get(vHit.key.toLowerCase()) || []).map(p => ({ x: p.x, y: p.y })),
+          originalPoints: originalPoints ? originalPoints.map(p => ({ x: p.x, y: p.y })) : null
+        }));
+        this.selectedEdgeKey = vHit.key;
+        this.selected = new Set();
+        this.pinned = null;
+        this.pinnedKeys = null;
+        this.markDirty();
+        return;
+      } else if (vHit.isAnchor) {
+        this.anchorDrag = {
+          key: vHit.key,
+          isFrom: vHit.isFrom,
+          table: vHit.table,
+          moved: false,
+          candidateTarget: null
+        };
+        console.log('[Diagram pointerDown anchorHit] ' + JSON.stringify({
+          key: vHit.key,
+          isFrom: vHit.isFrom,
+          table: vHit.table ? vHit.table.key : null
+        }));
+        this.selectedEdgeKey = vHit.key;
+        this.selected = new Set();
+        this.pinned = null;
+        this.pinnedKeys = null;
+        this.markDirty();
+        return;
+      }
+    }
+
+    // 0b) Edge line click (or orthogonal segment drag)
+    const edge = this.edgeAt(sx, sy);
+    if (edge) {
+      if (edge.isOrthogonal) {
+        const seg = this._edgeSegForDrag(edge.key);
+        if (seg) {
+          const orthoData = getOrthogonalSegments(seg.p1, seg.p2, seg.waypoints, seg.obstacles);
+          const w = this.screenToWorld(sx, sy);
+          this.segmentDrag = {
+            key: edge.key,
+            segIndex: edge.segmentIndex,
+            isVertical: edge.isVertical,
+            originalPoints: orthoData.points.map(p => ({ ...p })),
+            startMouse: { x: w.x, y: w.y },
+            fromTable: seg.fromTable,
+            toTable: seg.toTable,
+            p1: { ...seg.p1 },
+            p2: { ...seg.p2 },
+            moved: false
+          };
+          console.log('[Diagram pointerDown edgeHit] ' + JSON.stringify({
+            key: edge.key,
+            segIndex: edge.segmentIndex,
+            isVertical: edge.isVertical,
+            isOrthogonal: edge.isOrthogonal,
+            storedWaypoints: (this.edgeWaypoints.get(edge.key.toLowerCase()) || []).map(p => ({ x: p.x, y: p.y })),
+            originalPoints: orthoData.points.map(p => ({ x: p.x, y: p.y }))
+          }));
+        }
+      }
+      this.selectedEdgeKey = edge.key;
+      this.selected = new Set();
+      this.pinned = null;
+      this.pinnedKeys = null;
+      this.markDirty();
+      return;
+    }
+
     // 1) chrome of the selected annotation (colour dots / delete / resize)
     const chrome = this._annoChromeAt(sx, sy);
     if (chrome) {
       const a = this.selectedAnno;
-      if (chrome.kind === 'color') { a.color = chrome.value; this.markDirty(); this.onLayoutChange?.(); }
+      if (chrome.kind === 'color') {
+        this.onHistorySnapshot?.(this.getSnapshot());
+        a.color = chrome.value;
+        this.markDirty();
+        this.onLayoutChange?.();
+      }
       else if (chrome.kind === 'delete') { this.deleteSelectedAnnotation(); }
       else if (chrome.kind === 'resize') {
         const w = this.screenToWorld(sx, sy);
@@ -848,7 +1519,8 @@ export class Diagram {
     const t = this.tableAt(sx, sy);
     if (t) {
       if (this.selectedAnno) this.selectedAnno = null;
-      if (additive) {                                   // Shift+click toggles selection
+      if (this.selectedEdgeKey) { this.selectedEdgeKey = null; }
+      if (additive) {                                   // Shift/Ctrl+click toggles selection
         if (this.selected.has(t)) this.selected.delete(t);
         else this.selected.add(t);
         this.pinned = null; this.pinnedKeys = null;
@@ -860,27 +1532,67 @@ export class Diagram {
       this.model.tables.splice(idx, 1);
       this.model.tables.push(t);
       const w = this.screenToWorld(sx, sy);
-      if (this.selected.has(t) && this.selected.size > 1) {
+      if (this.selected.has(t) && (this.selected.size > 1 || this.selectedAnnos.size > 0)) {
         // drag the whole current selection together
-        const items = [...this.selected].filter(x => Number.isFinite(x.x))
+        const tables = [...this.selected].filter(x => Number.isFinite(x.x))
           .map(x => ({ t: x, sx0: x.x, sy0: x.y }));
-        this.dragGroup = { items, ax: w.x, ay: w.y, moved: false };
+        const annos = [...this.selectedAnnos].map(a => ({ a, sx0: a.x, sy0: a.y }));
+        const groupOrigins = {};
+        for (const a of this.annotations) {
+          if (a.type === 'group') groupOrigins[a.id] = { x: a.x, y: a.y };
+        }
+        this.dragGroup = { tables, annos, groupOrigins, ax: w.x, ay: w.y, moved: false };
+        this._potentialSingleSelect = t;
       } else {
         this.selected = new Set([t]);
+        this.selectedAnnos.clear();
         this.drag = { t, dx: w.x - t.x, dy: w.y - t.y, moved: false };
         this.onSelectionChange?.();
       }
       this.markDirty();
       return;
     }
-    // 5) a group box (grabbable anywhere that isn't a table)
-    const group = this._groupAt(sx, sy);
-    if (group) { this._grabAnno(group, sx, sy); return; }
-    // 6) empty space -> Shift+drag marquee-selects; otherwise pan
+    // 5) a group box (header or border directly targeted)
+    const group = this._groupAt(sx, sy, true);
+    if (group) {
+      if (this.selectedEdgeKey) { this.selectedEdgeKey = null; }
+      if (additive) {
+        if (this.selectedAnnos.has(group)) this.selectedAnnos.delete(group);
+        else this.selectedAnnos.add(group);
+        this.markDirty();
+        this.onSelectionChange?.();
+        return;
+      }
+      const w = this.screenToWorld(sx, sy);
+      if (this.selectedAnnos.has(group) && (this.selected.size > 0 || this.selectedAnnos.size > 1)) {
+        const tables = [...this.selected].filter(x => Number.isFinite(x.x))
+          .map(x => ({ t: x, sx0: x.x, sy0: x.y }));
+        const annos = [...this.selectedAnnos].map(a => ({ a, sx0: a.x, sy0: a.y }));
+        const groupOrigins = {};
+        for (const a of this.annotations) {
+          if (a.type === 'group') groupOrigins[a.id] = { x: a.x, y: a.y };
+        }
+        this.dragGroup = { tables, annos, groupOrigins, ax: w.x, ay: w.y, moved: false };
+        this._potentialSingleAnno = group;
+        this.markDirty();
+        return;
+      }
+      this.selected.clear();
+      this.selectedAnnos = new Set([group]);
+      this._grabAnno(group, sx, sy);
+      return;
+    }
+
+    // 6) empty space -> clear edge selection, Shift/Ctrl drag or Marquee mode selects; otherwise pan
+    if (this.selectedEdgeKey) { this.selectedEdgeKey = null; this.markDirty(); }
     if (this.selectedAnno) { this.selectedAnno = null; this.markDirty(); }
     const w = this.screenToWorld(sx, sy);
-    if (additive) {
-      this.marquee = { ax: w.x, ay: w.y, x: w.x, y: w.y };
+    if (additive || this.toolMode === 'select') {
+      if (!additive) {
+        this.selected.clear();
+        this.selectedAnnos.clear();
+      }
+      this.marquee = { ax: w.x, ay: w.y, x: w.x, y: w.y, additive };
     } else {
       this.pan = { sx, sy, camx: this.cam.x, camy: this.cam.y, moved: false };
     }
@@ -891,8 +1603,9 @@ export class Diagram {
       const t = this.model.tables[i];
       if (!Number.isFinite(t.x) || this.hidden.has(t.key)) continue;
       if (wx >= t.x && wx <= t.x + t.w && wy >= t.y && wy <= t.y + t.h) {
+        const visibleCols = getVisibleColumns(t, this.diagramLevel);
         const idx = Math.floor((wy - t.y - HEADER_H) / ROW_H);
-        if (idx >= 0 && idx < t.columns.length) return { tableKey: t.key, col: t.columns[idx].name };
+        if (idx >= 0 && idx < visibleCols.length) return { tableKey: t.key, col: visibleCols[idx].name };
         return null;
       }
     }
@@ -901,6 +1614,122 @@ export class Diagram {
 
   // returns true if an active drag/pan/resize consumed the move
   _pointerMove(sx, sy) {
+    if (this.segmentDrag) {
+      const w = this.screenToWorld(sx, sy);
+      const drag = this.segmentDrag;
+      const dx = w.x - drag.startMouse.x;
+      const dy = w.y - drag.startMouse.y;
+      if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
+        drag.moved = true;
+      }
+      const res = moveOrthogonalSegment(
+        drag.p1,
+        drag.p2,
+        drag.originalPoints,
+        drag.segIndex,
+        dx,
+        dy,
+        drag.fromTable,
+        drag.toTable
+      );
+        if (res) {
+        this.setEdgeWaypoints(drag.key, res.waypoints);
+        if (res.fromAnchor) {
+          this.setEdgeAnchor(drag.key, res.fromAnchor.side, res.fromAnchor.offset, true);
+        }
+        if (res.toAnchor) {
+          this.setEdgeAnchor(drag.key, res.toAnchor.side, res.toAnchor.offset, false);
+        }
+        console.log('[Diagram segmentDrag Move] ' + JSON.stringify({
+          key: drag.key,
+          segIndex: drag.segIndex,
+          dx: Math.round(dx),
+          dy: Math.round(dy),
+          waypointCount: res.waypoints ? res.waypoints.length : 0,
+          waypoints: res.waypoints ? res.waypoints.map(p => ({ x: p.x, y: p.y })) : [],
+          fromAnchor: res.fromAnchor,
+          toAnchor: res.toAnchor
+        }));
+        this.markDirty();
+      }
+      return true;
+    }
+    if (this.vertexDrag) {
+      const w = this.screenToWorld(sx, sy);
+      const drag = this.vertexDrag;
+      drag.moved = true;
+      if (drag.isOrthogonal && (drag.currentPoints || drag.originalPoints)) {
+        const basePts = drag.currentPoints || drag.originalPoints;
+        const res = moveOrthogonalCorner(
+          drag.p1,
+          drag.p2,
+          basePts,
+          drag.index,
+          w.x,
+          w.y,
+          drag.fromTable,
+          drag.toTable
+        );
+        this.setEdgeWaypoints(drag.key, res.waypoints);
+        if (res.fromAnchor) {
+          this.setEdgeAnchor(drag.key, res.fromAnchor.side, res.fromAnchor.offset, true);
+        }
+        if (res.toAnchor) {
+          this.setEdgeAnchor(drag.key, res.toAnchor.side, res.toAnchor.offset, false);
+        }
+        if (Number.isFinite(res.activeCornerIndex) && res.activeCornerIndex >= 0) {
+          drag.index = res.activeCornerIndex;
+        }
+        if (res.points && res.points.length >= 2) {
+          drag.currentPoints = res.points.map(p => ({ ...p }));
+          drag.p1 = { ...res.points[0] };
+          drag.p2 = { ...res.points[res.points.length - 1] };
+        }
+        this.hoverVertex = {
+          key: drag.key,
+          index: drag.index,
+          isWaypoint: true,
+          isOrthogonal: true
+        };
+        console.log('[Diagram vertexDrag Move] ' + JSON.stringify({
+          key: drag.key,
+          dragIndex: drag.index,
+          mouse: { x: Math.round(w.x), y: Math.round(w.y) },
+          waypointCount: res.waypoints ? res.waypoints.length : 0,
+          waypoints: res.waypoints ? res.waypoints.map(p => ({ x: p.x, y: p.y })) : [],
+          fromAnchor: res.fromAnchor,
+          toAnchor: res.toAnchor,
+          activeCornerIndex: res.activeCornerIndex
+        }));
+      } else {
+        this.moveWaypoint(drag.key, drag.index, Math.round(w.x), Math.round(w.y));
+      }
+      this.markDirty();
+      return true;
+    }
+    if (this.anchorDrag) {
+      const w = this.screenToWorld(sx, sy);
+      this.anchorDrag.moved = true;
+
+      // Check if hovering over another table (reconnect candidate)
+      const hoverTable = this.tableAt(sx, sy);
+      const hoverCol = this._columnAtWorld(w.x, w.y);
+      if (hoverTable && hoverTable.key.toLowerCase() !== this.anchorDrag.table.key.toLowerCase()) {
+        this.anchorDrag.candidateTarget = {
+          table: hoverTable,
+          col: hoverCol ? hoverCol.col : (hoverTable.columns[0]?.name || '')
+        };
+      } else {
+        this.anchorDrag.candidateTarget = null;
+        // Smooth continuous perimeter docking
+        const proj = projectPointToPerimeter(this.anchorDrag.table, w);
+        if (proj) {
+          this.setEdgeAnchor(this.anchorDrag.key, proj.side, proj.offset, this.anchorDrag.isFrom);
+        }
+      }
+      this.markDirty();
+      return true;
+    }
     if (this.linking) {
       const w = this.screenToWorld(sx, sy);
       this.linking.cx = w.x; this.linking.cy = w.y;
@@ -910,7 +1739,52 @@ export class Diagram {
     if (this.dragGroup) {
       const w = this.screenToWorld(sx, sy);
       const dx = w.x - this.dragGroup.ax, dy = w.y - this.dragGroup.ay;
-      for (const it of this.dragGroup.items) { it.t.x = it.sx0 + dx; it.t.y = it.sy0 + dy; }
+
+      // Move tables
+      for (const it of this.dragGroup.tables) {
+        it.t.x = it.sx0 + dx;
+        it.t.y = it.sy0 + dy;
+      }
+
+      // Move explicitly selected annotations
+      for (const it of this.dragGroup.annos) {
+        it.a.x = it.sx0 + dx;
+        it.a.y = it.sy0 + dy;
+      }
+
+      // Coordination with TableGroups:
+      // If all tables in a TableGroup are moving, move the group box intact with them.
+      // If only some tables in a TableGroup are moving, refit the group dynamically.
+      const selectedTableKeys = new Set(this.dragGroup.tables.map(it => it.t.key.toLowerCase()));
+      const explicitlyMovedGroupIds = new Set(this.dragGroup.annos.map(it => it.a.id));
+
+      for (const a of this.annotations) {
+        if (a.type === 'group') {
+          if (explicitlyMovedGroupIds.has(a.id)) continue;
+          const memberKeys = (a.tables || []).map(k => String(k).toLowerCase());
+          if (!memberKeys.length) continue;
+
+          const allMembersSelected = memberKeys.every(k => selectedTableKeys.has(k));
+          const someMembersSelected = memberKeys.some(k => selectedTableKeys.has(k));
+
+          if (allMembersSelected) {
+            const origin = this.dragGroup.groupOrigins[a.id];
+            if (origin) {
+              a.x = origin.x + dx;
+              a.y = origin.y + dy;
+            }
+          } else if (someMembersSelected) {
+            const bounds = computeGroupBounds(a, this.model.tables);
+            if (bounds) {
+              a.x = bounds.x;
+              a.y = bounds.y;
+              a.w = bounds.w;
+              a.h = bounds.h;
+            }
+          }
+        }
+      }
+
       this.dragGroup.moved = true;
       this.markDirty();
       return true;
@@ -932,8 +1806,16 @@ export class Diagram {
     }
     if (this.annoDrag) {
       const w = this.screenToWorld(sx, sy);
-      this.annoDrag.a.x = w.x - this.annoDrag.dx;
-      this.annoDrag.a.y = w.y - this.annoDrag.dy;
+      const newX = w.x - this.annoDrag.dx;
+      const newY = w.y - this.annoDrag.dy;
+      this.annoDrag.a.x = newX;
+      this.annoDrag.a.y = newY;
+      if (this.annoDrag.tableOffsets && this.annoDrag.tableOffsets.length) {
+        for (const { t, ox, oy } of this.annoDrag.tableOffsets) {
+          t.x = newX + ox;
+          t.y = newY + oy;
+        }
+      }
       this.annoDrag.moved = true;
       this.markDirty();
       return true;
@@ -942,6 +1824,7 @@ export class Diagram {
       const w = this.screenToWorld(sx, sy);
       this.drag.t.x = w.x - this.drag.dx;
       this.drag.t.y = w.y - this.drag.dy;
+      this._fitGroupsForTable(this.drag.t.key);
       this.drag.moved = true;
       this.markDirty();
       return true;
@@ -957,6 +1840,79 @@ export class Diagram {
   }
 
   _pointerUp() {
+    const didMove = (this.segmentDrag && this.segmentDrag.moved) ||
+      (this.vertexDrag && this.vertexDrag.moved) ||
+      (this.anchorDrag && this.anchorDrag.moved) ||
+      (this.dragGroup && this.dragGroup.moved) ||
+      (this.annoResize && this.annoResize.moved) ||
+      (this.annoDrag && this.annoDrag.moved) ||
+      (this.drag && this.drag.moved);
+
+    if (didMove && this._preDragSnapshot) {
+      this.onHistorySnapshot?.(this._preDragSnapshot);
+    }
+    this._preDragSnapshot = null;
+
+    if (this.segmentDrag) {
+      if (this.segmentDrag.moved) {
+        const key = this.segmentDrag.key;
+        const lk = key.toLowerCase();
+        const wps = this.edgeWaypoints.get(lk) || this.edgeWaypoints.get(key);
+        if (wps) {
+          const cleaned = filterRedundantWaypoints(wps, 4);
+          this.setEdgeWaypoints(key, cleaned);
+          console.log('[Diagram segmentDrag Up] ' + JSON.stringify({
+            key: lk,
+            count: cleaned.length,
+            waypoints: cleaned.map(p => ({ x: p.x, y: p.y })),
+            fromAnchor: this.edgeAnchors.get(lk)?.fromAnchor,
+            toAnchor: this.edgeAnchors.get(lk)?.toAnchor
+          }));
+        }
+        this.onLayoutChange?.();
+      }
+      this.segmentDrag = null;
+      return;
+    }
+    if (this.vertexDrag) {
+      if (this.vertexDrag.moved) {
+        const key = this.vertexDrag.key;
+        const lk = key.toLowerCase();
+        const wps = this.edgeWaypoints.get(lk) || this.edgeWaypoints.get(key);
+        if (wps) {
+          const cleaned = filterRedundantWaypoints(wps, 2);
+          this.setEdgeWaypoints(key, cleaned);
+          console.log('[Diagram vertexDrag Up] ' + JSON.stringify({
+            key: lk,
+            count: cleaned.length,
+            waypoints: cleaned.map(p => ({ x: p.x, y: p.y })),
+            fromAnchor: this.edgeAnchors.get(lk)?.fromAnchor,
+            toAnchor: this.edgeAnchors.get(lk)?.toAnchor
+          }));
+        }
+        this.onLayoutChange?.();
+      }
+      this.vertexDrag = null;
+      this.hoverVertex = null;
+      return;
+    }
+    if (this.anchorDrag) {
+      if (this.anchorDrag.moved) {
+        if (this.anchorDrag.candidateTarget) {
+          this.reconnectEdge(
+            this.anchorDrag.key,
+            this.anchorDrag.isFrom,
+            this.anchorDrag.candidateTarget.table.key,
+            this.anchorDrag.candidateTarget.col
+          );
+        } else {
+          this.onLayoutChange?.();
+        }
+      }
+      this.anchorDrag = null;
+      this.markDirty();
+      return;
+    }
     // finishing a link drag -> create the link if dropped on a column
     if (this.linking) {
       const k = this.linking;
@@ -966,15 +1922,30 @@ export class Diagram {
       this.markDirty();
       return;
     }
-    // marquee end -> select tables intersecting the box (union with current)
+    // marquee end -> select tables and groups fully enclosed by the box
     if (this.marquee) {
       const m = this.marquee;
       const x0 = Math.min(m.ax, m.x), x1 = Math.max(m.ax, m.x);
       const y0 = Math.min(m.ay, m.y), y1 = Math.max(m.ay, m.y);
-      if (x1 - x0 > 2 || y1 - y0 > 2) {
+      if (x1 - x0 > 4 || y1 - y0 > 4) {
+        if (!m.additive) {
+          this.selected.clear();
+          this.selectedAnnos.clear();
+        }
+        // Tables: MUST BE FULLY ENCLOSED by the marquee box
         for (const t of this.model.tables) {
-          if (Number.isFinite(t.x) && t.x < x1 && t.x + t.w > x0 && t.y < y1 && t.y + t.h > y0) {
-            this.selected.add(t);
+          if (Number.isFinite(t.x) && !this.hidden.has(t.key)) {
+            const fullyEnclosed = t.x >= x0 && (t.x + t.w) <= x1 && t.y >= y0 && (t.y + t.h) <= y1;
+            if (fullyEnclosed) {
+              this.selected.add(t);
+            }
+          }
+        }
+        // Annotations / Groups: MUST ALSO BE FULLY ENCLOSED by the marquee box
+        for (const a of this.annotations) {
+          const fullyEnclosed = a.x >= x0 && (a.x + a.w) <= x1 && a.y >= y0 && (a.y + a.h) <= y1;
+          if (fullyEnclosed) {
+            this.selectedAnnos.add(a);
           }
         }
         this.pinned = null; this.pinnedKeys = null;
@@ -985,18 +1956,42 @@ export class Diagram {
       return;
     }
     if (this.dragGroup) {
-      if (this.dragGroup.moved) this.onLayoutChange?.();
+      if (!this.dragGroup.moved) {
+        // User clicked an already selected item without dragging: collapse selection
+        if (this._potentialSingleSelect) {
+          this.selected = new Set([this._potentialSingleSelect]);
+          this.selectedAnnos.clear();
+          this._pin(this._potentialSingleSelect);
+        } else if (this._potentialSingleAnno) {
+          this.selected.clear();
+          this.selectedAnnos = new Set([this._potentialSingleAnno]);
+          this.selectedAnno = this._potentialSingleAnno;
+        }
+        this.markDirty();
+        this.onSelectionChange?.();
+      } else {
+        this.onLayoutChange?.();
+      }
       this.dragGroup = null;
+      this._potentialSingleSelect = null;
+      this._potentialSingleAnno = null;
       return;
     }
     // a click (no drag) on a table pins focus; a click on empty space clears it
     if (this.drag && !this.drag.moved) this._pin(this.drag.t);
     else if (this.pan && !this.pan.moved) {
-      if (this.selected.size) { this.selected = new Set(); this.markDirty(); this.onSelectionChange?.(); }
-      if (this.pinned) this._pin(this.pinned);
+      if (this.toolMode !== 'pan') {
+        if (this.selected.size || this.selectedAnnos.size) {
+          this.selected = new Set();
+          this.selectedAnnos = new Set();
+          this.markDirty();
+          this.onSelectionChange?.();
+        }
+        if (this.pinned) this._pin(this.pinned);
+      }
     }
     const changed = (this.drag && this.drag.moved) || (this.pan && this.pan.moved) ||
-                    (this.annoDrag && this.annoDrag.moved) || (this.annoResize && this.annoResize.moved);
+      (this.annoDrag && this.annoDrag.moved) || (this.annoResize && this.annoResize.moved);
     this.drag = null;
     this.pan = null;
     this.annoDrag = null;
@@ -1005,7 +2000,38 @@ export class Diagram {
   }
 
   clearSelection() {
-    if (this.selected.size) { this.selected = new Set(); this.markDirty(); this.onSelectionChange?.(); }
+    if (this.selected.size || this.selectedAnnos.size) {
+      this.selected = new Set();
+      this.selectedAnnos = new Set();
+      this.markDirty();
+      this.onSelectionChange?.();
+    }
+  }
+
+  selectAll() {
+    this.selected = new Set(this.model.tables.filter(t => Number.isFinite(t.x) && !this.hidden.has(t.key)));
+    this.selectedAnnos = new Set(this.annotations);
+    this.pinned = null;
+    this.pinnedKeys = null;
+    this.selectedEdgeKey = null;
+    this.selectedAnno = null;
+    this.markDirty();
+    this.onSelectionChange?.();
+  }
+
+  setToolMode(mode) {
+    this.toolMode = mode === 'select' ? 'select' : 'pan';
+    if (this.toolMode === 'pan') {
+      this.hover = null;
+      this.hoverEdge = null;
+      this.hoverVertex = null;
+      this.hoverConn = null;
+      this.canvas.style.cursor = 'grab';
+    } else {
+      this.canvas.style.cursor = 'default';
+    }
+    this.markDirty();
+    this.onToolModeChange?.(this.toolMode);
   }
 
   // ---- hide / show tables ----
@@ -1016,6 +2042,7 @@ export class Diagram {
     else if (t) keys = [t.key];
     else keys = [...this.selected].map(x => x.key);
     if (!keys.length) return;
+    this.onHistorySnapshot?.(this.getSnapshot());
     for (const k of keys) this.hidden.add(k);
     this.selected = new Set();
     this.pinned = null; this.pinnedKeys = null;
@@ -1027,7 +2054,8 @@ export class Diagram {
 
   showAllHidden() {
     if (!this.hidden.size) return;
-    this.hidden = new Set();
+    this.onHistorySnapshot?.(this.getSnapshot());
+    this.hidden.clear();
     this.markDirty();
     this.onHiddenChange?.();
     this.onLayoutChange?.();
@@ -1098,10 +2126,11 @@ export class Diagram {
       const ly = w.y - t.y;
       if (ly < HEADER_H) continue;
       const idx = Math.floor((ly - HEADER_H) / ROW_H);
-      if (idx < 0 || idx >= t.columns.length) continue;
+      const visibleCols = getVisibleColumns(t, this.diagramLevel);
+      if (idx < 0 || idx >= visibleCols.length) continue;
       for (const p of this._connDots(t, idx)) {
         if (Math.hypot(w.x - p.x, w.y - p.y) <= r * 1.5) {
-          return { tableKey: t.key, col: t.columns[idx].name, side: p.side, wx: p.x, wy: p.y };
+          return { tableKey: t.key, col: visibleCols[idx].name, side: p.side, wx: p.x, wy: p.y };
         }
       }
     }
@@ -1113,21 +2142,23 @@ export class Diagram {
     const t = this.tableAt(sx, sy);
     if (!t) return null;
     const w = this.screenToWorld(sx, sy);
+    const visibleCols = getVisibleColumns(t, this.diagramLevel);
     const idx = Math.floor((w.y - t.y - HEADER_H) / ROW_H);
-    if (idx < 0 || idx >= t.columns.length) return null;
-    return { tableKey: t.key, col: t.columns[idx].name };
+    if (idx < 0 || idx >= visibleCols.length) return null;
+    return { tableKey: t.key, col: visibleCols[idx].name };
   }
 
   _linkExists(fk, fc, tk, tc) {
     const eq = (a, b) => a.toLowerCase() === b.toLowerCase();
     const has = (l) => (eq(l.from.table, fk) && eq(l.from.col, fc) && eq(l.to.table, tk) && eq(l.to.col, tc)) ||
-                       (eq(l.from.table, tk) && eq(l.from.col, tc) && eq(l.to.table, fk) && eq(l.to.col, fc));
+      (eq(l.from.table, tk) && eq(l.from.col, tc) && eq(l.to.table, fk) && eq(l.to.col, fc));
     return this.manualLinks.some(has);
   }
 
   addManualLink(fk, fc, tk, tc) {
     if (fk === tk && fc.toLowerCase() === tc.toLowerCase()) return false;
     if (this._linkExists(fk, fc, tk, tc)) return false;
+    this.onHistorySnapshot?.(this.getSnapshot());
     this.manualLinks.push({ from: { table: fk, col: fc }, to: { table: tk, col: tc } });
     this.markDirty();
     this.onLayoutChange?.();
@@ -1139,27 +2170,329 @@ export class Diagram {
     this.markDirty();
   }
 
-  // manual link whose curve passes near the point (for right-click delete)
-  linkAt(sx, sy) {
+  setEdgeColorMode(mode) {
+    this.onHistorySnapshot?.(this.getSnapshot());
+    this.edgeColorMode = mode === 'single' ? 'single' : 'multi';
+    this.markDirty();
+    this.onLayoutChange?.();
+  }
+
+  setEdgeColor(key, color) {
+    if (!key) return;
+    this.onHistorySnapshot?.(this.getSnapshot());
+    if (color) {
+      this.edgeColors.set(key.toLowerCase(), color);
+    } else {
+      this.edgeColors.delete(key.toLowerCase());
+    }
+    this.markDirty();
+    this.onLayoutChange?.();
+  }
+
+  setEdgeColors(obj) {
+    this.edgeColors.clear();
+    if (!obj || typeof obj !== 'object') return;
+    for (const [k, v] of Object.entries(obj)) {
+      const color = typeof v === 'string' ? v : v?.color;
+      if (color) this.edgeColors.set(k.toLowerCase(), color);
+    }
+    this.markDirty();
+  }
+
+  setEdgeRouting(style) {
+    this.onHistorySnapshot?.(this.getSnapshot());
+    this.edgeRouting = style || 'curved';
+    this.markDirty();
+    this.onLayoutChange?.();
+  }
+
+  setIndividualEdgeRouting(key, style) {
+    if (!key) return;
+    this.onHistorySnapshot?.(this.getSnapshot());
+    if (style) this.edgeRoutings.set(key.toLowerCase(), style);
+    else this.edgeRoutings.delete(key.toLowerCase());
+    this.markDirty();
+    this.onLayoutChange?.();
+  }
+
+  setEdgeWaypoints(key, pts) {
+    if (!key) return;
+    if (Array.isArray(pts) && pts.length) {
+      this.edgeWaypoints.set(key.toLowerCase(), pts.map(p => ({ x: Math.round(p.x), y: Math.round(p.y) })));
+    } else {
+      this.edgeWaypoints.delete(key.toLowerCase());
+    }
+    this.markDirty();
+  }
+
+  addWaypoint(key, x, y, insertIndex = -1) {
+    if (!key) return;
+    this.onHistorySnapshot?.(this.getSnapshot());
+    const lk = key.toLowerCase();
+    const pts = this.edgeWaypoints.get(lk) ? [...this.edgeWaypoints.get(lk)] : [];
+    const pt = { x: Math.round(x), y: Math.round(y) };
+    const beforeList = pts.map(p => ({ x: p.x, y: p.y }));
+
+    if (insertIndex >= 0 && insertIndex <= pts.length) {
+      pts.splice(insertIndex, 0, pt);
+    } else {
+      pts.push(pt);
+    }
+
+    console.log('[Diagram addWaypoint] ' + JSON.stringify({
+      key: lk,
+      insertedAt: (insertIndex >= 0 && insertIndex <= beforeList.length) ? insertIndex : beforeList.length,
+      requestedInsertIndex: insertIndex,
+      newPoint: pt,
+      before: beforeList,
+      after: pts.map(p => ({ x: p.x, y: p.y }))
+    }));
+
+    this.edgeWaypoints.set(lk, pts);
+    this.markDirty();
+  }
+
+  moveWaypoint(key, index, x, y) {
+    if (!key) return;
+    const lk = key.toLowerCase();
+    const pts = this.edgeWaypoints.get(lk);
+    if (pts && pts[index]) {
+      pts[index].x = Math.round(x);
+      pts[index].y = Math.round(y);
+      this.markDirty();
+    }
+  }
+
+  removeWaypoint(key, index) {
+    if (!key) return;
+    this.onHistorySnapshot?.(this.getSnapshot());
+    const lk = key.toLowerCase();
+    const pts = this.edgeWaypoints.get(lk);
+    if (pts && index >= 0 && index < pts.length) {
+      const removed = pts[index];
+      pts.splice(index, 1);
+      const cleaned = filterRedundantWaypoints(pts, 3);
+      console.log('[Diagram removeWaypoint] ' + JSON.stringify({
+        key: lk,
+        removedIndex: index,
+        removedPoint: removed,
+        remainingCount: cleaned.length,
+        remaining: cleaned.map(p => ({ x: p.x, y: p.y }))
+      }));
+      if (cleaned.length) {
+        this.edgeWaypoints.set(lk, cleaned);
+      } else {
+        this.edgeWaypoints.delete(lk);
+      }
+      this.markDirty();
+    }
+  }
+
+  reconnectEdge(key, isFrom, newTableKey, newColName) {
+    if (!key || !newTableKey) return false;
+    this.onHistorySnapshot?.(this.getSnapshot());
+
+    const lk = key.toLowerCase();
+    let reconnected = false;
+
+    // Check manual links
+    for (let i = 0; i < this.manualLinks.length; i++) {
+      const l = this.manualLinks[i];
+      const k = `${l.from.table.toLowerCase()}.${(l.from.col || '').toLowerCase()}->${l.to.table.toLowerCase()}.${(l.to.col || '').toLowerCase()}`;
+      if (k === lk) {
+        if (isFrom) {
+          l.from.table = newTableKey;
+          l.from.col = newColName || '';
+        } else {
+          l.to.table = newTableKey;
+          l.to.col = newColName || '';
+        }
+        reconnected = true;
+        break;
+      }
+    }
+
+    // Check model relations
+    if (!reconnected) {
+      for (let i = 0; i < this.model.relations.length; i++) {
+        const r = this.model.relations[i];
+        const k = `${r.fromTable.toLowerCase()}.${(r.fromCols[0] || '').toLowerCase()}->${r.toTable.toLowerCase()}.${(r.toCols[0] || '').toLowerCase()}`;
+        if (k === lk) {
+          if (isFrom) {
+            r.fromTable = newTableKey;
+            r.fromCols = [newColName || ''];
+          } else {
+            r.toTable = newTableKey;
+            r.toCols = [newColName || ''];
+          }
+          reconnected = true;
+          break;
+        }
+      }
+    }
+
+    if (reconnected) {
+      this.edgeWaypoints.delete(lk);
+      this.edgeAnchors.delete(lk);
+      this.selectedEdgeKey = null;
+      this.markDirty();
+      this.onLayoutChange?.();
+      return true;
+    }
+    return false;
+  }
+
+  setEdgeAnchor(key, side, offset, isFrom = true) {
+    if (!key) return;
+    const lk = key.toLowerCase();
+    const cur = this.edgeAnchors.get(lk) || {};
+    if (isFrom) cur.fromAnchor = { side, offset };
+    else cur.toAnchor = { side, offset };
+    this.edgeAnchors.set(lk, cur);
+    this.markDirty();
+  }
+
+  // Hit-test waypoint handle or anchor handle near cursor
+  vertexAt(sx, sy) {
     const w = this.screenToWorld(sx, sy);
-    const tol = 7 / this.cam.scale;
+    const tol = Math.max(10, 14 / this.cam.scale);
+
+    // 1) Test anchors and corners of active (selected or hovered) edge FIRST
+    const activeKey = this.selectedEdgeKey || this.hoverEdge?.key;
+    if (activeKey) {
+      const seg = this._edgeSegForDrag(activeKey);
+      if (seg) {
+        if (Math.hypot(w.x - seg.p1.x, w.y - seg.p1.y) <= tol) {
+          return { key: activeKey, isAnchor: true, isFrom: true, table: seg.fromTable, x: seg.p1.x, y: seg.p1.y };
+        }
+        if (Math.hypot(w.x - seg.p2.x, w.y - seg.p2.y) <= tol) {
+          return { key: activeKey, isAnchor: true, isFrom: false, table: seg.toTable, x: seg.p2.x, y: seg.p2.y };
+        }
+        if (seg.isOrthogonal) {
+          const orthoData = getOrthogonalSegments(seg.p1, seg.p2, seg.waypoints, seg.obstacles);
+          for (let i = 1; i < orthoData.points.length - 1; i++) {
+            const pt = orthoData.points[i];
+            if (Math.hypot(w.x - pt.x, w.y - pt.y) <= tol) {
+              return { key: activeKey, index: i - 1, x: pt.x, y: pt.y, isWaypoint: true, isOrthogonal: true };
+            }
+          }
+        } else if (seg.waypoints && seg.waypoints.length) {
+          for (let i = 0; i < seg.waypoints.length; i++) {
+            const pt = seg.waypoints[i];
+            if (Math.hypot(w.x - pt.x, w.y - pt.y) <= tol) {
+              return { key: activeKey, index: i, x: pt.x, y: pt.y, isWaypoint: true, isOrthogonal: false };
+            }
+          }
+        }
+      }
+    }
+
+    // 2) Test waypoints / corners of other edges
+    for (const [key, pts] of this.edgeWaypoints.entries()) {
+      if (activeKey && key.toLowerCase() === activeKey.toLowerCase()) continue;
+      const seg = this._edgeSegForDrag(key);
+      const isOrthogonal = seg?.isOrthogonal;
+      if (isOrthogonal && seg) {
+        const orthoData = getOrthogonalSegments(seg.p1, seg.p2, seg.waypoints, seg.obstacles);
+        for (let i = 1; i < orthoData.points.length - 1; i++) {
+          const pt = orthoData.points[i];
+          if (Math.hypot(w.x - pt.x, w.y - pt.y) <= tol) {
+            return { key, index: i - 1, x: pt.x, y: pt.y, isWaypoint: true, isOrthogonal: true };
+          }
+        }
+      } else {
+        for (let i = 0; i < pts.length; i++) {
+          const pt = pts[i];
+          if (Math.hypot(w.x - pt.x, w.y - pt.y) <= tol) {
+            return { key, index: i, x: pt.x, y: pt.y, isWaypoint: true, isOrthogonal };
+          }
+        }
+      }
+    }
+
+    return null;
+  }
+
+  // Hit-test any edge (model relation or manual link) near the cursor
+  edgeAt(sx, sy) {
+    const w = this.screenToWorld(sx, sy);
+    const tol = Math.max(9, 14 / this.cam.scale);
+    const byKey = this._tableMap();
+    const edges = [];
+    for (const r of this.model.relations) {
+      edges.push({
+        fk: r.fromTable.toLowerCase(),
+        tk: r.toTable.toLowerCase(),
+        fc: r.fromCols[0],
+        tc: r.toCols[0],
+        manual: false,
+        fromTable: r.fromTable,
+        toTable: r.toTable,
+        fromCol: r.fromCols[0],
+        toCol: r.toCols[0],
+        key: `${r.fromTable.toLowerCase()}.${(r.fromCols[0] || '').toLowerCase()}->${r.toTable.toLowerCase()}.${(r.toCols[0] || '').toLowerCase()}`,
+      });
+    }
     for (const l of this.manualLinks) {
-      const seg = this._edgeSeg(l.from.table, l.from.col, l.to.table, l.to.col, null);
-      if (!seg) continue;
-      // sample the bezier
-      for (let i = 0; i <= 16; i++) {
-        const u = i / 16, iu = 1 - u;
-        const bx = iu * iu * iu * seg.fx + 3 * iu * iu * u * seg.c1x + 3 * iu * u * u * seg.c2x + u * u * u * seg.tx;
-        const by = iu * iu * iu * seg.fy + 3 * iu * iu * u * seg.fy + 3 * iu * u * u * seg.ty + u * u * u * seg.ty;
-        if (Math.hypot(w.x - bx, w.y - by) <= tol) return l;
+      edges.push({
+        fk: l.from.table.toLowerCase(),
+        tk: l.to.table.toLowerCase(),
+        fc: l.from.col,
+        tc: l.to.col,
+        manual: true,
+        link: l,
+        fromTable: l.from.table,
+        toTable: l.to.table,
+        fromCol: l.from.col,
+        toCol: l.to.col,
+        key: `${l.from.table.toLowerCase()}.${(l.from.col || '').toLowerCase()}->${l.to.table.toLowerCase()}.${(l.to.col || '').toLowerCase()}`,
+      });
+    }
+
+    let idx = 0;
+    for (const e of edges) {
+      const seg = this._edgeSeg(e.fk, e.fc, e.tk, e.tc, null, e.key);
+      if (!seg) { idx++; continue; }
+      const customColor = this.edgeColors.get(e.key);
+      const autoColor = this.edgeColorMode === 'single' ? this.theme.edge : EDGE_COLORS[idx % EDGE_COLORS.length];
+      const color = customColor || autoColor;
+      const waypoints = seg.waypoints || [];
+      idx++;
+
+      const res = distanceToRoute(w.x, w.y, seg.routingStyle, seg.p1, seg.p2, waypoints);
+      if (res.minDist <= tol) {
+        return {
+          ...e,
+          color,
+          customColor,
+          isManual: e.manual,
+          manualLink: e.link,
+          p1: seg.p1,
+          p2: seg.p2,
+          waypoints,
+          routingStyle: seg.routingStyle,
+          isOrthogonal: seg.isOrthogonal,
+          segmentIndex: res.segmentIndex,
+          isVertical: res.isVertical,
+          segMid: res.segMid,
+          nearestPoint: res.nearestPoint,
+          insertIndex: res.insertIndex,
+        };
       }
     }
     return null;
   }
 
+  // manual link whose curve passes near the point (for right-click delete)
+  linkAt(sx, sy) {
+    const hit = this.edgeAt(sx, sy);
+    return (hit && hit.isManual) ? hit.manualLink : null;
+  }
+
   removeManualLink(link) {
     const i = this.manualLinks.indexOf(link);
     if (i < 0) return;
+    this.onHistorySnapshot?.(this.getSnapshot());
     this.manualLinks.splice(i, 1);
     this.markDirty();
     this.onLayoutChange?.();
@@ -1167,6 +2500,7 @@ export class Diagram {
 
   clearManualLinks() {
     if (!this.manualLinks.length) return;
+    this.onHistorySnapshot?.(this.getSnapshot());
     this.manualLinks = [];
     this.markDirty();
     this.onLayoutChange?.();
@@ -1211,17 +2545,22 @@ export class Diagram {
     if (ly < HEADER_H) {
       return { table: t, kind: 'table', rect: { x: t.x, y: t.y, w: t.w, h: HEADER_H }, align: 'left', weight: 600 };
     }
+    const visibleCols = getVisibleColumns(t, this.diagramLevel);
     const idx = Math.floor((ly - HEADER_H) / ROW_H);
-    if (idx < 0 || idx >= t.columns.length) return null;
-    const col = t.columns[idx];
+    if (idx < 0 || idx >= visibleCols.length) return null;
+    const col = visibleCols[idx];
     const rowY = t.y + HEADER_H + idx * ROW_H;
     const split = t.x + t.w * 0.58;
-    if (w.x >= split && col.type) {
-      return { table: t, kind: 'column-type', colName: col.name, value: col.typeRaw || col.type,
-               rect: { x: split, y: rowY, w: t.x + t.w - split, h: ROW_H }, align: 'right', weight: 400 };
+    if (this.diagramLevel !== 'conceptual' && w.x >= split && col.type) {
+      return {
+        table: t, kind: 'column-type', colName: col.name, value: col.typeRaw || col.type,
+        rect: { x: split, y: rowY, w: t.x + t.w - split, h: ROW_H }, align: 'right', weight: 400
+      };
     }
-    return { table: t, kind: 'column-name', colName: col.name, value: col.name,
-             rect: { x: t.x + 30, y: rowY, w: split - (t.x + 30), h: ROW_H }, align: 'left', weight: 400 };
+    return {
+      table: t, kind: 'column-name', colName: col.name, value: col.name,
+      rect: { x: t.x + 30, y: rowY, w: (this.diagramLevel === 'conceptual' ? t.w - 42 : split - (t.x + 30)), h: ROW_H }, align: 'left', weight: 400
+    };
   }
 
   _beginEdit(target) {
@@ -1397,31 +2736,57 @@ function dot(ctx, x, y, r) {
 }
 
 // Crow's-foot cardinality marker at a line endpoint on a table edge.
-//   (x,y) = the point on the table edge; dir = +1 if the line extends in +x
-//   from here, -1 if -x. `s` = world-units-per-screen-pixel (1/scale).
+//   (x, y) = the point on the table edge
+//   (nx, ny) = outward normal vector from the table edge (pointing along the line)
 //   kind ∈ 'one' | 'many' | 'zero-or-one' | 'zero-or-many'. lw = line width.
-function drawMarker(ctx, x, y, dir, kind, s, lw) {
+//   `s` = world-units-per-screen-pixel (1/scale).
+function drawMarker(ctx, x, y, nx, ny, kind, s, lw) {
+  // Backward compatibility if called as (ctx, x, y, dir, kind, s, lw)
+  if (typeof ny === 'string') {
+    lw = s;
+    s = kind;
+    kind = ny;
+    ny = 0;
+    nx = nx < 0 ? -1 : 1;
+  }
+
+  const len = Math.hypot(nx, ny);
+  const unx = len > 0.001 ? nx / len : 1;
+  const uny = len > 0.001 ? ny / len : 0;
+
+  // Perpendicular unit vector (-uny, unx) along table edge
+  const px = -uny;
+  const py = unx;
+
   const foot = 11 * s;     // distance from edge to crow's-foot apex / bar tick
-  const spread = 5.5 * s;  // half-height of the foot / bar
+  const spread = 5.5 * s;  // half-width of the foot / bar along the edge
   const r = 3.2 * s;       // optionality ("zero") ring radius
   const many = kind === 'many' || kind === 'zero-or-many';
   const optional = kind === 'zero-or-one' || kind === 'zero-or-many';
+
   ctx.lineWidth = lw;
   ctx.beginPath();
   if (many) {
-    const ax = x + dir * foot;                       // apex out along the line
-    ctx.moveTo(ax, y); ctx.lineTo(x, y - spread);    // three prongs back to edge
-    ctx.moveTo(ax, y); ctx.lineTo(x, y + spread);
-    ctx.moveTo(ax, y); ctx.lineTo(x, y);
+    const ax = x + unx * foot;
+    const ay = y + uny * foot;
+    // three prongs connecting apex back to edge
+    ctx.moveTo(ax, ay); ctx.lineTo(x + px * spread, y + py * spread);
+    ctx.moveTo(ax, ay); ctx.lineTo(x - px * spread, y - py * spread);
+    ctx.moveTo(ax, ay); ctx.lineTo(x, y);
   } else {
-    const bx = x + dir * foot;                        // single bar ("one")
-    ctx.moveTo(bx, y - spread); ctx.lineTo(bx, y + spread);
+    // single bar ("one") perpendicular to line
+    const bx = x + unx * foot;
+    const by = y + uny * foot;
+    ctx.moveTo(bx + px * spread, by + py * spread);
+    ctx.lineTo(bx - px * spread, by - py * spread);
   }
   ctx.stroke();
+
   if (optional) {
-    const cx = x + dir * (foot + r + 2 * s);          // hollow "zero" ring, outermost
+    const cx = x + unx * (foot + r + 2 * s);
+    const cy = y + uny * (foot + r + 2 * s);
     ctx.beginPath();
-    ctx.arc(cx, y, r, 0, Math.PI * 2);
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
     ctx.stroke();
   }
 }
@@ -1440,8 +2805,16 @@ function inside(w, a) { return w.x >= a.x && w.x <= a.x + a.w && w.y >= a.y && w
 
 // #rrggbb -> rgba() with alpha
 function hexA(hex, a) {
-  const n = parseInt(hex.slice(1), 16);
-  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+  if (!hex || typeof hex !== 'string') return `rgba(90,167,255,${a})`;
+  if (hex.startsWith('rgba') || hex.startsWith('hsla')) return hex;
+  if (hex.startsWith('rgb(')) return hex.replace('rgb(', 'rgba(').replace(')', `,${a})`);
+  let s = hex.replace('#', '');
+  if (s.length === 3) s = s.split('').map(c => c + c).join('');
+  if (s.length === 6) {
+    const n = parseInt(s, 16);
+    if (!Number.isNaN(n)) return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+  }
+  return `rgba(90,167,255,${a})`;
 }
 // single-line truncate to width
 function clip(ctx, text, maxW) {

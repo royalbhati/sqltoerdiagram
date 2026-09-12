@@ -4,7 +4,7 @@
 // these formats are parse-only / view-only).
 
 export function makeTable(name) {
-  return { name, key: name.toLowerCase(), columns: [], colIndex: new Map(), colRefs: [], nameSpan: null, bodySpan: null };
+  return { name, key: name.toLowerCase(), columns: [], colIndex: new Map(), colRefs: [], nameSpan: null, bodySpan: null, stmtSpan: null };
 }
 
 export function addColumn(table, col) {
@@ -17,39 +17,50 @@ export function addColumn(table, col) {
     nn: !!col.nn,
     unique: !!col.unique,
     fk: false,
-    nameSpan: null,
-    typeSpan: null,
+    nameSpan: col.nameSpan || null,
+    typeSpan: col.typeSpan || null,
+    defSpan: col.defSpan || null,
+    settingsSpan: col.settingsSpan || null,
   };
   table.columns.push(c);
   table.colIndex.set(col.name.toLowerCase(), c);
 }
 
 // rels: [{ fromTable, fromCols, toTable, toCols }]  (names, not keys)
-export function finalize(tables, rels) {
+export function finalize(tables, rels, groups = []) {
   const byKey = new Map(tables.map((t) => [t.key, t]));
   const resolved = [];
   const seen = new Set();
   for (const r of rels) {
     const from = byKey.get((r.fromTable || '').toLowerCase());
-    if (!from) continue;
+    const fromName = from ? from.name : r.fromTable;
     const to = byKey.get((r.toTable || '').toLowerCase());
-    for (const c of r.fromCols || []) {
-      const col = from.colIndex.get((c || '').toLowerCase());
-      if (col) col.fk = true;
+    if (from) {
+      for (const c of r.fromCols || []) {
+        const col = from.colIndex.get((c || '').toLowerCase());
+        if (col) col.fk = true;
+      }
     }
-    const key = `${from.key}.${(r.fromCols || [])[0] || ''}->${(r.toTable || '').toLowerCase()}.${(r.toCols || [])[0] || ''}`;
+    const fromKey = (r.fromTable || '').toLowerCase();
+    const key = `${fromKey}.${(r.fromCols || [])[0] || ''}->${(r.toTable || '').toLowerCase()}.${(r.toCols || [])[0] || ''}`;
     if (seen.has(key)) continue;
     seen.add(key);
     resolved.push({
-      fromTable: from.name,
+      fromTable: fromName,
       fromCols: r.fromCols || [],
       toTable: to ? to.name : r.toTable,
       toCols: r.toCols || [],
       toMissing: !to,
-      refSpan: null,
+      fromMissing: !from,
+      refSpan: r.refSpan || null,
+      stmtSpan: r.stmtSpan || null,
+      fromTableSpan: r.fromTableSpan || null,
+      fromColSpan: r.fromColSpan || null,
+      toTableSpan: r.toTableSpan || null,
+      toColSpan: r.toColSpan || null,
     });
   }
-  return { tables, relations: resolved, errors: [] };
+  return { tables, relations: resolved, errors: [], groups: groups || [] };
 }
 
 // Return [innerStart, innerEnd, afterClose] for the bracket group whose opening

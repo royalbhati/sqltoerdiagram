@@ -25,7 +25,7 @@ export function detectFormat(text) {
   const t = text || '';
   if (/^\s*erDiagram\b/m.test(t)) return 'mermaid';
   if (/@startuml\b/.test(t) || (/\b(entity|class)\s+("?\w)/.test(t) && /\|\|--|\}o|--\{|<<PK>>/.test(t))) return 'plantuml';
-  if (/^\s*Table\s+[^\s{]+\s*\{/m.test(t) || /^\s*Ref\b[^:]*:/m.test(t)) return 'dbml';
+  if (/^\s*Table\s+[^\s{]+\s*\{/m.test(t) || /^\s*Ref\b[^:]*:/m.test(t) || /^\s*TableGroup\b/m.test(t)) return 'dbml';
   if (/^\s*model\s+\w+\s*\{/m.test(t) || /\b(datasource|generator)\s+\w+\s*\{/.test(t)) return 'prisma';
   if (/\.define\s*\(\s*['"]/.test(t) || (/DataTypes\./.test(t) && /\.init\s*\(/.test(t))) return 'sequelize';
   if (/\bColumn\s*\(|mapped_column\s*\(/.test(t) && /\b(Base|db\.Model|DeclarativeBase|declarative_base|__tablename__)\b/.test(t)) return 'sqlalchemy';
@@ -51,6 +51,6 @@ export function parseSchema(text, format = 'auto') {
     res = { tables: [], relations: [], errors: [String(e && e.message || e)] };
   }
   res.format = fmt;
-  res.editable = fmt === 'sql';   // only SQL supports two-way canvas editing
+  res.editable = fmt === 'sql' || fmt === 'dbml';   // SQL & DBML support two-way canvas editing
   return res;
 }
