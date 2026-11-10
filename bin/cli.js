@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { readFileSync, writeFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
-import { parseSchema } from '../src/parse.js';
+import { parseSchema, loadAllFormats } from '../src/parse.js';
 import { inferLinks } from '../src/infer-links.js';
 import { layout } from '../src/layout.js';
 import { exportSVG } from '../src/svg-export.js';
@@ -50,6 +50,7 @@ const sql = inputFile
   ? readFileSync(inputFile, 'utf8')
   : readFileSync(process.stdin.fd, 'utf8');
 
+await loadAllFormats();
 const model = parseSchema(sql, values.format);
 model.relations.push(...inferLinks(model));
 

@@ -4,21 +4,31 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>TypeORM to ER Diagram — Visualize Your Entities</title>
-  <meta name="description" content="Turn your TypeORM entities into an interactive ER diagram. Generate the SQL from your entities and paste it to visualize tables and relations. Free, in your browser." />
+  <meta name="description" content="Turn your TypeORM entities into an interactive ER diagram. Paste your entity classes (or the SQL TypeORM generates) to visualize tables and relations. Free, in your browser." />
   <meta name="keywords" content="typeorm to er diagram, typeorm erd, visualize typeorm entities, typeorm schema diagram, nestjs database diagram" />
   <link rel="canonical" href="https://sqltoerdiagram.com/typeorm/" />
   <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="SQL to ER Diagram" />
   <meta property="og:url" content="https://sqltoerdiagram.com/typeorm/" />
   <meta property="og:title" content="TypeORM to ER Diagram — Visualize Your Entities" />
-  <meta property="og:description" content="Turn your TypeORM entities into an interactive ER diagram. Generate the SQL from your entities and paste it to visualize tables and relations. Free, in your browser." />
-  <meta property="og:image" content="https://sqltoerdiagram.com/og.png" />
+  <meta property="og:description" content="Turn your TypeORM entities into an interactive ER diagram. Paste your entity classes (or the SQL TypeORM generates) to visualize tables and relations. Free, in your browser." />
+  <meta property="og:image" content="https://sqltoerdiagram.com/og/typeorm.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="ER diagram of the TypeORM example schema: User and Post (2 tables, 1 relationship)" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="TypeORM to ER Diagram — Visualize Your Entities" />
-  <meta name="twitter:image" content="https://sqltoerdiagram.com/og.png" />
+  <meta name="twitter:description" content="Turn your TypeORM entities into an interactive ER diagram. Paste your entity classes (or the SQL TypeORM generates) to visualize tables and relations. Free, in your browser." />
+  <meta name="twitter:image" content="https://sqltoerdiagram.com/og/typeorm.png" />
+  <meta name="twitter:image:alt" content="ER diagram of the TypeORM example schema: User and Post (2 tables, 1 relationship)" />
   <link rel="icon" href="/favicon.ico" sizes="any" />
   <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <script defer src="https://cloud.umami.is/script.js" data-website-id="27b5b4ba-93ad-4ef3-aaa0-af516881d308" data-exclude-hash="true"></script>
   <script type="application/ld+json">
-  {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"How do I get an ER diagram from TypeORM?","acceptedAnswer":{"@type":"Answer","text":"Have TypeORM emit the SQL for your entities (via <code>migration:generate</code> or by logging the synchronize SQL), then paste those CREATE TABLE statements here."}},{"@type":"Question","name":"Why use the generated SQL instead of the entity files?","acceptedAnswer":{"@type":"Answer","text":"The generated SQL is the source of truth for the actual database shape — column types, defaults and foreign keys are all explicit, so the diagram is exact."}},{"@type":"Question","name":"Is my schema uploaded anywhere?","acceptedAnswer":{"@type":"Answer","text":"No. Everything runs locally in your browser — your schema is never uploaded to or stored on any server."}},{"@type":"Question","name":"Is it free?","acceptedAnswer":{"@type":"Answer","text":"Yes. It is completely free and open source, with no account or sign-up required."}}]}
+  {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"How do I get an ER diagram from TypeORM?","acceptedAnswer":{"@type":"Answer","text":"Paste your entity classes into the editor. Every class marked @Entity becomes a table, its @Column properties become columns, and its relations become foreign keys."}},{"@type":"Question","name":"Which TypeORM features are read?","acceptedAnswer":{"@type":"Answer","text":"Decorator-style entities: @Entity, @PrimaryGeneratedColumn, @PrimaryColumn, @Column, the date and version columns, @ManyToOne, @OneToOne with @JoinColumn, and @ManyToMany with @JoinTable. EntitySchema objects are not read; for those, or for exact database types, paste the SQL from typeorm migration:generate instead."}},{"@type":"Question","name":"Is my schema uploaded anywhere?","acceptedAnswer":{"@type":"Answer","text":"No. Everything runs locally in your browser — your schema is never uploaded to or stored on any server."}},{"@type":"Question","name":"Is it free?","acceptedAnswer":{"@type":"Answer","text":"Yes. It is completely free and open source, with no account or sign-up required."}}]}
+  </script>
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@type":"HowTo","name":"How to use TypeORM to ER Diagram","description":"Turn your TypeORM entities into an interactive ER diagram. Paste your entity classes (or the SQL TypeORM generates) to visualize tables and relations. Free, in your browser.","image":"https://sqltoerdiagram.com/og/typeorm.png","tool":[{"@type":"HowToTool","name":"SQL to ER Diagram (web browser)"}],"step":[{"@type":"HowToStep","position":1,"name":"Copy your entity classes","text":"Copy your entity classes — one file or several pasted together.","url":"https://sqltoerdiagram.com/typeorm/#how-it-works"},{"@type":"HowToStep","position":2,"name":"Paste them into the editor (or drop the .ts file on the page)","text":"Paste them into the editor (or drop the .ts file on the page). TypeORM is detected automatically.","url":"https://sqltoerdiagram.com/typeorm/#how-it-works"},{"@type":"HowToStep","position":3,"name":"Each @Entity becomes a table","text":"Each @Entity becomes a table; @ManyToOne / @OneToOne become foreign keys and @ManyToMany with @JoinTable becomes a junction table.","url":"https://sqltoerdiagram.com/typeorm/#how-it-works"},{"@type":"HowToStep","position":4,"name":"Arrange, hide tables, then export PNG/SVG or convert to Mermaid/DBML","text":"Arrange, hide tables, then export PNG/SVG or convert to Mermaid/DBML.","url":"https://sqltoerdiagram.com/typeorm/#how-it-works"}]}
   </script>
   <script type="application/ld+json">
   {"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"SQL to ER Diagram","item":"https://sqltoerdiagram.com/"},{"@type":"ListItem","position":2,"name":"TypeORM","item":"https://sqltoerdiagram.com/typeorm/"}]}
@@ -58,11 +68,29 @@
     .badges { display:flex; flex-wrap:wrap; gap:8px; margin:18px 0 0; }
     .badge { font-size:13px; color:#cdd6e0; background:var(--panel); border:1px solid var(--border); border-radius:999px; padding:6px 12px; }
     .related { display:flex; flex-wrap:wrap; gap:8px 18px; }
+    .cols { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:4px 22px; width:100%; }
+    .cols .col h4 { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:14px 0 6px; }
+    .cols .col a { display:block; font-size:14px; padding:2px 0; }
+    .chips { display:flex; flex-wrap:wrap; gap:8px; }
+    .chip { font-size:13px; color:#cdd6e0; background:var(--panel); border:1px solid var(--border); border-radius:999px; padding:4px 12px; font-family:ui-monospace,Menlo,Consolas,monospace; }
     .cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:14px; padding:0; list-style:none; }
     .card { display:block; padding:16px; background:var(--panel); border:1px solid var(--border); border-radius:12px; }
     .card:hover { border-color:var(--accent); text-decoration:none; }
     .card .t { font-weight:600; color:var(--text); margin-bottom:4px; }
     .card .d { font-size:13px; color:var(--muted); }
+    figure.diagram { margin:28px 0 0; }
+    figure.diagram img { display:block; max-width:100%; height:auto; border:1px solid var(--border); border-radius:12px; background:#0e1116; }
+    figcaption { font-size:13px; color:var(--muted); margin-top:8px; }
+    .glance dl { display:grid; grid-template-columns:max-content 1fr; gap:10px 20px; margin:0; }
+    .glance dt { color:var(--muted); font-weight:600; }
+    .glance dd { margin:0; color:#c4ccd6; }
+    @media (max-width:560px) { .glance dl { grid-template-columns:1fr; gap:2px; } .glance dd { margin-bottom:10px; } }
+    .card img { display:block; width:100%; height:130px; object-fit:contain; background:#0e1116; border:1px solid var(--border); border-radius:8px; margin-bottom:12px; }
+    .tablewrap { overflow-x:auto; }
+    table.cmp { border-collapse:collapse; width:100%; font-size:15px; }
+    table.cmp th, table.cmp td { text-align:left; vertical-align:top; padding:10px 12px; border-bottom:1px solid var(--border); color:#c4ccd6; }
+    table.cmp th { color:var(--muted); font-size:13px; text-transform:uppercase; letter-spacing:.06em; }
+    .fine { font-size:13px; color:var(--muted); }
     footer { border-top:1px solid var(--border); padding:26px 0 50px; color:var(--muted); font-size:14px; }
     footer .wrap { display:flex; gap:18px; flex-wrap:wrap; }
   </style>
@@ -83,41 +111,76 @@
     <div class="crumb"><a href="/">Home</a> › TypeORM</div>
     <div class="hero">
       <h1>TypeORM to <span class="a">ER Diagram</span></h1>
-      <p class="lead">Visualize your <strong>TypeORM</strong> entities as an interactive ER diagram. The most reliable path is to let TypeORM emit the SQL for your entities and paste that — every column type and relation comes through exactly.</p>
-      <a class="cta" href="/#s=zjY8xC8IwFIT_yuMmhSyudaryhGKtEusgvCXaWAM1rUl1Ef-7VMHByfXu-O7uAdN1SFAdKlcbKNxtiK71SCYK8dogwVxzWjKV6SxnEtyiDQIaiScSuEpAW9ZZmtNGZ6tU72nJe_Vx7cW4RkB3E45nE6hYl1Ts8lz8eCpe_A-6a2P_L9rc-nMbsiHjfG9rG0jzgjUXc95-Z44-mPFQCIXKmcYeeyTvqjrYCIVTGy5m0Ia7zxc">Open the diagram tool →</a>
+      <p class="lead">Visualize your <strong>TypeORM</strong> entities as an interactive ER diagram. Paste the entity classes as they are — <code>@Entity</code>, <code>@Column</code>, <code>@ManyToOne</code> and <code>@ManyToMany</code> are read directly — or paste the SQL TypeORM generates if you want every database-level detail.</p>
+      <a class="cta" href="/#s=zpY8xawMxDIX_itB0gVu6OqQESulUkqHdblFi9Wqw5Ysshx7H_fdypkOXTl3f-x76tCBNEzr0Fx9Gwh7vrCVkQffQY7lFdHh8Fgs2d7tB-GvKanCNVAq8F1ZYBgE4njUk0vmFhZWM_VOONcm2AAjegdR0Yd0P0uifdoEq4VbZgWllWBvNiUJ0UEyDjPtB1m3zl8E5F_uPQWstWORfFxvwSjK_5ZNw1-3g8Nh-bTRV-8zqWrDpYY8-UOSrocMpFxuVC_b4kTXRltk8cdaE6zc">Open the diagram tool →</a>
       <div class="note">No signup · nothing uploaded · export PNG / SVG / Mermaid / DBML · shareable link</div>
+      <figure class="diagram">
+        <img src="/og/typeorm.svg" width="480" height="192" alt="ER diagram of the TypeORM example schema: User and Post (2 tables, 1 relationship)" fetchpriority="high" decoding="async" />
+        <figcaption>The TypeORM example below, drawn by the tool: User and Post (2 tables, 1 relationship).</figcaption>
+      </figure>
     </div>
-    <section><h2>How it works</h2><ol>
-        <li>Generate the schema SQL from your entities: run a migration with <code>typeorm migration:generate</code>, or log the SQL from <code>synchronize</code>.</li>
-        <li>Copy the <code>CREATE TABLE</code> / <code>ALTER TABLE</code> statements.</li>
-        <li>Paste them into the editor — the SQL is parsed and tables + foreign keys are drawn.</li>
+    <section class="glance" id="at-a-glance"><h2>At a glance</h2>
+      <dl>
+        <dt>What it is</dt><dd>SQL to ER Diagram is a free, open-source browser tool that turns TypeORM entities into an interactive entity-relationship (ER) diagram.</dd>
+        <dt>Input</dt><dd>Decorator-style TypeORM entity classes (<code>@Entity</code>, <code>@Column</code>, <code>@ManyToOne</code>, <code>@ManyToMany</code>…), or the SQL TypeORM generates from them. <code>EntitySchema</code> objects are not read.</dd>
+        <dt>Output</dt><dd>An interactive ER diagram you can rearrange, then export as PNG, SVG, Mermaid, DBML or PlantUML, or share as a link.</dd>
+        <dt>Cost</dt><dd>Free. MIT-licensed open source. No account or signup.</dd>
+        <dt>Privacy</dt><dd>Runs entirely in your browser. The schema is never uploaded, and share links carry the diagram in the URL fragment, which is not sent to a server.</dd>
+        <dt>Limits</dt><dd>It never connects to your database itself: you paste schema text, or run one read-only catalog query in your own client and paste the result. There are no accounts, so there is no real-time multi-user editing; diagrams are kept in your browser, as a saved file, or as a share link. Layout stays smooth at around 300 tables.</dd>
+      </dl>
+    </section>
+    <section id="how-it-works"><h2>How it works</h2><ol>
+        <li>Copy your entity classes — one file or several pasted together.</li>
+        <li>Paste them into the editor (or drop the <code>.ts</code> file on the page). TypeORM is detected automatically.</li>
+        <li>Each <code>@Entity</code> becomes a table; <code>@ManyToOne</code> / <code>@OneToOne</code> become foreign keys and <code>@ManyToMany</code> with <code>@JoinTable</code> becomes a junction table.</li>
         <li>Arrange, hide tables, then export PNG/SVG or convert to Mermaid/DBML.</li>
     </ol></section>
     <section><h2>Example</h2>
-      <p>TypeORM generates SQL like this from your entities:</p>
-      <pre>CREATE TABLE "user" (
-  "id" SERIAL PRIMARY KEY,
-  "email" varchar NOT NULL
-);
+      <p>Paste TypeORM entities like these:</p>
+      <pre>@Entity()
+export class User {
+  @PrimaryGeneratedColumn()
+  id: number;
 
-CREATE TABLE "post" (
-  "id" SERIAL PRIMARY KEY,
-  "authorId" integer REFERENCES "user"("id")
-);</pre>
-      <p>…renders two tables with a relation from <code>post.authorId</code> → <code>user.id</code>. <a href="/">Try it with your own &rarr;</a></p>
+  @Column({ unique: true })
+  email: string;
+}
+
+@Entity()
+export class Post {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column()
+  title: string;
+
+  @ManyToOne(() =&gt; User)
+  author: User;
+}</pre>
+      <p>…and you get <code>User</code> and <code>Post</code> with a relation from <code>Post.authorId</code> → <code>User.id</code>. <a href="/">Try it with your own &rarr;</a></p>
+    </section>
+    <section><h2>Guide</h2>
+
+      <p>TypeORM entities are decorators over classes — <code>@Entity()</code>, <code>@PrimaryGeneratedColumn()</code>, <code>@Column()</code>, <code>@ManyToOne(() =&gt; User, u =&gt; u.posts)</code> — and while this page works from the SQL TypeORM generates, that's the more reliable path anyway: the generated SQL is the ground truth of what's in your database, including column types resolved from your database driver, explicit constraint names, and join tables created by <code>@ManyToMany(() =&gt; Tag, tag =&gt; tag.posts)</code>.</p>
+      <p>The two easiest ways to get that SQL:</p>
+      <ul>
+        <li><strong>Migrations:</strong> <code>npx typeorm migration:generate -d ./migrations MyFirstMigration</code>, then paste the <code>CREATE TABLE</code> statements from the generated file.</li>
+        <li><strong>Synchronize logging:</strong> set <code>logging: true</code> in your DataSource options (or <code>synchronize: true</code> in dev) and copy the schema-sync SQL from the console at startup.</li>
+      </ul>
+      <p>Both produce standard Postgres/MySQL DDL with <code>ALTER TABLE … ADD CONSTRAINT</code> foreign keys, which the parser stitches back onto the right tables. NestJS projects work identically — the entities are plain TypeORM under the hood.</p>
     </section>
     <section><h2>Why use it</h2><ul>
         <li><strong>Private:</strong> everything runs in your browser — nothing is uploaded or stored on a server.</li>
-        <li><strong>Exact:</strong> generated SQL captures every column type, index and relation.</li>
+        <li><strong>Straight from code:</strong> no migration run and no database needed — the entity decorators are read as they are.</li>
         <li><strong>Interactive:</strong> drag tables, auto-arrange, hide noise, add notes, and manually link columns.</li>
         <li><strong>Export</strong> a high-res PNG, vector SVG, or the schema as Mermaid / DBML / PlantUML code.</li>
         <li><strong>Free &amp; open source</strong> — no account, no sign-up.</li>
     </ul><div class="badges"><span class="badge">TypeORM</span><span class="badge">SQL</span><span class="badge">Prisma</span><span class="badge">Sequelize</span></div></section>
     <section><h2>FAQ</h2>
       <h3>How do I get an ER diagram from TypeORM?</h3>
-      <p>Have TypeORM emit the SQL for your entities (via <code>migration:generate</code> or by logging the synchronize SQL), then paste those CREATE TABLE statements here.</p>
-      <h3>Why use the generated SQL instead of the entity files?</h3>
-      <p>The generated SQL is the source of truth for the actual database shape — column types, defaults and foreign keys are all explicit, so the diagram is exact.</p>
+      <p>Paste your entity classes into the editor. Every class marked <code>@Entity</code> becomes a table, its <code>@Column</code> properties become columns, and its relations become foreign keys.</p>
+      <h3>Which TypeORM features are read?</h3>
+      <p>Decorator-style entities: <code>@Entity</code>, <code>@PrimaryGeneratedColumn</code>, <code>@PrimaryColumn</code>, <code>@Column</code>, the date and version columns, <code>@ManyToOne</code>, <code>@OneToOne</code> with <code>@JoinColumn</code>, and <code>@ManyToMany</code> with <code>@JoinTable</code>. <code>EntitySchema</code> objects are not read; for those, or for exact database types, paste the SQL from <code>typeorm migration:generate</code> instead.</p>
       <h3>Is my schema uploaded anywhere?</h3>
       <p>No. Everything runs locally in your browser — your schema is never uploaded to or stored on any server.</p>
       <h3>Is it free?</h3>
@@ -127,11 +190,58 @@ CREATE TABLE "post" (
   </main>
   <footer>
     <div class="wrap">
-      <a href="/">SQL to ER Diagram</a>
-      <a href="/examples/">Schema examples</a>
-      <a href="https://github.com/royalbhati/sqltoerdiagram" target="_blank" rel="noopener">Open source on GitHub</a>
-      <a href="https://yourbrowsercandoit.com/" target="_blank" rel="noopener">Part of yourbrowsercandoit.com ↗</a>
-      <span>Free · runs in your browser</span>
+      <div class="cols">
+      <div class="col"><h4>Databases</h4>
+        <a href="/mysql/">MySQL</a>
+        <a href="/postgresql/">PostgreSQL</a>
+        <a href="/sqlite/">SQLite</a>
+        <a href="/sql-server/">SQL Server</a>
+        <a href="/oracle/">Oracle</a>
+        <a href="/mariadb/">MariaDB</a>
+        <a href="/snowflake/">Snowflake</a>
+        <a href="/bigquery/">BigQuery</a>
+      </div>
+      <div class="col"><h4>Formats & ORMs</h4>
+        <a href="/prisma/">Prisma</a>
+        <a href="/dbml/">DBML</a>
+        <a href="/mermaid/">Mermaid</a>
+        <a href="/sqlalchemy/">SQLAlchemy</a>
+        <a href="/sequelize/">Sequelize</a>
+        <a href="/typeorm/">TypeORM</a>
+        <a href="/django/">Django</a>
+      </div>
+      <div class="col"><h4>Converters</h4>
+        <a href="/sql-to-mermaid/">SQL to Mermaid</a>
+        <a href="/sql-to-dbml/">SQL to DBML</a>
+        <a href="/sql-to-plantuml/">SQL to PlantUML</a>
+        <a href="/prisma-to-dbml/">Prisma to DBML</a>
+        <a href="/dbml-to-mermaid/">DBML to Mermaid</a>
+        <a href="/ddl-to-er-diagram/">DDL to ER Diagram</a>
+        <a href="/er-diagram-generator/">ER Diagram Generator</a>
+      </div>
+      <div class="col"><h4>Viewers & visualizers</h4>
+        <a href="/dbml-to-er-diagram/">DBML to ER Diagram</a>
+        <a href="/dbml-viewer/">DBML Viewer</a>
+        <a href="/mermaid-to-erd/">Mermaid to ERD</a>
+        <a href="/prisma-schema-visualizer/">Prisma Schema Visualizer</a>
+        <a href="/plantuml/">PlantUML</a>
+        <a href="/plantuml-viewer/">PlantUML Viewer</a>
+      </div>
+      <div class="col"><h4>Compare</h4>
+        <a href="/alternatives/">All alternatives</a>
+        <a href="/vs/dbdiagram/">vs dbdiagram.io</a>
+        <a href="/vs/drawsql/">vs DrawSQL</a>
+        <a href="/vs/chartdb/">vs ChartDB</a>
+        <a href="/vs/drawdb/">vs drawDB</a>
+      </div>
+      </div>
+      <div style="display:flex; gap:18px; flex-wrap:wrap; margin-top:18px;">
+        <a href="/">SQL to ER Diagram</a>
+        <a href="/examples/">Schema examples</a>
+        <a href="https://github.com/royalbhati/sqltoerdiagram" target="_blank" rel="noopener">Open source on GitHub</a>
+        <a href="https://yourbrowsercandoit.com/" target="_blank" rel="noopener">Part of yourbrowsercandoit.com ↗</a>
+        <span>Free · runs in your browser</span>
+      </div>
     </div>
   </footer>
 </body>

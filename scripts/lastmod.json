@@ -1,0 +1,182 @@
+{
+  "https://sqltoerdiagram.com/": {
+    "hash": "a73feafed9b60d1e",
+    "lastmod": "2026-11-10"
+  },
+  "https://sqltoerdiagram.com/prisma/": {
+    "hash": "744f9701644fc4fb",
+    "lastmod": "2026-11-10"
+  },
+  "https://sqltoerdiagram.com/mysql/": {
+    "hash": "946ac8088a2d9988",
+    "lastmod": "2026-11-10"
+  },
+  "https://sqltoerdiagram.com/postgresql/": {
+    "hash": "0b6f3f69eec6d5dd",
+    "lastmod": "2026-11-10"
+  },
+  "https://sqltoerdiagram.com/sqlite/": {
+    "hash": "b7696fe96fab0ff9",
+    "lastmod": "2026-11-10"
+  },
+  "https://sqltoerdiagram.com/sql-server/": {
+    "hash": "fcb82f3412f20c73",
+    "lastmod": "2026-11-10"
+  },
+  "https://sqltoerdiagram.com/dbml/": {
+    "hash": "439d4525d91ec443",
+    "lastmod": "2026-11-10"
+  },
+  "https://sqltoerdiagram.com/mermaid/": {
+    "hash": "1bafedd5e4415bd8",
+    "lastmod": "2026-11-10"
+  },
+  "https://sqltoerdiagram.com/sqlalchemy/": {
+    "hash": "9bac164d32b5a423",
+    "lastmod": "2026-11-10"
+  },
+  "https://sqltoerdiagram.com/sequelize/": {
+    "hash": "6e15682f10d322ea",
+    "lastmod": "2026-11-10"
+  },
+  "https://sqltoerdiagram.com/typeorm/": {
+    "hash": "bccced4f57eba9ea",
+    "lastmod": "2026-11-10"
+  },
+  "https://sqltoerdiagram.com/django/": {
+    "hash": "7e4722cc5b79ceb2",
+    "lastmod": "2026-11-10"
+  },
+  "https://sqltoerdiagram.com/sql-to-mermaid/": {
+    "hash": "b95d352271231ee1",
+    "lastmod": "2026-11-10"
+  },
+  "https://sqltoerdiagram.com/prisma-to-dbml/": {
+    "hash": "266e8e9c4453c50b",
+    "lastmod": "2026-11-10"
+  },
+  "https://sqltoerdiagram.com/dbml-to-er-diagram/": {
+    "hash": "c2a1fc25fd2482aa",
+    "lastmod": "2026-11-10"
+  },
+  "https://sqltoerdiagram.com/mermaid-to-erd/": {
+    "hash": "43ccfb8f4bf6b889",
+    "lastmod": "2026-11-10"
+  },
+  "https://sqltoerdiagram.com/oracle/": {
+    "hash": "137fd9dbdec719d5",
+    "lastmod": "2026-11-10"
+  },
+  "https://sqltoerdiagram.com/mariadb/": {
+    "hash": "5d58773734a963f0",
+    "lastmod": "2026-11-10"
+  },
+  "https://sqltoerdiagram.com/snowflake/": {
+    "hash": "474e9c8db790e61e",
+    "lastmod": "2026-11-10"
+  },
+  "https://sqltoerdiagram.com/bigquery/": {
+    "hash": "82c166fee99ae871",
+    "lastmod": "2026-11-10"
+  },
+  "https://sqltoerdiagram.com/plantuml/": {
+    "hash": "e4c513a66b65812b",
+    "lastmod": "2026-11-10"
+  },
+  "https://sqltoerdiagram.com/ddl-to-er-diagram/": {
+    "hash": "d5ac1ca9ddd88a11",
+    "lastmod": "2026-11-10"
+  },
+  "https://sqltoerdiagram.com/sql-to-dbml/": {
+    "hash": "a00c808dafb688d1",
+    "lastmod": "2026-11-10"
+  },
+  "https://sqltoerdiagram.com/sql-to-plantuml/": {
+    "hash": "055e8e7abde9b932",
+    "lastmod": "2026-11-10"
+  },
+  "https://sqltoerdiagram.com/dbml-to-mermaid/": {
+    "hash": "ad34bffffcbfbc13",
+    "lastmod": "2026-11-10"
+  },
+  "https://sqltoerdiagram.com/dbml-viewer/": {
+    "hash": "f57ea4afd77fadb7",
+    "lastmod": "2026-11-10"
+  },
+  "https://sqltoerdiagram.com/prisma-schema-visualizer/": {
+    "hash": "bd1083436180d284",
+    "lastmod": "2026-11-10"
+  },
+  "https://sqltoerdiagram.com/plantuml-viewer/": {
+    "hash": "6991e67dc362cef3",
+    "lastmod": "2026-11-10"
+  },
+  "https://sqltoerdiagram.com/er-diagram-generator/": {
+    "hash": "f5ea7360d66fbd7a",
+    "lastmod": "2026-11-10"
+  },
+  "https://sqltoerdiagram.com/examples/": {
+    "hash": "2d4d1d70b639ba48",
+    "lastmod": "2026-11-10"
+  },
+  "https://sqltoerdiagram.com/examples/ecommerce/": {
+    "hash": "ee76541dc457c259",
+    "lastmod": "2026-11-10"
+  },
+  "https://sqltoerdiagram.com/examples/blog/": {
+    "hash": "d3ffbb00933a35f7",
+    "lastmod": "2026-11-10"
+  },
+  "https://sqltoerdiagram.com/examples/saas/": {
+    "hash": "c89e78c4e84464c3",
+    "lastmod": "2026-11-10"
+  },
+  "https://sqltoerdiagram.com/examples/social-network/": {
+    "hash": "1349884e619cb053",
+    "lastmod": "2026-11-10"
+  },
+  "https://sqltoerdiagram.com/examples/project-management/": {
+    "hash": "78bd7fe95f31bf87",
+    "lastmod": "2026-11-10"
+  },
+  "https://sqltoerdiagram.com/examples/inventory/": {
+    "hash": "411dd8fe52d0327d",
+    "lastmod": "2026-11-10"
+  },
+  "https://sqltoerdiagram.com/examples/crm/": {
+    "hash": "88a5f31c96d4bb5a",
+    "lastmod": "2026-11-10"
+  },
+  "https://sqltoerdiagram.com/examples/erp/": {
+    "hash": "d6ea74e3b0135135",
+    "lastmod": "2026-11-10"
+  },
+  "https://sqltoerdiagram.com/examples/hospital/": {
+    "hash": "1b9f54eddc969314",
+    "lastmod": "2026-11-10"
+  },
+  "https://sqltoerdiagram.com/examples/school/": {
+    "hash": "97da5ae21a77b104",
+    "lastmod": "2026-11-10"
+  },
+  "https://sqltoerdiagram.com/alternatives/": {
+    "hash": "89d0f6beffd403d5",
+    "lastmod": "2026-11-10"
+  },
+  "https://sqltoerdiagram.com/vs/dbdiagram/": {
+    "hash": "7f94b35d14743542",
+    "lastmod": "2026-11-10"
+  },
+  "https://sqltoerdiagram.com/vs/drawsql/": {
+    "hash": "b43273b4e3679481",
+    "lastmod": "2026-11-10"
+  },
+  "https://sqltoerdiagram.com/vs/chartdb/": {
+    "hash": "3819bd1d95b30ef1",
+    "lastmod": "2026-11-10"
+  },
+  "https://sqltoerdiagram.com/vs/drawdb/": {
+    "hash": "0b53764052e25dbb",
+    "lastmod": "2026-11-10"
+  }
+}

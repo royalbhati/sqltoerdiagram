@@ -8,20 +8,27 @@
   <meta name="keywords" content="project management database schema, task tracker database design, jira-like schema, tasks projects er diagram, issue tracker schema" />
   <link rel="canonical" href="https://sqltoerdiagram.com/examples/project-management/" />
   <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="SQL to ER Diagram" />
   <meta property="og:url" content="https://sqltoerdiagram.com/examples/project-management/" />
   <meta property="og:title" content="Project Management Database Schema Example (ER Diagram)" />
   <meta property="og:description" content="A project management database schema example (Jira-style) — projects, tasks, assignees, labels and comments — as an interactive ER diagram you can open and edit." />
-  <meta property="og:image" content="https://sqltoerdiagram.com/og.png" />
+  <meta property="og:image" content="https://sqltoerdiagram.com/og/examples-project-management.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="ER diagram of the Project management database schema: users, projects, tasks, task_assignees, labels, task_labels and task_comments (7 tables, 9 relationships)" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Project Management Database Schema Example (ER Diagram)" />
-  <meta name="twitter:image" content="https://sqltoerdiagram.com/og.png" />
+  <meta name="twitter:description" content="A project management database schema example (Jira-style) — projects, tasks, assignees, labels and comments — as an interactive ER diagram you can open and edit." />
+  <meta name="twitter:image" content="https://sqltoerdiagram.com/og/examples-project-management.png" />
+  <meta name="twitter:image:alt" content="ER diagram of the Project management database schema: users, projects, tasks, task_assignees, labels, task_labels and task_comments (7 tables, 9 relationships)" />
   <link rel="icon" href="/favicon.ico" sizes="any" />
   <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <script defer src="https://cloud.umami.is/script.js" data-website-id="27b5b4ba-93ad-4ef3-aaa0-af516881d308" data-exclude-hash="true"></script>
   <script type="application/ld+json">
-  {"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"SQL to ER Diagram","item":"https://sqltoerdiagram.com/"},{"@type":"ListItem","position":2,"name":"Project management schema","item":"https://sqltoerdiagram.com/examples/project-management/"}]}
+  {"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"SQL to ER Diagram","item":"https://sqltoerdiagram.com/"},{"@type":"ListItem","position":2,"name":"Examples","item":"https://sqltoerdiagram.com/examples/"},{"@type":"ListItem","position":3,"name":"Project management schema","item":"https://sqltoerdiagram.com/examples/project-management/"}]}
   </script>
   <script type="application/ld+json">
-  {"@context":"https://schema.org","@type":"TechArticle","headline":"Project Management Database Schema Example (ER Diagram)","description":"A project management database schema example (Jira-style) — projects, tasks, assignees, labels and comments — as an interactive ER diagram you can open and edit.","url":"https://sqltoerdiagram.com/examples/project-management/"}
+  {"@context":"https://schema.org","@type":"TechArticle","headline":"Project Management Database Schema Example (ER Diagram)","description":"A project management database schema example (Jira-style) — projects, tasks, assignees, labels and comments — as an interactive ER diagram you can open and edit.","url":"https://sqltoerdiagram.com/examples/project-management/","image":["https://sqltoerdiagram.com/og/examples-project-management.png","https://sqltoerdiagram.com/og/examples-project-management.svg"],"dateModified":"2026-11-10","author":{"@type":"Organization","name":"SQL to ER Diagram","url":"https://sqltoerdiagram.com"}}
   </script>
   <style>
     :root { --bg:#0e1116; --panel:#161b22; --border:#262d38; --text:#e8edf4; --muted:#9aa4b2; --accent:#5aa7ff; }
@@ -58,11 +65,29 @@
     .badges { display:flex; flex-wrap:wrap; gap:8px; margin:18px 0 0; }
     .badge { font-size:13px; color:#cdd6e0; background:var(--panel); border:1px solid var(--border); border-radius:999px; padding:6px 12px; }
     .related { display:flex; flex-wrap:wrap; gap:8px 18px; }
+    .cols { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:4px 22px; width:100%; }
+    .cols .col h4 { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:14px 0 6px; }
+    .cols .col a { display:block; font-size:14px; padding:2px 0; }
+    .chips { display:flex; flex-wrap:wrap; gap:8px; }
+    .chip { font-size:13px; color:#cdd6e0; background:var(--panel); border:1px solid var(--border); border-radius:999px; padding:4px 12px; font-family:ui-monospace,Menlo,Consolas,monospace; }
     .cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:14px; padding:0; list-style:none; }
     .card { display:block; padding:16px; background:var(--panel); border:1px solid var(--border); border-radius:12px; }
     .card:hover { border-color:var(--accent); text-decoration:none; }
     .card .t { font-weight:600; color:var(--text); margin-bottom:4px; }
     .card .d { font-size:13px; color:var(--muted); }
+    figure.diagram { margin:28px 0 0; }
+    figure.diagram img { display:block; max-width:100%; height:auto; border:1px solid var(--border); border-radius:12px; background:#0e1116; }
+    figcaption { font-size:13px; color:var(--muted); margin-top:8px; }
+    .glance dl { display:grid; grid-template-columns:max-content 1fr; gap:10px 20px; margin:0; }
+    .glance dt { color:var(--muted); font-weight:600; }
+    .glance dd { margin:0; color:#c4ccd6; }
+    @media (max-width:560px) { .glance dl { grid-template-columns:1fr; gap:2px; } .glance dd { margin-bottom:10px; } }
+    .card img { display:block; width:100%; height:130px; object-fit:contain; background:#0e1116; border:1px solid var(--border); border-radius:8px; margin-bottom:12px; }
+    .tablewrap { overflow-x:auto; }
+    table.cmp { border-collapse:collapse; width:100%; font-size:15px; }
+    table.cmp th, table.cmp td { text-align:left; vertical-align:top; padding:10px 12px; border-bottom:1px solid var(--border); color:#c4ccd6; }
+    table.cmp th { color:var(--muted); font-size:13px; text-transform:uppercase; letter-spacing:.06em; }
+    .fine { font-size:13px; color:var(--muted); }
     footer { border-top:1px solid var(--border); padding:26px 0 50px; color:var(--muted); font-size:14px; }
     footer .wrap { display:flex; gap:18px; flex-wrap:wrap; }
   </style>
@@ -93,6 +118,14 @@
       <p class="note">Drag to pan, scroll to zoom. <a href="/#s=znZNRS8MwFIX_yiVPK-ShDqcwn-KMWOyqdpkoDEbWXGa0a2qSCUP877K6zipzZb4mJ-c75972nciyJH2iZkrPJaHkDa3TpiD9I0rca076ZJByJjgIdh5zWDq0DjqTAkArGPE0YjHcptGQpY9wzR_p-gYXUudwz9LBFUs73V4vgHES3Y05JDcCknEcV7JCLnCrOuqGwaQIzibFD15pzTNmvhX5gqtvq7Dm0V-MkzCo1DlKNdUKokRAyi95ypMBH32V62i1K4iX7qU1xSZtbV23bTLqQmtM9cZrn39H7IZhQMF56ZeucRhs7LWx2q9gNGRxHCWCglriVEmPcMEEr0QWS2M92n_0m0rn9LxA3BStzvZ0qWayLbJ236fe0it1Y3TQ2YBo7bErYC5nmLdu4Me-jxsfQmZyY7c3p3-OoIk5rH_1cp_8y7plArXLnwEzs1hg0f5HHBZeLv2TOWB9M6NWIPiDoJBZlB7VVHoQ0ZCPBBversMTSpSWOWae9ElpnJ9bdOTjEw">Open it in the full editor</a> to edit, rearrange and export.</p>
     </section>
     <section><h2>About this schema</h2><p>Projects contain tasks; tasks are assigned to users through a join table, carry many-to-many labels, and accumulate comments.</p></section>
+    <section><h2>Tables in this schema</h2>
+      <div class="chips"><span class="chip">users</span><span class="chip">projects</span><span class="chip">tasks</span><span class="chip">task_assignees</span><span class="chip">labels</span><span class="chip">task_labels</span><span class="chip">task_comments</span></div>
+      <p>That's 7 tables connected by foreign keys — open the diagram to see every relationship drawn.</p>
+      <figure class="diagram">
+        <img src="/og/examples-project-management.svg" width="1117" height="654" alt="ER diagram of the Project management database schema: users, projects, tasks, task_assignees, labels, task_labels and task_comments (7 tables, 9 relationships)" loading="lazy" decoding="async" />
+        <figcaption>Project management ER diagram: users, projects, tasks, task_assignees, labels, task_labels and task_comments (7 tables, 9 relationships). <a href="/og/examples-project-management.svg">Open the SVG</a>.</figcaption>
+      </figure>
+    </section>
     <section><h2>Schema (SQL)</h2><pre>CREATE TABLE users (
   id SERIAL PRIMARY KEY,
   email VARCHAR(255) UNIQUE NOT NULL,
@@ -130,17 +163,64 @@ CREATE TABLE task_comments (
   author_id INT NOT NULL REFERENCES users(id),
   body TEXT, created_at TIMESTAMP
 );</pre>
-      <p><a href="/#s=znZNRS8MwFIX_yiVPK-ShDqcwn-KMWOyqdpkoDEbWXGa0a2qSCUP877K6zipzZb4mJ-c75972nciyJH2iZkrPJaHkDa3TpiD9I0rca076ZJByJjgIdh5zWDq0DjqTAkArGPE0YjHcptGQpY9wzR_p-gYXUudwz9LBFUs73V4vgHES3Y05JDcCknEcV7JCLnCrOuqGwaQIzibFD15pzTNmvhX5gqtvq7Dm0V-MkzCo1DlKNdUKokRAyi95ypMBH32V62i1K4iX7qU1xSZtbV23bTLqQmtM9cZrn39H7IZhQMF56ZeucRhs7LWx2q9gNGRxHCWCglriVEmPcMEEr0QWS2M92n_0m0rn9LxA3BStzvZ0qWayLbJ236fe0it1Y3TQ2YBo7bErYC5nmLdu4Me-jxsfQmZyY7c3p3-OoIk5rH_1cp_8y7plArXLnwEzs1hg0f5HHBZeLv2TOWB9M6NWIPiDoJBZlB7VVHoQ0ZCPBBversMTSpSWOWae9ElpnJ9bdOTjEw">Open in the editor →</a> to export it as PNG, SVG, Mermaid or DBML.</p>
+      <p><a href="/#s=znZNRS8MwFIX_yiVPK-ShDqcwn-KMWOyqdpkoDEbWXGa0a2qSCUP877K6zipzZb4mJ-c75972nciyJH2iZkrPJaHkDa3TpiD9I0rca076ZJByJjgIdh5zWDq0DjqTAkArGPE0YjHcptGQpY9wzR_p-gYXUudwz9LBFUs73V4vgHES3Y05JDcCknEcV7JCLnCrOuqGwaQIzibFD15pzTNmvhX5gqtvq7Dm0V-MkzCo1DlKNdUKokRAyi95ypMBH32V62i1K4iX7qU1xSZtbV23bTLqQmtM9cZrn39H7IZhQMF56ZeucRhs7LWx2q9gNGRxHCWCglriVEmPcMEEr0QWS2M92n_0m0rn9LxA3BStzvZ0qWayLbJ236fe0it1Y3TQ2YBo7bErYC5nmLdu4Me-jxsfQmZyY7c3p3-OoIk5rH_1cp_8y7plArXLnwEzs1hg0f5HHBZeLv2TOWB9M6NWIPiDoJBZlB7VVHoQ0ZCPBBversMTSpSWOWae9ElpnJ9bdOTjEw">Open in the editor →</a> to export it as PNG, SVG, Mermaid or DBML. You can also convert it: <a href="/sql-to-mermaid/">SQL to Mermaid</a> · <a href="/sql-to-dbml/">SQL to DBML</a> · <a href="/sql-to-plantuml/">SQL to PlantUML</a>.</p>
     </section>
-    <section><h2>More examples</h2><div class="related"><a href="/examples/ecommerce/">E-commerce</a><a href="/examples/blog/">Blog / CMS</a><a href="/examples/saas/">SaaS (multi-tenant)</a><a href="/examples/social-network/">Social network</a><a href="/examples/inventory/">Inventory / warehouse</a></div></section>
+    <section><h2>More examples</h2><div class="related"><a href="/examples/ecommerce/">E-commerce</a><a href="/examples/blog/">Blog / CMS</a><a href="/examples/saas/">SaaS (multi-tenant)</a><a href="/examples/social-network/">Social network</a><a href="/examples/inventory/">Inventory / warehouse</a><a href="/examples/crm/">CRM</a><a href="/examples/erp/">ERP</a><a href="/examples/hospital/">Hospital</a><a href="/examples/school/">School / LMS</a></div></section>
   </main>
   <footer>
     <div class="wrap">
-      <a href="/">SQL to ER Diagram</a>
-      <a href="/examples/">Schema examples</a>
-      <a href="https://github.com/royalbhati/sqltoerdiagram" target="_blank" rel="noopener">Open source on GitHub</a>
-      <a href="https://yourbrowsercandoit.com/" target="_blank" rel="noopener">Part of yourbrowsercandoit.com ↗</a>
-      <span>Free · runs in your browser</span>
+      <div class="cols">
+      <div class="col"><h4>Databases</h4>
+        <a href="/mysql/">MySQL</a>
+        <a href="/postgresql/">PostgreSQL</a>
+        <a href="/sqlite/">SQLite</a>
+        <a href="/sql-server/">SQL Server</a>
+        <a href="/oracle/">Oracle</a>
+        <a href="/mariadb/">MariaDB</a>
+        <a href="/snowflake/">Snowflake</a>
+        <a href="/bigquery/">BigQuery</a>
+      </div>
+      <div class="col"><h4>Formats & ORMs</h4>
+        <a href="/prisma/">Prisma</a>
+        <a href="/dbml/">DBML</a>
+        <a href="/mermaid/">Mermaid</a>
+        <a href="/sqlalchemy/">SQLAlchemy</a>
+        <a href="/sequelize/">Sequelize</a>
+        <a href="/typeorm/">TypeORM</a>
+        <a href="/django/">Django</a>
+      </div>
+      <div class="col"><h4>Converters</h4>
+        <a href="/sql-to-mermaid/">SQL to Mermaid</a>
+        <a href="/sql-to-dbml/">SQL to DBML</a>
+        <a href="/sql-to-plantuml/">SQL to PlantUML</a>
+        <a href="/prisma-to-dbml/">Prisma to DBML</a>
+        <a href="/dbml-to-mermaid/">DBML to Mermaid</a>
+        <a href="/ddl-to-er-diagram/">DDL to ER Diagram</a>
+        <a href="/er-diagram-generator/">ER Diagram Generator</a>
+      </div>
+      <div class="col"><h4>Viewers & visualizers</h4>
+        <a href="/dbml-to-er-diagram/">DBML to ER Diagram</a>
+        <a href="/dbml-viewer/">DBML Viewer</a>
+        <a href="/mermaid-to-erd/">Mermaid to ERD</a>
+        <a href="/prisma-schema-visualizer/">Prisma Schema Visualizer</a>
+        <a href="/plantuml/">PlantUML</a>
+        <a href="/plantuml-viewer/">PlantUML Viewer</a>
+      </div>
+      <div class="col"><h4>Compare</h4>
+        <a href="/alternatives/">All alternatives</a>
+        <a href="/vs/dbdiagram/">vs dbdiagram.io</a>
+        <a href="/vs/drawsql/">vs DrawSQL</a>
+        <a href="/vs/chartdb/">vs ChartDB</a>
+        <a href="/vs/drawdb/">vs drawDB</a>
+      </div>
+      </div>
+      <div style="display:flex; gap:18px; flex-wrap:wrap; margin-top:18px;">
+        <a href="/">SQL to ER Diagram</a>
+        <a href="/examples/">Schema examples</a>
+        <a href="https://github.com/royalbhati/sqltoerdiagram" target="_blank" rel="noopener">Open source on GitHub</a>
+        <a href="https://yourbrowsercandoit.com/" target="_blank" rel="noopener">Part of yourbrowsercandoit.com ↗</a>
+        <span>Free · runs in your browser</span>
+      </div>
     </div>
   </footer>
 </body>

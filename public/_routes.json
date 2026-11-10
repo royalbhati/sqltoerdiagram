@@ -1,0 +1,5 @@
+{
+  "version": 1,
+  "include": ["/*"],
+  "exclude": ["/assets/*", "/og/*", "/sw.js", "/favicon.ico", "/icon.svg", "/og.png", "/icon-*.png", "/android-chrome-*.png", "/apple-touch-icon.png", "/site.webmanifest"]
+}

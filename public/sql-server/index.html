@@ -8,17 +8,27 @@
   <meta name="keywords" content="sql server to er diagram, t-sql erd, mssql schema diagram, sql server entity relationship diagram, visualize sql server database, tsql diagram" />
   <link rel="canonical" href="https://sqltoerdiagram.com/sql-server/" />
   <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="SQL to ER Diagram" />
   <meta property="og:url" content="https://sqltoerdiagram.com/sql-server/" />
   <meta property="og:title" content="SQL Server to ER Diagram — Free Online T-SQL Schema Visualizer" />
   <meta property="og:description" content="Paste SQL Server / T-SQL CREATE TABLE statements and instantly generate an interactive ER diagram. Free, open source, runs in your browser — nothing uploaded." />
-  <meta property="og:image" content="https://sqltoerdiagram.com/og.png" />
+  <meta property="og:image" content="https://sqltoerdiagram.com/og/sql-server.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="ER diagram of the SQL Server example schema: customers and orders (2 tables, 1 relationship)" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="SQL Server to ER Diagram — Free Online T-SQL Schema Visualizer" />
-  <meta name="twitter:image" content="https://sqltoerdiagram.com/og.png" />
+  <meta name="twitter:description" content="Paste SQL Server / T-SQL CREATE TABLE statements and instantly generate an interactive ER diagram. Free, open source, runs in your browser — nothing uploaded." />
+  <meta name="twitter:image" content="https://sqltoerdiagram.com/og/sql-server.png" />
+  <meta name="twitter:image:alt" content="ER diagram of the SQL Server example schema: customers and orders (2 tables, 1 relationship)" />
   <link rel="icon" href="/favicon.ico" sizes="any" />
   <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <script defer src="https://cloud.umami.is/script.js" data-website-id="27b5b4ba-93ad-4ef3-aaa0-af516881d308" data-exclude-hash="true"></script>
   <script type="application/ld+json">
   {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"How do I create an ER diagram from SQL Server?","acceptedAnswer":{"@type":"Answer","text":"In SSMS use Tasks → Generate Scripts to script the schema, then paste it here. Tables and foreign-key constraints are drawn automatically."}},{"@type":"Question","name":"Is my schema uploaded anywhere?","acceptedAnswer":{"@type":"Answer","text":"No. Everything runs locally in your browser — your schema is never uploaded to or stored on any server."}},{"@type":"Question","name":"Can I export the diagram?","acceptedAnswer":{"@type":"Answer","text":"Yes — export a high-resolution PNG or vector SVG, copy the schema as Mermaid, DBML or PlantUML, or share a link that encodes the whole diagram in the URL."}},{"@type":"Question","name":"Is it free?","acceptedAnswer":{"@type":"Answer","text":"Yes. It is completely free and open source, with no account or sign-up required."}}]}
+  </script>
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@type":"HowTo","name":"How to use SQL Server to ER Diagram","description":"Paste SQL Server / T-SQL CREATE TABLE statements and instantly generate an interactive ER diagram. Free, open source, runs in your browser — nothing uploaded.","image":"https://sqltoerdiagram.com/og/sql-server.png","tool":[{"@type":"HowToTool","name":"SQL to ER Diagram (web browser)"}],"step":[{"@type":"HowToStep","position":1,"name":"Script the schema from SSMS (right-click the database → Tasks →…","text":"Script the schema from SSMS (right-click the database → Tasks → Generate Scripts), or copy your CREATE TABLE statements.","url":"https://sqltoerdiagram.com/sql-server/#how-it-works"},{"@type":"HowToStep","position":2,"name":"Paste it into the editor","text":"Paste it into the editor — T-SQL is parsed automatically.","url":"https://sqltoerdiagram.com/sql-server/#how-it-works"},{"@type":"HowToStep","position":3,"name":"Tables render with columns","text":"Tables render with columns; FOREIGN KEY constraints become relations.","url":"https://sqltoerdiagram.com/sql-server/#how-it-works"},{"@type":"HowToStep","position":4,"name":"Arrange, hide tables, then export PNG/SVG or share a link","text":"Arrange, hide tables, then export PNG/SVG or share a link.","url":"https://sqltoerdiagram.com/sql-server/#how-it-works"}]}
   </script>
   <script type="application/ld+json">
   {"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"SQL to ER Diagram","item":"https://sqltoerdiagram.com/"},{"@type":"ListItem","position":2,"name":"SQL Server","item":"https://sqltoerdiagram.com/sql-server/"}]}
@@ -58,11 +68,29 @@
     .badges { display:flex; flex-wrap:wrap; gap:8px; margin:18px 0 0; }
     .badge { font-size:13px; color:#cdd6e0; background:var(--panel); border:1px solid var(--border); border-radius:999px; padding:6px 12px; }
     .related { display:flex; flex-wrap:wrap; gap:8px 18px; }
+    .cols { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:4px 22px; width:100%; }
+    .cols .col h4 { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:14px 0 6px; }
+    .cols .col a { display:block; font-size:14px; padding:2px 0; }
+    .chips { display:flex; flex-wrap:wrap; gap:8px; }
+    .chip { font-size:13px; color:#cdd6e0; background:var(--panel); border:1px solid var(--border); border-radius:999px; padding:4px 12px; font-family:ui-monospace,Menlo,Consolas,monospace; }
     .cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:14px; padding:0; list-style:none; }
     .card { display:block; padding:16px; background:var(--panel); border:1px solid var(--border); border-radius:12px; }
     .card:hover { border-color:var(--accent); text-decoration:none; }
     .card .t { font-weight:600; color:var(--text); margin-bottom:4px; }
     .card .d { font-size:13px; color:var(--muted); }
+    figure.diagram { margin:28px 0 0; }
+    figure.diagram img { display:block; max-width:100%; height:auto; border:1px solid var(--border); border-radius:12px; background:#0e1116; }
+    figcaption { font-size:13px; color:var(--muted); margin-top:8px; }
+    .glance dl { display:grid; grid-template-columns:max-content 1fr; gap:10px 20px; margin:0; }
+    .glance dt { color:var(--muted); font-weight:600; }
+    .glance dd { margin:0; color:#c4ccd6; }
+    @media (max-width:560px) { .glance dl { grid-template-columns:1fr; gap:2px; } .glance dd { margin-bottom:10px; } }
+    .card img { display:block; width:100%; height:130px; object-fit:contain; background:#0e1116; border:1px solid var(--border); border-radius:8px; margin-bottom:12px; }
+    .tablewrap { overflow-x:auto; }
+    table.cmp { border-collapse:collapse; width:100%; font-size:15px; }
+    table.cmp th, table.cmp td { text-align:left; vertical-align:top; padding:10px 12px; border-bottom:1px solid var(--border); color:#c4ccd6; }
+    table.cmp th { color:var(--muted); font-size:13px; text-transform:uppercase; letter-spacing:.06em; }
+    .fine { font-size:13px; color:var(--muted); }
     footer { border-top:1px solid var(--border); padding:26px 0 50px; color:var(--muted); font-size:14px; }
     footer .wrap { display:flex; gap:18px; flex-wrap:wrap; }
   </style>
@@ -86,8 +114,22 @@
       <p class="lead">Paste your SQL Server (T-SQL) <code>CREATE TABLE</code> statements and get an interactive entity-relationship diagram — tables, columns, primary keys and foreign keys, drawn automatically.</p>
       <a class="cta" href="/#s=zlZBBS8QwEIX_yjCnFnKpsJd6inWqYWuq2VQoFErdRAm06ZquexH_u0R31T16ffP43pv3jsNuhzmaJ-NeBmR4sGFxs8c8Y7i8jphjoYhrAs2vKoLt27KfJxsWSDoP4AwIqUFck9RCt0nGshTulbjjqoU1tSya7DS4EeQjV8UtV8nFapWCrDXIpqqgkeKhoc6nl53v_FnWHMz_gk7l-qP7FPJ1LGq50YpHvVz33-z-553oAChrReJGRiAkf2gpKCpJkSxo8ztB4kwaiyND44bRbveYx80WGw42IMPnOUzDUcSPTw">Open the diagram tool →</a>
       <div class="note">No signup · nothing uploaded · export PNG / SVG / Mermaid / DBML · shareable link</div>
+      <figure class="diagram">
+        <img src="/og/sql-server.svg" width="541" height="166" alt="ER diagram of the SQL Server example schema: customers and orders (2 tables, 1 relationship)" fetchpriority="high" decoding="async" />
+        <figcaption>The SQL Server example below, drawn by the tool: customers and orders (2 tables, 1 relationship).</figcaption>
+      </figure>
     </div>
-    <section><h2>How it works</h2><ol>
+    <section class="glance" id="at-a-glance"><h2>At a glance</h2>
+      <dl>
+        <dt>What it is</dt><dd>SQL to ER Diagram is a free, open-source browser tool that turns a SQL Server schema into an interactive entity-relationship (ER) diagram.</dd>
+        <dt>Input</dt><dd>SQL Server (T-SQL) <code>CREATE TABLE</code> statements.</dd>
+        <dt>Output</dt><dd>An interactive ER diagram you can rearrange, then export as PNG, SVG, Mermaid, DBML or PlantUML, or share as a link.</dd>
+        <dt>Cost</dt><dd>Free. MIT-licensed open source. No account or signup.</dd>
+        <dt>Privacy</dt><dd>Runs entirely in your browser. The schema is never uploaded, and share links carry the diagram in the URL fragment, which is not sent to a server.</dd>
+        <dt>Limits</dt><dd>It never connects to your database itself: you paste schema text, or run one read-only catalog query in your own client and paste the result. There are no accounts, so there is no real-time multi-user editing; diagrams are kept in your browser, as a saved file, or as a share link. Layout stays smooth at around 300 tables.</dd>
+      </dl>
+    </section>
+    <section id="how-it-works"><h2>How it works</h2><ol>
         <li>Script the schema from SSMS (right-click the database → Tasks → Generate Scripts), or copy your <code>CREATE TABLE</code> statements.</li>
         <li>Paste it into the editor — T-SQL is parsed automatically.</li>
         <li>Tables render with columns; <code>FOREIGN KEY</code> constraints become relations.</li>
@@ -107,6 +149,13 @@ CREATE TABLE orders (
     FOREIGN KEY (customer_id) REFERENCES customers(id)
 );</pre>
       <p>…renders two tables with a relation from <code>orders.customer_id</code> → <code>customers.id</code>. <a href="/">Try it with your own &rarr;</a></p>
+    </section>
+    <section><h2>Guide</h2>
+
+      <p>The fastest path from SQL Server to a diagram: in SSMS, right-click the database → <strong>Tasks → Generate Scripts</strong>, choose the tables you want, and on the Scripting Options page set <em>Script Data = False</em> and <em>Script Indexes = False</em> (indexes just add noise). Paste the resulting file. The parser handles everything T-SQL-specific about that output: <code>[dbo].[customers]</code> bracket-quoting, <code>IDENTITY(1,1)</code>, <code>NVARCHAR(MAX)</code>, named <code>CONSTRAINT FK_…</code> blocks, and the <code>GO</code> batch separators.</p>
+      <p>If you prefer a query over a wizard, script the DDL yourself:</p>
+      <pre>SELECT OBJECT_DEFINITION(f.object_id) FROM sys.foreign_keys f;</pre>
+      <p>— or just paste your hand-written <code>CREATE TABLE</code> scripts; nothing needs to be pretty. Azure SQL Database and Synapse output works the same way. One tip: generate only the tables you actually want on the diagram. A 400-table ERP paste renders, but a 30-table slice of the sales schema is far more useful in a design review.</p>
     </section>
     <section><h2>Why use it</h2><ul>
         <li><strong>Private:</strong> everything runs in your browser — nothing is uploaded or stored on a server.</li>
@@ -129,11 +178,58 @@ CREATE TABLE orders (
   </main>
   <footer>
     <div class="wrap">
-      <a href="/">SQL to ER Diagram</a>
-      <a href="/examples/">Schema examples</a>
-      <a href="https://github.com/royalbhati/sqltoerdiagram" target="_blank" rel="noopener">Open source on GitHub</a>
-      <a href="https://yourbrowsercandoit.com/" target="_blank" rel="noopener">Part of yourbrowsercandoit.com ↗</a>
-      <span>Free · runs in your browser</span>
+      <div class="cols">
+      <div class="col"><h4>Databases</h4>
+        <a href="/mysql/">MySQL</a>
+        <a href="/postgresql/">PostgreSQL</a>
+        <a href="/sqlite/">SQLite</a>
+        <a href="/sql-server/">SQL Server</a>
+        <a href="/oracle/">Oracle</a>
+        <a href="/mariadb/">MariaDB</a>
+        <a href="/snowflake/">Snowflake</a>
+        <a href="/bigquery/">BigQuery</a>
+      </div>
+      <div class="col"><h4>Formats & ORMs</h4>
+        <a href="/prisma/">Prisma</a>
+        <a href="/dbml/">DBML</a>
+        <a href="/mermaid/">Mermaid</a>
+        <a href="/sqlalchemy/">SQLAlchemy</a>
+        <a href="/sequelize/">Sequelize</a>
+        <a href="/typeorm/">TypeORM</a>
+        <a href="/django/">Django</a>
+      </div>
+      <div class="col"><h4>Converters</h4>
+        <a href="/sql-to-mermaid/">SQL to Mermaid</a>
+        <a href="/sql-to-dbml/">SQL to DBML</a>
+        <a href="/sql-to-plantuml/">SQL to PlantUML</a>
+        <a href="/prisma-to-dbml/">Prisma to DBML</a>
+        <a href="/dbml-to-mermaid/">DBML to Mermaid</a>
+        <a href="/ddl-to-er-diagram/">DDL to ER Diagram</a>
+        <a href="/er-diagram-generator/">ER Diagram Generator</a>
+      </div>
+      <div class="col"><h4>Viewers & visualizers</h4>
+        <a href="/dbml-to-er-diagram/">DBML to ER Diagram</a>
+        <a href="/dbml-viewer/">DBML Viewer</a>
+        <a href="/mermaid-to-erd/">Mermaid to ERD</a>
+        <a href="/prisma-schema-visualizer/">Prisma Schema Visualizer</a>
+        <a href="/plantuml/">PlantUML</a>
+        <a href="/plantuml-viewer/">PlantUML Viewer</a>
+      </div>
+      <div class="col"><h4>Compare</h4>
+        <a href="/alternatives/">All alternatives</a>
+        <a href="/vs/dbdiagram/">vs dbdiagram.io</a>
+        <a href="/vs/drawsql/">vs DrawSQL</a>
+        <a href="/vs/chartdb/">vs ChartDB</a>
+        <a href="/vs/drawdb/">vs drawDB</a>
+      </div>
+      </div>
+      <div style="display:flex; gap:18px; flex-wrap:wrap; margin-top:18px;">
+        <a href="/">SQL to ER Diagram</a>
+        <a href="/examples/">Schema examples</a>
+        <a href="https://github.com/royalbhati/sqltoerdiagram" target="_blank" rel="noopener">Open source on GitHub</a>
+        <a href="https://yourbrowsercandoit.com/" target="_blank" rel="noopener">Part of yourbrowsercandoit.com ↗</a>
+        <span>Free · runs in your browser</span>
+      </div>
     </div>
   </footer>
 </body>

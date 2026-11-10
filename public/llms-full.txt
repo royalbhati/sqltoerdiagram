@@ -1,0 +1,2362 @@
+# SQL to ER Diagram
+
+> Free, open-source tool that converts a SQL schema (CREATE TABLE / DDL) into an interactive entity-relationship diagram (ERD), entirely in the browser. Nothing is uploaded; no signup.
+
+- Works with PostgreSQL, MySQL, MariaDB, SQLite, SQL Server, Oracle, Snowflake and BigQuery DDL.
+- Also reads Prisma, DBML, Mermaid, PlantUML, SQLAlchemy and Sequelize schemas.
+- Exports PNG, SVG, Mermaid, DBML and PlantUML, saves projects as files, and shares diagrams as links that encode the diagram in the URL.
+- MIT-licensed. No accounts, no paid plans. It never connects to a database itself (you paste schema text or the result of one read-only catalog query) and has no real-time multi-user editing.
+
+Source: https://sqltoerdiagram.com/ · Code: https://github.com/royalbhati/sqltoerdiagram · Index of pages: https://sqltoerdiagram.com/llms.txt
+
+## What it is
+
+SQL to ER Diagram is a free, open-source web tool that turns a database schema written as text into an interactive entity-relationship (ER) diagram. It is a static page: the schema is parsed and drawn in the browser.
+
+## Supported inputs
+
+- SQL DDL (CREATE TABLE / ALTER TABLE): PostgreSQL, MySQL, MariaDB, SQLite, SQL Server, Oracle, Snowflake and BigQuery.
+- Schema languages: Prisma (schema.prisma), DBML, Mermaid erDiagram, PlantUML entity and class diagrams.
+- ORM models: SQLAlchemy (Python) and Sequelize (JavaScript).
+- TypeORM and Django are supported through the SQL they generate, not by reading entity or model files.
+- BigQuery: CTE (WITH … AS) queries are drawn as a lineage diagram; BigQuery CREATE TABLE DDL is drawn as an ER diagram.
+
+## Outputs
+
+- Images: PNG, transparent PNG and SVG.
+- Schema code: Mermaid erDiagram, DBML and PlantUML.
+- A share link that encodes the whole diagram in the URL fragment, a saved project file, or an embeddable iframe.
+
+## Cost and privacy
+
+- Free. MIT-licensed open source. No account or signup.
+- Runs entirely in your browser. The schema is never uploaded, and share links carry the diagram in the URL fragment, which is not sent to a server.
+
+## Limits
+
+- It never connects to your database itself: you paste schema text, or run one read-only catalog query in your own client and paste the result. There are no accounts, so there is no real-time multi-user editing; diagrams are kept in your browser, as a saved file, or as a share link. Layout stays smooth at around 300 tables.
+
+## Features
+
+- Undo and redo across both the canvas and the SQL text.
+- A ⌘K command palette that jumps to any table or column.
+- A minimap for large diagrams.
+- Drop a .sql, Prisma, DBML, Mermaid or PlantUML file anywhere on the page to load it.
+- Parse problems are underlined in the editor and listed in a clickable issue list.
+- Copy the diagram to the clipboard as PNG, transparent PNG or SVG.
+- Layout runs in a Web Worker and stays smooth at around 300 tables.
+- Works offline after the first visit.
+- Share links encode the diagram in the URL fragment, which is never sent to a server.
+- Diagrams can be embedded in another page with an iframe.
+- A headless CLI (`sql-to-er-diagram schema.sql -o schema.svg`) renders a schema file to SVG.
+
+## How to use it
+
+1. Paste a schema into the editor, or drop a schema file anywhere on the page. The format is detected automatically.
+2. Arrange the diagram: drag tables, auto-arrange, hide tables you do not need.
+3. Export it as PNG, SVG, Mermaid, DBML or PlantUML, or copy a share link.
+
+## General FAQ
+
+**Q: Is my schema uploaded anywhere?**
+
+A: No. Everything runs locally in your browser — your schema is never uploaded to or stored on any server.
+
+**Q: Can I export the diagram?**
+
+A: Yes — export a high-resolution PNG or vector SVG, copy the schema as Mermaid, DBML or PlantUML, or share a link that encodes the whole diagram in the URL.
+
+**Q: Is it free?**
+
+A: Yes. It is completely free and open source, with no account or sign-up required.
+
+**Q: What is a free alternative to paid ER diagram tools?**
+
+A: SQL to ER Diagram is free and MIT-licensed open source. There are no accounts or paid plans: you paste a schema and get an interactive ER diagram in your browser.
+
+**Q: Which ER diagram tool does not upload my schema?**
+
+A: SQL to ER Diagram parses and draws the schema entirely in your browser. Nothing is uploaded, and share links carry the diagram in the URL fragment, which is not sent to a server.
+
+**Q: Does SQL to ER Diagram support team collaboration?**
+
+A: Not in real time. There are no accounts or shared workspaces; you share a diagram by sending a link or a saved file. If your team needs to edit the same saved diagram together, a hosted tool with accounts is the better fit.
+
+## Databases
+
+### MySQL to ER Diagram
+
+URL: https://sqltoerdiagram.com/mysql/
+
+Paste your MySQL `CREATE TABLE` statements (or a `mysqldump`) and get a clean, interactive entity-relationship diagram — tables, columns, keys and foreign keys, drawn automatically.
+
+- Input: MySQL `CREATE TABLE` statements, or the output of `mysqldump --no-data`.
+- Output: An interactive ER diagram you can rearrange, then export as PNG, SVG, Mermaid, DBML or PlantUML, or share as a link.
+
+#### Steps
+
+1. Dump your schema with `mysqldump --no-data your_db`, or copy your `CREATE TABLE` statements.
+2. Paste it into the editor — MySQL is parsed automatically.
+3. Every table is rendered with its columns; `FOREIGN KEY` constraints become relations.
+4. Arrange, hide tables, then export PNG/SVG or share a link.
+
+#### Example
+
+A MySQL schema like this:
+
+```
+CREATE TABLE customers (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  email VARCHAR(255) NOT NULL UNIQUE
+) ENGINE=InnoDB;
+
+CREATE TABLE orders (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  customer_id INT NOT NULL,
+  FOREIGN KEY (customer_id) REFERENCES customers(id)
+) ENGINE=InnoDB;
+```
+
+…renders two tables with a relation from `orders.customer_id` → `customers.id`.
+
+#### Guide
+
+MySQL dumps are noisy — that's fine here. The parser reads `CREATE TABLE` bodies and ignores everything else, so you can paste the raw output of `mysqldump --no-data` including the `SET` lines, `LOCK TABLES` comments, and `ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4` table options without cleaning anything up.
+
+#### MySQL-specific things that are handled
+
+- `AUTO_INCREMENT`, `UNSIGNED`, `ZEROFILL` and display widths like `INT(11)`.
+
+- Inline `FOREIGN KEY … REFERENCES` clauses and named constraints alike.
+
+- Backtick-quoted identifiers: `CREATE TABLE `order items``.
+
+- `KEY` / `INDEX` lines are recognised but kept out of the way — the diagram is about tables and relations, not indexes.
+
+If your schema has no foreign keys declared (common in legacy MySQL apps that enforce relations in application code), render it anyway and then hit **Infer links** in the toolbar — it matches columns by naming convention (`customer_id` → `customers.id`) so you still get a connected diagram.
+
+#### FAQ
+
+**Q: How do I turn a MySQL database into an ER diagram?**
+
+A: Export the schema with `mysqldump --no-data` (or copy your CREATE TABLE statements), paste it in, and the diagram is drawn instantly with foreign keys as relations.
+
+**Q: Does it work with mysqldump output?**
+
+A: Yes. Paste the dump as-is — it reads CREATE TABLE definitions and FOREIGN KEY constraints, ignoring the INSERT data.
+
+### PostgreSQL to ER Diagram
+
+URL: https://sqltoerdiagram.com/postgresql/
+
+Paste your PostgreSQL schema — `CREATE TABLE` statements or a `pg_dump` — and get an interactive ER diagram with every table, column and foreign key drawn for you.
+
+- Input: PostgreSQL `CREATE TABLE` and `ALTER TABLE` statements, or the output of `pg_dump --schema-only`.
+- Output: An interactive ER diagram you can rearrange, then export as PNG, SVG, Mermaid, DBML or PlantUML, or share as a link.
+
+#### Steps
+
+1. Dump the schema with `pg_dump --schema-only your_db`, or copy your `CREATE TABLE` statements.
+2. Paste it into the editor — Postgres is parsed automatically, including `ALTER TABLE … ADD CONSTRAINT` foreign keys.
+3. Tables render with columns and types; relations are drawn from the constraints.
+4. Arrange, hide tables, then export PNG/SVG or share a link.
+
+#### Example
+
+A PostgreSQL schema like this:
+
+```
+CREATE TABLE customers (
+  id SERIAL PRIMARY KEY,
+  email TEXT NOT NULL UNIQUE
+);
+
+CREATE TABLE orders (
+  id SERIAL PRIMARY KEY,
+  customer_id INTEGER NOT NULL REFERENCES customers(id)
+);
+```
+
+…renders two tables with a relation from `orders.customer_id` → `customers.id`.
+
+#### Guide
+
+Postgres is the dialect people have the most trouble diagramming, for one reason: `pg_dump` doesn't put foreign keys where you expect. It emits each table with `ALTER TABLE ONLY orders ADD CONSTRAINT orders_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES customers(id)` — sometimes thousands of lines away from the `CREATE TABLE`. This parser collects those `ALTER TABLE` statements and stitches them back onto the right tables, so a full `pg_dump --schema-only` paste comes out complete.
+
+#### Postgres features the parser understands
+
+- `SERIAL`, `BIGSERIAL`, `GENERATED … AS IDENTITY`, and `GENERATED ALWAYS AS (…) STORED` columns.
+
+- Schema-qualified names — `public.customers` is shown as `customers`.
+
+- `CREATE TYPE … AS ENUM` usage on columns, arrays like `TEXT[]`, `JSONB`, `UUID`, `TIMESTAMPTZ`.
+
+- Composite primary keys via `PRIMARY KEY (a, b)`, and `ON DELETE CASCADE` actions.
+
+Only need one schema from a multi-schema database? Filter the dump first: `pg_dump --schema-only --no-owner --no-privileges -n myschema your_db`. The smaller paste renders faster and the diagram stays readable.
+
+#### FAQ
+
+**Q: How do I turn a Postgres database into an ER diagram?**
+
+A: Run `pg_dump --schema-only` and paste the output. Tables and foreign keys (including those added via ALTER TABLE) are drawn automatically.
+
+**Q: Does it support pg_dump?**
+
+A: Yes — pg_dump emits foreign keys as separate ALTER TABLE statements, which are parsed and turned into relations.
+
+### SQLite to ER Diagram
+
+URL: https://sqltoerdiagram.com/sqlite/
+
+Paste your SQLite schema — the output of `.schema` — and get an interactive ER diagram of every table, column and relationship.
+
+- Input: SQLite `CREATE TABLE` statements, such as the output of `.schema`.
+- Output: An interactive ER diagram you can rearrange, then export as PNG, SVG, Mermaid, DBML or PlantUML, or share as a link.
+
+#### Steps
+
+1. In the `sqlite3` shell run `.schema` (or `.schema --indent`) and copy the output.
+2. Paste it into the editor — SQLite is parsed automatically.
+3. Tables render with columns; `REFERENCES` become relations.
+4. Arrange, hide tables, then export PNG/SVG or share a link.
+
+#### Example
+
+A SQLite schema like this:
+
+```
+CREATE TABLE customers (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  email TEXT NOT NULL UNIQUE
+);
+
+CREATE TABLE orders (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  customer_id INTEGER NOT NULL REFERENCES customers(id)
+);
+```
+
+…renders two tables with a relation from `orders.customer_id` → `customers.id`.
+
+#### Guide
+
+SQLite is the easiest dialect to diagram because the database itself can print the schema: open your file with `sqlite3 app.db` and run `.schema`. Copy everything — the output is exactly the `CREATE TABLE` / `CREATE INDEX` statements this tool parses, including the inline `REFERENCES customers(id)` column constraints SQLite favours.
+
+Things worth knowing:
+
+- **Foreign keys may be missing from the DDL.** Many SQLite schemas rely on naming convention instead of declared constraints. Paste the schema, then use **Infer links** to draw edges for `user_id`-style columns.
+
+- `PRAGMA foreign_key_list(t);` is a quick way to double-check which relations the database itself knows about, if the diagram looks sparser than expected.
+
+- Quirks like `INTEGER PRIMARY KEY AUTOINCREMENT`, `WITHOUT ROWID`, `ON CONFLICT` clauses and double-quoted identifiers all parse.
+
+This is a handy step when documenting an app that ships an embedded database — Electron apps, mobile apps, local-first tools. Render the diagram once, export an SVG, and commit it next to the migration files so the picture can't drift from reality.
+
+#### FAQ
+
+**Q: How do I diagram a SQLite database?**
+
+A: Open it with `sqlite3 mydb.db`, run `.schema`, and paste the output here. The diagram is generated instantly.
+
+### SQL Server to ER Diagram
+
+URL: https://sqltoerdiagram.com/sql-server/
+
+Paste your SQL Server (T-SQL) `CREATE TABLE` statements and get an interactive entity-relationship diagram — tables, columns, primary keys and foreign keys, drawn automatically.
+
+- Input: SQL Server (T-SQL) `CREATE TABLE` statements.
+- Output: An interactive ER diagram you can rearrange, then export as PNG, SVG, Mermaid, DBML or PlantUML, or share as a link.
+
+#### Steps
+
+1. Script the schema from SSMS (right-click the database → Tasks → Generate Scripts), or copy your `CREATE TABLE` statements.
+2. Paste it into the editor — T-SQL is parsed automatically.
+3. Tables render with columns; `FOREIGN KEY` constraints become relations.
+4. Arrange, hide tables, then export PNG/SVG or share a link.
+
+#### Example
+
+A T-SQL schema like this:
+
+```
+CREATE TABLE customers (
+  id INT IDENTITY(1,1) PRIMARY KEY,
+  email NVARCHAR(255) NOT NULL UNIQUE
+);
+
+CREATE TABLE orders (
+  id INT IDENTITY(1,1) PRIMARY KEY,
+  customer_id INT NOT NULL,
+  CONSTRAINT FK_orders_customers
+    FOREIGN KEY (customer_id) REFERENCES customers(id)
+);
+```
+
+…renders two tables with a relation from `orders.customer_id` → `customers.id`.
+
+#### Guide
+
+The fastest path from SQL Server to a diagram: in SSMS, right-click the database → **Tasks → Generate Scripts**, choose the tables you want, and on the Scripting Options page set *Script Data = False* and *Script Indexes = False* (indexes just add noise). Paste the resulting file. The parser handles everything T-SQL-specific about that output: `[dbo].[customers]` bracket-quoting, `IDENTITY(1,1)`, `NVARCHAR(MAX)`, named `CONSTRAINT FK_…` blocks, and the `GO` batch separators.
+
+If you prefer a query over a wizard, script the DDL yourself:
+
+```
+SELECT OBJECT_DEFINITION(f.object_id) FROM sys.foreign_keys f;
+```
+
+— or just paste your hand-written `CREATE TABLE` scripts; nothing needs to be pretty. Azure SQL Database and Synapse output works the same way. One tip: generate only the tables you actually want on the diagram. A 400-table ERP paste renders, but a 30-table slice of the sales schema is far more useful in a design review.
+
+#### FAQ
+
+**Q: How do I create an ER diagram from SQL Server?**
+
+A: In SSMS use Tasks → Generate Scripts to script the schema, then paste it here. Tables and foreign-key constraints are drawn automatically.
+
+### Oracle to ER Diagram
+
+URL: https://sqltoerdiagram.com/oracle/
+
+Paste your Oracle `CREATE TABLE` statements (or DDL from a schema export) and get a clean, interactive entity-relationship diagram — tables, columns, primary keys and foreign keys, drawn automatically.
+
+- Input: Oracle `CREATE TABLE` statements, or DDL from a schema export.
+- Output: An interactive ER diagram you can rearrange, then export as PNG, SVG, Mermaid, DBML or PlantUML, or share as a link.
+
+#### Steps
+
+1. Export the schema DDL — in SQL Developer (right-click the schema → Export), or via `DBMS_METADATA.GET_DDL`.
+2. Paste it into the editor — the Oracle SQL is parsed automatically.
+3. Tables render with columns and types; `CONSTRAINT … FOREIGN KEY` relations are drawn.
+4. Arrange, hide tables, then export PNG/SVG or convert to Mermaid/DBML.
+
+#### Example
+
+An Oracle schema like this:
+
+```
+CREATE TABLE customers (
+  id NUMBER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+  email VARCHAR2(255) NOT NULL UNIQUE
+);
+
+CREATE TABLE orders (
+  id NUMBER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+  customer_id NUMBER NOT NULL,
+  CONSTRAINT fk_orders_customers
+    FOREIGN KEY (customer_id) REFERENCES customers(id)
+);
+```
+
+…renders two tables with a relation from `orders.customer_id` → `customers.id`.
+
+#### Guide
+
+Oracle schemas reach you in a few dialects of DDL and all of them parse here. The two common sources: SQL Developer's export (right-click the schema → **Export**, format SQL, data = no), and `SELECT DBMS_METADATA.GET_DDL('TABLE', t.table_name) FROM user_tables t;` which prints `CREATE TABLE` statements directly. Paste either, including the `ALTER TABLE … ADD CONSTRAINT` blocks that follow.
+
+#### Oracle-isms that are handled
+
+- `NUMBER(38,0)`, `VARCHAR2`, `RAW`, `CLOB`/`BLOB`, and `TIMESTAMP(6) WITH TIME ZONE`.
+
+- Identity columns: `GENERATED BY DEFAULT AS IDENTITY` (12c+) and legacy `SEQUENCE`-based keys.
+
+- Double-quoted identifiers, `TABLESPACE`/`STORAGE` clauses, and `PCTFREE` noise — parsed or skipped cleanly.
+
+A practical tip for big ERP-style schemas: export only the modules you're diagramming. Oracle instances routinely have thousands of tables across owners; a focused paste of, say, the `AP` and `AR` tables gives a diagram a finance team can actually read. And since nothing is uploaded, it's safe for schemas whose table names are sensitive.
+
+#### FAQ
+
+**Q: How do I create an ER diagram from an Oracle database?**
+
+A: Export the schema DDL with SQL Developer or `DBMS_METADATA.GET_DDL`, then paste the CREATE TABLE statements here. Foreign-key constraints become relations automatically.
+
+### MariaDB to ER Diagram
+
+URL: https://sqltoerdiagram.com/mariadb/
+
+Paste your MariaDB `CREATE TABLE` statements (or a `mysqldump`) and get an interactive entity-relationship diagram — tables, columns, keys and foreign keys, drawn automatically.
+
+- Input: MariaDB `CREATE TABLE` statements, or the output of `mysqldump --no-data`.
+- Output: An interactive ER diagram you can rearrange, then export as PNG, SVG, Mermaid, DBML or PlantUML, or share as a link.
+
+#### Steps
+
+1. Dump your schema with `mysqldump --no-data your_db` (MariaDB ships the same client), or copy your `CREATE TABLE` statements.
+2. Paste it into the editor — the SQL is parsed automatically.
+3. Every table renders with its columns; `FOREIGN KEY` constraints become relations.
+4. Arrange, hide tables, then export PNG/SVG or share a link.
+
+#### Example
+
+A MariaDB schema like this:
+
+```
+CREATE TABLE users (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  email VARCHAR(255) NOT NULL UNIQUE
+) ENGINE=InnoDB;
+
+CREATE TABLE posts (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT,
+  FOREIGN KEY (user_id) REFERENCES users(id)
+) ENGINE=InnoDB;
+```
+
+…renders two tables with a relation from `posts.user_id` → `users.id`.
+
+#### Guide
+
+MariaDB speaks MySQL's DDL dialect, so everything on the MySQL path works identically: `mysqldump --no-data` (the MariaDB client ships the same tool), paste, done. The parser additionally tolerates MariaDB-specific syntax you'll hit in the wild: `UUID()` column defaults, `DEFAULT (UUID())` expressions, `SYSTEM VERSIONED` temporal tables, and the `json` type (which is an alias for `LONGTEXT` under the hood — shown as `json` on the diagram, as you'd expect).
+
+Storage-engine table options (`ENGINE=Aria`, `ENGINE=ColumnStore`, `ENGINE=InnoDB`) are ignored gracefully — they don't belong on an ER diagram anyway. If you're migrating MariaDB → PostgreSQL and want a before/after picture, diagram both sides and export matching SVGs; the visual diff of missing relations is often faster to read than any schema-diff tool output.
+
+And as with MySQL: schemas without declared foreign keys (relations enforced in app code) still diagram fine — use **Infer links** to draw the `_id` conventions as edges.
+
+#### FAQ
+
+**Q: Does it work with MariaDB dumps?**
+
+A: Yes — MariaDB uses the same CREATE TABLE / mysqldump syntax as MySQL. Paste the schema dump and tables + foreign keys are drawn instantly.
+
+### Snowflake to ER Diagram
+
+URL: https://sqltoerdiagram.com/snowflake/
+
+Paste your Snowflake `CREATE TABLE` (or `CREATE OR REPLACE TABLE`) statements and get an interactive entity-relationship diagram of your warehouse schema — tables, columns and foreign keys, drawn automatically.
+
+- Input: Snowflake `CREATE TABLE` or `CREATE OR REPLACE TABLE` statements.
+- Output: An interactive ER diagram you can rearrange, then export as PNG, SVG, Mermaid, DBML or PlantUML, or share as a link.
+
+#### Steps
+
+1. Get the DDL with `SELECT GET_DDL('TABLE', 'your_table')` in a worksheet, or copy your `CREATE TABLE` statements.
+2. Paste it into the editor — Snowflake SQL parses, including `CREATE OR REPLACE` and `TRANSIENT` tables.
+3. Tables render with types like `VARIANT`, `NUMBER` and `TIMESTAMP_NTZ`; foreign keys become relations.
+4. Arrange, hide tables, then export PNG/SVG or convert to Mermaid/DBML.
+
+#### Example
+
+A Snowflake schema like this:
+
+```
+CREATE OR REPLACE TABLE customers (
+  id NUMBER(38,0) PRIMARY KEY,
+  email VARCHAR NOT NULL,
+  profile VARIANT
+);
+
+CREATE TABLE orders (
+  id NUMBER(38,0) PRIMARY KEY,
+  customer_id NUMBER(38,0) REFERENCES customers(id)
+);
+```
+
+…renders two tables with a relation from `orders.customer_id` → `customers.id`.
+
+#### Guide
+
+Warehouse DDL has its own shape and this page speaks it. The canonical way to get Snowflake DDL: `SELECT GET_DDL('TABLE', 'customers');` in a worksheet — or for a whole schema, `SELECT GET_DDL('SCHEMA', 'analytics');`. Paste the output; `CREATE OR REPLACE TABLE`, `CREATE TRANSIENT TABLE`, cluster-by clauses and `COMMENT = '…'` strings all parse or get skipped cleanly.
+
+#### Snowflake types on the diagram
+
+- Semi-structured columns — `VARIANT`, `OBJECT`, `ARRAY` — render as-is so you can spot where the JSON lives.
+
+- `NUMBER(38,0)` defaults, `TIMESTAMP_NTZ / _LTZ / _TZ`, and `BOOLEAN`.
+
+- Foreign keys are usually only declared in the `INFORMATION_SCHEMA` if your ELT tool wrote them — if the diagram shows no edges, the constraints genuinely don't exist; use **Infer links** for convention-based ones.
+
+This is popular with analytics teams documenting dbt sources: paste the raw source tables, export SVG, and drop it next to the dbt docs. Since the paste never leaves the browser, production warehouse DDL is safe to run through it.
+
+#### FAQ
+
+**Q: How do I diagram a Snowflake schema?**
+
+A: Run `SELECT GET_DDL('TABLE', 'your_table')` (or script several tables) and paste the DDL here. CREATE OR REPLACE TABLE and foreign keys are handled.
+
+### BigQuery to ER Diagram
+
+URL: https://sqltoerdiagram.com/bigquery/
+
+Turn a **BigQuery** query into a diagram. Paste a `WITH … AS (…)` CTE query and each CTE becomes a node, with edges inferred from the `FROM` / `JOIN` tables it reads — or paste plain `CREATE TABLE` DDL for a classic ER diagram.
+
+- Input: A BigQuery `WITH … AS (…)` CTE query, or BigQuery `CREATE TABLE` DDL.
+- Output: An interactive diagram with one node per CTE or table and an edge for each table it reads, exportable as PNG or SVG.
+
+#### Steps
+
+1. Copy a BigQuery `WITH` / CTE query, or your `CREATE TABLE` DDL.
+2. Paste it into the editor — BigQuery CTE queries are auto-detected.
+3. Each CTE becomes a node; columns come from its `SELECT` list, and `FROM`/`JOIN` references (including backtick `project.dataset.table`) are drawn as edges.
+4. Arrange, hide nodes, then export PNG/SVG or convert to Mermaid/DBML.
+
+#### Example
+
+A BigQuery CTE query like this:
+
+```
+WITH customers AS (
+  SELECT id, email FROM `proj.shop.customers_raw`
+),
+orders AS (
+  SELECT o.id, o.customer_id
+  FROM `proj.shop.orders_raw` o
+)
+SELECT * FROM orders
+```
+
+…renders `customers` and `orders` as nodes, linked to the base tables they read from.
+
+#### Guide
+
+This page does something the others don't: it diagrams *queries*, not just schemas. Paste a BigQuery `WITH … AS (…)` statement and each CTE becomes a node on the canvas — its columns inferred from the `SELECT` list — with edges drawn to every table or CTE it reads from, including backtick-quoted `project.dataset.table` references. It's a dependency graph of your query, laid out and exportable.
+
+For schema diagrams, grab real DDL from `INFORMATION_SCHEMA`:
+
+```
+SELECT ddl FROM `mydataset.INFORMATION_SCHEMA.TABLES` t
+JOIN `mydataset.INFORMATION_SCHEMA.TABLES_DDL_QUERY` …
+```
+
+— or simply `bq show --schema --format=prettyjson` per table and paste the `CREATE TABLE` form. Standard types (`STRING`, `INT64`, `NUMERIC`, `STRUCT`, `ARRAY<STRUCT<…>>`) render on the nodes.
+
+Note that BigQuery doesn't enforce foreign keys — so a pure DDL paste gives you tables without edges. That's honest: use **Infer links** to draw the `_id` conventions, or diagram the CTE query that joins them to see the real relationships in use.
+
+#### FAQ
+
+**Q: How do I visualize a BigQuery CTE query?**
+
+A: Paste your `WITH … AS (…)` query. Each CTE becomes a node, columns come from its SELECT list, and references to other CTEs or backtick-quoted `project.dataset.table` tables are drawn as edges.
+
+**Q: Does it work with BigQuery CREATE TABLE DDL too?**
+
+A: Yes — paste standard CREATE TABLE statements and it draws a classic ER diagram with foreign-key relations.
+
+## Formats & ORMs
+
+### Prisma to ER Diagram
+
+URL: https://sqltoerdiagram.com/prisma/
+
+Paste your `schema.prisma` and instantly get a clean, interactive entity-relationship diagram — models, fields and relations, drawn automatically. Free, open source, and 100% in your browser.
+
+- Input: A Prisma schema: the contents of `schema.prisma`.
+- Output: An interactive ER diagram you can rearrange, then export as PNG, SVG, Mermaid, DBML or PlantUML, or share as a link.
+
+#### Steps
+
+1. Copy the contents of your `schema.prisma` file.
+2. Paste it into the editor — the format is **auto-detected as Prisma**.
+3. Every `model` becomes a table; relations are drawn from your `@relation` fields.
+4. Drag tables to arrange, hide noise, then export as PNG/SVG or share a link.
+
+#### Example
+
+A Prisma schema like this:
+
+```
+model User {
+  id     Int     @id @default(autoincrement())
+  email  String  @unique
+  posts  Post[]
+}
+
+model Post {
+  id        Int    @id @default(autoincrement())
+  title     String
+  author    User   @relation(fields: [authorId], references: [id])
+  authorId  Int
+}
+```
+
+…renders as two tables (`User`, `Post`) with a relation from `Post.authorId` → `User.id`.
+
+#### Guide
+
+Prisma schemas describe your database twice over: once in the `model` blocks and once in the `@relation` attributes that wire them together. This tool reads both. A model becomes a table node with all of its scalar fields; a field annotated with `@relation(fields: [authorId], references: [id])` becomes a drawn edge from the current model to the target model, with the correct one-to-many or one-to-one crow's-foot.
+
+A few things worth knowing before you paste:
+
+- **Implicit many-to-many** — when you write `posts Post[]` on one side and `author User[]` on the other without an explicit relation, Prisma creates a hidden `_PostToUser` join table. The diagram draws a many-to-many edge directly between the two models, which is usually what you want to see.
+
+- **Enums and types** — `enum` blocks are attached to the fields that use them, so you can read them straight off the table node.
+
+- **Multi-file schemas** — if you split your schema across files (Prisma's `schema/` folder with `prismaSchemaFolder`), concatenate the files in any order and paste the result; models are matched by name.
+
+A common use case: you inherit a codebase, paste `schema.prisma`, and within seconds you can see whether the `User ↔ Profile` relation is one-to-one, which models are orphans with no relations at all, and where a join table was hand-rolled instead of using an implicit relation. Export the PNG and drop it into your team's onboarding doc.
+
+#### FAQ
+
+**Q: How do I turn a Prisma schema into an ER diagram?**
+
+A: Paste your `schema.prisma` into the editor. It auto-detects Prisma, renders every model as a table, and draws relations from your `@relation` fields — instantly, in the browser.
+
+**Q: What else is supported besides Prisma?**
+
+A: Raw SQL (`CREATE TABLE` for PostgreSQL, MySQL, SQLite, SQL Server, Oracle, Snowflake), plus DBML, Mermaid, SQLAlchemy and Sequelize models.
+
+### DBML to ER Diagram
+
+URL: https://sqltoerdiagram.com/dbml/
+
+Paste **DBML** (Database Markup Language) and get an interactive ER diagram instantly. A free, in-browser DBML visualizer — import DBML, export PNG, SVG, Mermaid or PlantUML.
+
+- Input: DBML (Database Markup Language) text.
+- Output: An interactive ER diagram you can rearrange, then export as PNG, SVG, Mermaid, DBML or PlantUML, or share as a link.
+
+#### Steps
+
+1. Copy your `.dbml` file or DBML snippet.
+2. Paste it into the editor — DBML is auto-detected.
+3. Each `Table` renders with its columns; `Ref:` and inline `[ref: > …]` become relations.
+4. Arrange, hide tables, then export PNG/SVG or convert to Mermaid/PlantUML.
+
+#### Example
+
+DBML like this:
+
+```
+Table users {
+  id integer [pk]
+  email varchar [unique]
+}
+
+Table posts {
+  id integer [pk]
+  user_id integer [ref: > users.id]
+}
+```
+
+…renders two tables with a relation from `posts.user_id` → `users.id`.
+
+#### Guide
+
+DBML (Database Markup Language) is the DSL behind dbdiagram.io, dbdocs and dbml-cli, and it was designed to be read by humans — which makes it a great input for a diagram. This page renders DBML the way dbdiagram does, but interactive: drag tables, hide the ones you don't care about, zoom, and export.
+
+#### DBML syntax that's supported
+
+- `Table` blocks with `[pk, increment]`, `[unique]`, `[not null]` and `[default: …]` settings.
+
+- Standalone `Ref: orders.customer_id > customers.id` lines and inline `[ref: > users.id]` column settings — both one-to-many (`>`) and one-to-one (`-`).
+
+- Multi-column relations: `Ref: t.(a,b) > u.(a,b)`.
+
+- `Enum` definitions attached to the columns that use them.
+
+Styling directives like `headercolor` and `TableGroup` blocks are safely skipped. If you're migrating off dbdiagram.io (pricing change, offline need, or you just want the data to stay local), paste your project here — the whole diagram renders client-side, and you can export back to SQL, Mermaid, PlantUML, PNG or SVG.
+
+#### FAQ
+
+**Q: What is DBML?**
+
+A: DBML (Database Markup Language) is a simple, readable DSL for defining database schemas, popularized by dbdiagram.io. Paste it here to visualize it instantly.
+
+**Q: Can I convert DBML to SQL or Mermaid?**
+
+A: Paste your DBML, then use Export to get Mermaid or PlantUML, or a PNG/SVG image of the diagram.
+
+### Mermaid to ER Diagram
+
+URL: https://sqltoerdiagram.com/mermaid/
+
+Paste a **Mermaid** `erDiagram` and turn it into a fully interactive ER diagram you can drag, auto-arrange, and export — no Markdown renderer required.
+
+- Input: A Mermaid `erDiagram` block.
+- Output: An interactive ER diagram you can rearrange, then export as PNG, SVG, Mermaid, DBML or PlantUML, or share as a link.
+
+#### Steps
+
+1. Copy your Mermaid `erDiagram` block.
+2. Paste it into the editor — Mermaid is auto-detected.
+3. Each entity becomes a table; relationships are drawn with the right cardinality.
+4. Arrange, hide tables, then export PNG/SVG or convert to DBML/PlantUML.
+
+#### Example
+
+A Mermaid erDiagram like this:
+
+```
+erDiagram
+  USERS ||--o{ POSTS : writes
+  USERS {
+    int id PK
+    string email
+  }
+  POSTS {
+    int id PK
+    int user_id FK
+  }
+```
+
+…renders two tables with a relation between `USERS` and `POSTS`.
+
+#### Guide
+
+Mermaid `erDiagram` blocks are everywhere — GitHub READMEs, GitLab wikis, Notion pages, Obsidian notes — but the default renderer gives you a static picture you can't touch. Paste the same block here and you get a live canvas: every entity becomes a draggable table, every relationship keeps its crow's-foot cardinality, and you can export the result as an image or convert it to DBML or PlantUML.
+
+#### Cardinality notation reference
+
+- `||--o{` — exactly one to zero-or-many (the classic parent-child).
+
+- `||--||` — one to exactly one.
+
+- `}o--o{` — zero-or-more to zero-or-more (many-to-many).
+
+- Attribute keys: `PK`, `FK`, and `UK` markers on attribute lines are rendered as key badges.
+
+Entities defined only by relationship lines (no attribute block) render as compact nodes — useful when your diagram is at the "sketch" stage. Comments in double quotes after the relationship (`: "places"`) are kept as edge labels.
+
+#### FAQ
+
+**Q: Can I edit a Mermaid ER diagram visually?**
+
+A: Paste the Mermaid erDiagram to render it, then drag and arrange tables on the canvas. You can also convert it to SQL-style images or DBML via Export.
+
+**Q: Does it support Mermaid cardinality?**
+
+A: Yes — one-to-one, one-to-many and many-to-many crow’s-foot notations are recognised and drawn.
+
+### SQLAlchemy to ER Diagram
+
+URL: https://sqltoerdiagram.com/sqlalchemy/
+
+Paste your **SQLAlchemy** declarative models and get an interactive ER diagram — tables from `__tablename__`, columns, and relations from `ForeignKey`.
+
+- Input: SQLAlchemy declarative model classes (Python source).
+- Output: An interactive ER diagram you can rearrange, then export as PNG, SVG, Mermaid, DBML or PlantUML, or share as a link.
+
+#### Steps
+
+1. Copy your SQLAlchemy model classes (declarative `Base` / `db.Model`).
+2. Paste them into the editor — SQLAlchemy is auto-detected.
+3. Each model becomes a table; `ForeignKey("table.col")` becomes a relation.
+4. Arrange, hide tables, then export PNG/SVG or share a link.
+
+#### Example
+
+SQLAlchemy models like this:
+
+```
+class User(Base):
+    __tablename__ = "users"
+    id = Column(Integer, primary_key=True)
+    email = Column(String, unique=True)
+
+class Post(Base):
+    __tablename__ = "posts"
+    id = Column(Integer, primary_key=True)
+    author_id = Column(Integer, ForeignKey("users.id"))
+```
+
+…renders two tables with a relation from `posts.author_id` → `users.id`.
+
+#### Guide
+
+SQLAlchemy has two shapes of model code and both paste fine here: the classic `Column(Integer, primary_key=True)` declarative style, and the 2.0 typed style with `Mapped[int]` and `mapped_column(...)`. Tables come from `__tablename__` (or the class name if you omit it), columns from the `Column`/`mapped_column` calls, and every `ForeignKey("users.id")` — including composite `ForeignKey("t.a"), ForeignKey("t.b")` pairs — becomes a drawn relation.
+
+What the parser deliberately ignores: `relationship()` back-references (the FK is what's drawn — `relationship` is Python-side only), hybrid properties, and methods. Nothing is executed; the models are read as text, so imports, custom base classes and decorators are all fine.
+
+If your project uses Alembic, an even more exact route is `alembic upgrade head --sql` to print raw DDL and paste that instead — it captures server defaults and indexes the models don't show. But for most apps, pasting `models.py` directly is the two-second path to a diagram for your README or design doc.
+
+#### FAQ
+
+**Q: How do I visualize SQLAlchemy models?**
+
+A: Paste your declarative model classes. Tables come from `__tablename__`, columns from `Column(...)`, and relations from `ForeignKey`.
+
+**Q: Do I need to run my app?**
+
+A: No — it reads the model source directly in the browser, nothing is imported or executed.
+
+### Sequelize to ER Diagram
+
+URL: https://sqltoerdiagram.com/sequelize/
+
+Paste your **Sequelize** model definitions and get an interactive ER diagram — tables, columns from `DataTypes`, and relations from associations.
+
+- Input: Sequelize model definitions (JavaScript source).
+- Output: An interactive ER diagram you can rearrange, then export as PNG, SVG, Mermaid, DBML or PlantUML, or share as a link.
+
+#### Steps
+
+1. Copy your Sequelize models (`sequelize.define(...)` or `Model.init(...)`).
+2. Paste them into the editor — Sequelize is auto-detected.
+3. Each model becomes a table; associations like `belongsTo` become relations.
+4. Arrange, hide tables, then export PNG/SVG or share a link.
+
+#### Example
+
+Sequelize models like this:
+
+```
+const User = sequelize.define('User', {
+  email: { type: DataTypes.STRING, unique: true }
+});
+
+const Post = sequelize.define('Post', {
+  title: DataTypes.STRING
+});
+
+Post.belongsTo(User);
+```
+
+…renders `User` and `Post` with a relation between them.
+
+#### Guide
+
+Sequelize models can be defined three ways — `sequelize.define('User', {...})`, class User extends Model {} + `User.init({...})`, or the old `sequelize.import` — and this page reads all of them as plain text. Attribute names come from the object keys, types from the `DataTypes` values, and `primaryKey: true`, `unique: true`, `allowNull: false` are picked up as key/constraint badges.
+
+Relations are drawn from your associations: `Post.belongsTo(User)` and `User.hasMany(Post)` both produce the same edge (the foreign key is what matters), `belongsToMany` through a model renders as many-to-many via the join table, and alias options like `{ as: 'author', foreignKey: 'author_id' }` are respected when naming the edge.
+
+An alternative that captures the real database: call `await sequelize.sync({ logging: console.log })` once against a scratch database and paste the logged `CREATE TABLE` SQL instead. That shows exactly what Sequelize would build, including the join tables it creates implicitly for `belongsToMany`.
+
+#### FAQ
+
+**Q: How do I diagram Sequelize models?**
+
+A: Paste your `sequelize.define` or `Model.init` definitions. Columns come from DataTypes and relations from associations like belongsTo / hasMany.
+
+### TypeORM to ER Diagram
+
+URL: https://sqltoerdiagram.com/typeorm/
+
+Visualize your **TypeORM** entities as an interactive ER diagram. Paste the entity classes as they are — `@Entity`, `@Column`, `@ManyToOne` and `@ManyToMany` are read directly — or paste the SQL TypeORM generates if you want every database-level detail.
+
+- Input: Decorator-style TypeORM entity classes (`@Entity`, `@Column`, `@ManyToOne`, `@ManyToMany`…), or the SQL TypeORM generates from them. `EntitySchema` objects are not read.
+- Output: An interactive ER diagram you can rearrange, then export as PNG, SVG, Mermaid, DBML or PlantUML, or share as a link.
+
+#### Steps
+
+1. Copy your entity classes — one file or several pasted together.
+2. Paste them into the editor (or drop the `.ts` file on the page). TypeORM is detected automatically.
+3. Each `@Entity` becomes a table; `@ManyToOne` / `@OneToOne` become foreign keys and `@ManyToMany` with `@JoinTable` becomes a junction table.
+4. Arrange, hide tables, then export PNG/SVG or convert to Mermaid/DBML.
+
+#### Example
+
+Paste TypeORM entities like these:
+
+```
+@Entity()
+export class User {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column({ unique: true })
+  email: string;
+}
+
+@Entity()
+export class Post {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column()
+  title: string;
+
+  @ManyToOne(() => User)
+  author: User;
+}
+```
+
+…and you get `User` and `Post` with a relation from `Post.authorId` → `User.id`.
+
+#### Guide
+
+TypeORM entities are decorators over classes — `@Entity()`, `@PrimaryGeneratedColumn()`, `@Column()`, `@ManyToOne(() => User, u => u.posts)` — and while this page works from the SQL TypeORM generates, that's the more reliable path anyway: the generated SQL is the ground truth of what's in your database, including column types resolved from your database driver, explicit constraint names, and join tables created by `@ManyToMany(() => Tag, tag => tag.posts)`.
+
+The two easiest ways to get that SQL:
+
+- **Migrations:** `npx typeorm migration:generate -d ./migrations MyFirstMigration`, then paste the `CREATE TABLE` statements from the generated file.
+
+- **Synchronize logging:** set `logging: true` in your DataSource options (or `synchronize: true` in dev) and copy the schema-sync SQL from the console at startup.
+
+Both produce standard Postgres/MySQL DDL with `ALTER TABLE … ADD CONSTRAINT` foreign keys, which the parser stitches back onto the right tables. NestJS projects work identically — the entities are plain TypeORM under the hood.
+
+#### FAQ
+
+**Q: How do I get an ER diagram from TypeORM?**
+
+A: Paste your entity classes into the editor. Every class marked `@Entity` becomes a table, its `@Column` properties become columns, and its relations become foreign keys.
+
+**Q: Which TypeORM features are read?**
+
+A: Decorator-style entities: `@Entity`, `@PrimaryGeneratedColumn`, `@PrimaryColumn`, `@Column`, the date and version columns, `@ManyToOne`, `@OneToOne` with `@JoinColumn`, and `@ManyToMany` with `@JoinTable`. `EntitySchema` objects are not read; for those, or for exact database types, paste the SQL from `typeorm migration:generate` instead.
+
+### Django Models to ER Diagram
+
+URL: https://sqltoerdiagram.com/django/
+
+Visualize your **Django** models as an interactive ER diagram. Paste `models.py` as it is — fields, `ForeignKey`, `OneToOneField`, `ManyToManyField` and abstract base models are read directly — or paste the SQL from `sqlmigrate` for the exact database tables.
+
+- Input: A Django `models.py` (fields, `ForeignKey`, `OneToOneField`, `ManyToManyField`, abstract base models), or the SQL that `sqlmigrate` prints.
+- Output: An interactive ER diagram you can rearrange, then export as PNG, SVG, Mermaid, DBML or PlantUML, or share as a link.
+
+#### Steps
+
+1. Copy your `models.py` — one app or several pasted together.
+2. Paste it into the editor (or drop the `.py` file on the page). Django is detected automatically.
+3. Each model becomes a table with Django’s implicit `id`; `ForeignKey` and `OneToOneField` become foreign keys and `ManyToManyField` becomes a junction table.
+4. Arrange, hide tables, then export PNG/SVG or convert to Mermaid/DBML.
+
+#### Example
+
+Paste Django models like these:
+
+```
+from django.db import models
+
+class Author(models.Model):
+    name = models.CharField(max_length=100)
+
+class Post(models.Model):
+    title = models.CharField(max_length=200)
+    author = models.ForeignKey(Author, on_delete=models.CASCADE)
+```
+
+…and you get `Author` and `Post` with a relation from `Post.author_id` → `Author.id`.
+
+#### Guide
+
+Django doesn't have a schema file to paste — your models live in Python — but it can print the exact SQL it will run, and that's what you paste here. Run `python manage.py sqlmigrate yourapp 0001` for the initial migration (or `sqlmigrate` on whichever migration created the tables you care about) and copy the output: `CREATE TABLE "blog_post"` with an `REFERENCES "blog_author"("id")` foreign key, ready to diagram.
+
+Tips for multi-app projects:
+
+- Run `sqlmigrate` once per app and paste the outputs together — tables link up by their foreign keys automatically, and the `appname_` table prefixes keep the diagram readable.
+
+- `ForeignKey` becomes a drawn relation; `ManyToManyField` shows up as the auto-created join table (`blog_post_tags`) exactly as Django builds it.
+
+- If you use `django-extensions`, the `graph_model` command is an alternative — but its output is static dot/PyGraphviz, while this renders interactive and exportable.
+
+The result reflects the real database Django creates — including the `id BIGINT PRIMARY KEY` auto-pk and `_id` column naming — so it's accurate even when your models use custom `db_table` or `related_name` tricks.
+
+#### FAQ
+
+**Q: How do I make an ER diagram from Django models?**
+
+A: Paste your `models.py` into the editor. Each model becomes a table, and `ForeignKey`, `OneToOneField` and `ManyToManyField` become relations.
+
+**Q: Can I see all apps at once?**
+
+A: Yes. Paste the models from several apps together — relations written as `"app.Model"` are linked by the model name.
+
+**Q: Are the table names the real database names?**
+
+A: Tables are labelled with the model class name (`Post`), not Django’s `app_post` database name. For the exact tables, paste the output of `python manage.py sqlmigrate yourapp 0001` instead.
+
+## Converters
+
+### SQL to Mermaid
+
+URL: https://sqltoerdiagram.com/sql-to-mermaid/
+
+Paste your SQL `CREATE TABLE` statements and get a **Mermaid `erDiagram`** you can copy straight into Markdown, GitHub, or your docs — plus a live, interactive diagram.
+
+- Input: SQL `CREATE TABLE` statements for PostgreSQL, MySQL, MariaDB, SQLite, SQL Server, Oracle or Snowflake.
+- Output: Mermaid `erDiagram` code to copy, alongside a live interactive diagram.
+
+#### Steps
+
+1. Paste your SQL schema into the editor (PostgreSQL, MySQL, SQLite or SQL Server).
+2. The diagram renders instantly so you can check it.
+3. Click **Export → Mermaid** and copy the `erDiagram` code.
+4. Drop it into any Mermaid-aware Markdown (GitHub, GitLab, Notion, Obsidian…).
+
+#### Example
+
+This SQL:
+
+```
+CREATE TABLE users (
+  id SERIAL PRIMARY KEY,
+  email TEXT UNIQUE
+);
+CREATE TABLE posts (
+  id SERIAL PRIMARY KEY,
+  user_id INT REFERENCES users(id)
+);
+```
+
+…exports as this Mermaid:
+
+```
+erDiagram
+    users {
+        serial id PK
+        text email
+    }
+    posts {
+        serial id PK
+        int user_id FK
+    }
+    users ||--o{ posts : "user_id"
+```
+
+Copy it from **Export → Mermaid**.
+
+#### Guide
+
+The export maps your SQL one-to-one onto Mermaid's `erDiagram` grammar: each `CREATE TABLE` becomes an entity block, columns keep their types, `PRIMARY KEY` / `FOREIGN KEY` / `UNIQUE` become `PK` / `FK` / `UK` markers, and each foreign key becomes a relationship line with the right cardinality — `||--o{` for a plain one-to-many, `||--||` for a unique foreign key.
+
+Where the output works: GitHub and GitLab Markdown (fenced as a `mermaid` code block), Notion code blocks, Obsidian, GitBook, MkDocs with `mkdocs-material`, and the Mermaid Live Editor. If your target renderer chokes on something, the usual culprit is an exotic column type — rename it to a simple word (`string`, `int`) in the export and it will render anywhere.
+
+Why convert via a diagram tool instead of by hand: the live preview catches mistakes before you paste. If the edge between `orders` and `customers` looks wrong on the canvas, the Mermaid will be wrong too — fix the SQL, re-export. The canvas is the proof, the export is the artifact.
+
+#### FAQ
+
+**Q: How do I convert SQL to a Mermaid ER diagram?**
+
+A: Paste your CREATE TABLE statements, then click Export → Mermaid and copy the erDiagram code. Foreign keys become relationships.
+
+**Q: Where can I use the Mermaid output?**
+
+A: Anywhere Mermaid renders: GitHub & GitLab Markdown, Notion, Obsidian, docs sites, and the Mermaid Live Editor.
+
+### Prisma to DBML
+
+URL: https://sqltoerdiagram.com/prisma-to-dbml/
+
+Paste your `schema.prisma` and export it as **DBML** — ready for dbdiagram.io and other DBML tools — while you preview the live ER diagram.
+
+- Input: A Prisma schema: the contents of `schema.prisma`.
+- Output: DBML code to copy, alongside a live interactive diagram.
+
+#### Steps
+
+1. Paste the contents of your `schema.prisma` — Prisma is auto-detected.
+2. The diagram renders so you can confirm models and relations.
+3. Click **Export → DBML** and copy the result.
+4. Paste it into dbdiagram.io or any DBML-based workflow.
+
+#### Example
+
+This Prisma schema:
+
+```
+model User {
+  id    Int    @id @default(autoincrement())
+  email String @unique
+  posts Post[]
+}
+model Post {
+  id       Int  @id @default(autoincrement())
+  author   User @relation(fields: [authorId], references: [id])
+  authorId Int
+}
+```
+
+…exports as this DBML:
+
+```
+Table "User" {
+  "id" Int [pk]
+  "email" String [unique]
+}
+Table "Post" {
+  "id" Int [pk]
+  "authorId" Int
+}
+Ref: "Post"."authorId" > "User"."id"
+```
+
+Copy it from **Export → DBML**.
+
+#### Guide
+
+The conversion follows DBML's semantics: a Prisma `model` becomes a `Table`, `@id` becomes `[pk]`, `@default(autoincrement())` becomes `[increment]`, `@unique` becomes `[unique]`, and each `@relation(fields: [authorId], references: [id])` becomes a standalone `Ref: "Post"."authorId" > "User"."id"` line. Scalar lists (`String[]`) and enums carry over as column types.
+
+Why you'd want this: DBML is the interchange format for dbdiagram.io, dbdocs.io and the `@softwaretechnik/dbml-renderer` CLI. Converting your `schema.prisma` to DBML lets you paste the schema into dbdiagram for pretty static renders, publish dbdocs documentation, or diff schemas textually. The conversion runs entirely in your browser — the schema never touches a server, which matters when the schema contains real customer table names.
+
+Check the live diagram before you copy the export: if a relation is missing on the canvas, the `@relation` was probably implicit on both sides, and the DBML will contain a many-to-many edge rather than a hidden join table — which is usually the honest representation.
+
+#### FAQ
+
+**Q: How do I convert a Prisma schema to DBML?**
+
+A: Paste your schema.prisma, then click Export → DBML and copy the output. Models become Tables and @relation fields become Refs.
+
+### DDL to ER Diagram
+
+URL: https://sqltoerdiagram.com/ddl-to-er-diagram/
+
+Paste your database **DDL** — the `CREATE TABLE` and `ALTER TABLE` statements that define your schema — and get an interactive ER diagram with every table, column and foreign key drawn automatically.
+
+- Input: SQL DDL: `CREATE TABLE` and `ALTER TABLE` statements for PostgreSQL, MySQL, MariaDB, SQLite, SQL Server, Oracle or Snowflake.
+- Output: An interactive ER diagram you can rearrange, then export as PNG, SVG, Mermaid, DBML or PlantUML, or share as a link.
+
+#### Steps
+
+1. Copy your DDL from a migration, schema dump, or your database client.
+2. Paste it into the editor — PostgreSQL, MySQL, SQLite, SQL Server, Oracle and Snowflake DDL all parse.
+3. Tables render with columns; inline `REFERENCES` and `FOREIGN KEY` constraints become relations.
+4. Arrange, hide tables, then export PNG/SVG or convert to Mermaid/DBML.
+
+#### Example
+
+DDL like this:
+
+```
+CREATE TABLE authors (
+  id BIGINT PRIMARY KEY,
+  name VARCHAR(120) NOT NULL
+);
+
+CREATE TABLE books (
+  id BIGINT PRIMARY KEY,
+  author_id BIGINT NOT NULL
+);
+
+ALTER TABLE books
+  ADD CONSTRAINT fk_books_authors
+  FOREIGN KEY (author_id) REFERENCES authors(id);
+```
+
+…renders two tables with a relation from `books.author_id` → `authors.id`, including the `ALTER TABLE` foreign key.
+
+#### Guide
+
+DDL — `CREATE TABLE`, `ALTER TABLE`, `ADD CONSTRAINT` — is the most complete description of a schema that exists, and this page turns any dialect of it into a diagram. The reason this page exists separately from the per-database pages: real-world DDL is dialect soup. A migration folder might contain Postgres DDL; a vendor handover might include a SQL Server `.sql` script with `GO` batches; an ORM might emit SQLite-flavoured DDL. Paste any of them, or a mixture — the parser handles inline `REFERENCES`, named `CONSTRAINT fk_… FOREIGN KEY` blocks, and the `ALTER TABLE`-after-the-fact style that `pg_dump` produces.
+
+Good sources of DDL you already have:
+
+- Your migrations folder — every framework's migrations are just DDL with extra steps.
+
+- `pg_dump --schema-only`, `mysqldump --no-data`, SSMS "Generate Scripts", `sqlite3 .schema`.
+
+- Terraform/Infrastrucure repos that manage databases declaratively.
+
+Statements that don't affect the diagram — `CREATE INDEX`, `GRANT`, `INSERT`, `CREATE VIEW` — are skipped without complaint, so whole dump files paste fine.
+
+#### FAQ
+
+**Q: What counts as DDL?**
+
+A: Data Definition Language — the `CREATE TABLE`, `ALTER TABLE` and constraint statements that define your schema. Paste them and the diagram is drawn instantly.
+
+**Q: Does it read ALTER TABLE foreign keys?**
+
+A: Yes — foreign keys added via `ALTER TABLE … ADD CONSTRAINT … FOREIGN KEY` (as pg_dump emits) are parsed and drawn as relations.
+
+### SQL to DBML Converter
+
+URL: https://sqltoerdiagram.com/sql-to-dbml/
+
+Paste your SQL `CREATE TABLE` statements and export them as **DBML** — ready for dbdiagram.io and other DBML tools — while you preview the live ER diagram.
+
+- Input: SQL `CREATE TABLE` statements for PostgreSQL, MySQL, MariaDB, SQLite, SQL Server, Oracle or Snowflake.
+- Output: DBML code to copy, alongside a live interactive diagram.
+
+#### Steps
+
+1. Paste your SQL schema into the editor (PostgreSQL, MySQL, SQLite, SQL Server, Oracle…).
+2. The diagram renders instantly so you can confirm the tables and relations.
+3. Click **Export → DBML** and copy the result.
+4. Paste it into dbdiagram.io or any DBML-based workflow.
+
+#### Example
+
+This SQL:
+
+```
+CREATE TABLE customers (
+  id BIGINT PRIMARY KEY,
+  name VARCHAR(120) NOT NULL
+);
+CREATE TABLE invoices (
+  id BIGINT PRIMARY KEY,
+  customer_id BIGINT NOT NULL REFERENCES customers(id),
+  total NUMERIC(10,2)
+);
+```
+
+…exports as this DBML:
+
+```
+Table "customers" {
+  "id" bigint [pk]
+  "name" varchar(120) [not null]
+}
+
+Table "invoices" {
+  "id" bigint [pk]
+  "customer_id" bigint [not null]
+  "total" "numeric(10,2)"
+}
+
+Ref: "invoices"."customer_id" > "customers"."id"
+```
+
+Copy it from **Export → DBML**.
+
+#### Guide
+
+The conversion is deliberately boring and predictable: `CREATE TABLE users` becomes `Table users`, column types are normalised to DBML's style (`SERIAL` → `serial` with `[pk, increment]`), `NOT NULL` becomes `[not null]`, `UNIQUE` becomes `[unique]`, and each foreign key — whether inline or in an `ALTER TABLE` — becomes a `Ref:` line. Nothing is invented, nothing is dropped silently.
+
+Why people convert SQL to DBML:
+
+- **dbdiagram.io import** — DBML is its native format; paste and it renders.
+
+- **Readable diffs** — a 400-line DDL dump becomes a 400-line DBML file that reads like documentation and reviews well in PRs.
+
+- **Toolchain entry** — dbml-cli, dbdocs and several schema tools speak DBML, so it's the interchange step out of a raw dump.
+
+The live diagram on this page is the verification step: if the canvas shows the relations you expect, the DBML contains them too — both come from the same parse. Export, copy, done. And since the conversion is client-side, production dumps with real table and column names never leave your machine.
+
+#### FAQ
+
+**Q: How do I convert SQL to DBML?**
+
+A: Paste your CREATE TABLE statements, then click Export → DBML and copy the output. Tables become `Table` blocks and foreign keys become `Ref:` lines.
+
+**Q: Is this a free dbdiagram importer?**
+
+A: Yes — convert SQL to DBML for free and paste it straight into dbdiagram.io, with no account.
+
+### SQL to PlantUML
+
+URL: https://sqltoerdiagram.com/sql-to-plantuml/
+
+Paste your SQL `CREATE TABLE` statements and get a **PlantUML** entity diagram you can drop into your docs or wiki — plus a live, interactive diagram to check it first.
+
+- Input: SQL `CREATE TABLE` statements for PostgreSQL, MySQL, MariaDB, SQLite, SQL Server, Oracle or Snowflake.
+- Output: PlantUML entity-diagram code to copy, alongside a live interactive diagram.
+
+#### Steps
+
+1. Paste your SQL schema into the editor (PostgreSQL, MySQL, SQLite, SQL Server, Oracle…).
+2. The diagram renders instantly so you can verify it.
+3. Click **Export → PlantUML** and copy the `@startuml` block.
+4. Paste it into any PlantUML renderer, Confluence, or your docs.
+
+#### Example
+
+This SQL:
+
+```
+CREATE TABLE teams (
+  id INT PRIMARY KEY,
+  name VARCHAR(80) NOT NULL
+);
+CREATE TABLE players (
+  id INT PRIMARY KEY,
+  team_id INT REFERENCES teams(id),
+  nickname VARCHAR(40)
+);
+```
+
+…exports as this PlantUML:
+
+```
+@startuml
+hide circle
+skinparam linetype ortho
+
+entity "teams" as teams {
+  * id : int <<PK>>
+  --
+  name : varchar(80)
+}
+
+entity "players" as players {
+  * id : int <<PK>>
+  --
+  team_id : int <<FK>>
+  nickname : varchar(40)
+}
+
+teams ||--o{ players
+@enduml
+```
+
+Copy it from **Export → PlantUML**.
+
+#### Guide
+
+The export produces a classic PlantUML entity diagram: each table becomes an `entity` block with a `*`-marked primary key and typed fields, and each foreign key becomes a crow's-foot connector (`users ||--o{ posts`). It's the notation your Confluence, XWiki, AsciiDoc or Doxygen setup already renders — no new toolchain to adopt.
+
+Where people take the output:
+
+- Confluence pages with the PlantUML macro — paste, save, done.
+
+- READMEs rendered through `plantuml` GitHub Actions or pre-commit renderers.
+
+- VS Code with any PlantUML preview extension for a local render loop.
+
+The difference from generating PlantUML by hand or with a script: the live diagram here verifies the relationships before you commit the artifact. A wrong join shows up as a wrong crow's-foot immediately. And if PlantUML turns out to be the wrong target — your docs move to Markdown, say — the same parse exports Mermaid and DBML too. One paste, three notations, all client-side.
+
+#### FAQ
+
+**Q: How do I convert SQL to PlantUML?**
+
+A: Paste your CREATE TABLE statements, then click Export → PlantUML and copy the `@startuml` block. Foreign keys become relationship connectors.
+
+### DBML to Mermaid
+
+URL: https://sqltoerdiagram.com/dbml-to-mermaid/
+
+Paste **DBML** and export it as a **Mermaid `erDiagram`** you can drop into Markdown, GitHub or your docs — while you preview the live, interactive diagram.
+
+- Input: DBML (Database Markup Language) text.
+- Output: Mermaid `erDiagram` code to copy, alongside a live interactive diagram.
+
+#### Steps
+
+1. Paste your DBML (from dbdiagram.io or a `.dbml` file) — DBML is auto-detected.
+2. The diagram renders instantly so you can confirm tables and relations.
+3. Click **Export → Mermaid** and copy the `erDiagram` code.
+4. Drop it into any Mermaid-aware Markdown (GitHub, GitLab, Notion, Obsidian…).
+
+#### Example
+
+This DBML:
+
+```
+Table users {
+  id integer [pk]
+  email varchar [unique]
+}
+Table posts {
+  id integer [pk]
+  user_id integer [ref: > users.id]
+}
+```
+
+…exports as this Mermaid:
+
+```
+erDiagram
+    users {
+        integer id PK
+        varchar email
+    }
+    posts {
+        integer id PK
+        integer user_id FK
+    }
+    users ||--o{ posts : "user_id"
+```
+
+Copy it from **Export → Mermaid**.
+
+#### Guide
+
+This conversion maps DBML's relational model onto Mermaid's `erDiagram` grammar: each `Table` becomes an entity block, `[pk]`/`[unique]`/`[ref:` settings become `PK`/`UK`/`FK` attribute markers, and each `Ref:` line becomes a relationship with matching cardinality — a one-to-many `>` ref becomes `||--o{`, a one-to-one `-` ref becomes `||--||`.
+
+The destination matters: Mermaid renders natively in GitHub, GitLab, Notion, Obsidian and most static-site generators. Converting DBML → Mermaid is how you take a schema that lives in a DBML toolchain (dbdiagram, dbdocs) and put it in a README that must render without JavaScript or images — Mermaid blocks are text, so they diff, review and survive repo moves.
+
+As with every export on this site, the live diagram is the proof: what you see on the canvas before copying is exactly what the Mermaid encodes, because both come from the same parse. If a `Ref` is missing from the render, it was missing from the DBML — fix it once, export again.
+
+#### FAQ
+
+**Q: How do I convert DBML to Mermaid?**
+
+A: Paste your DBML, then click Export → Mermaid and copy the `erDiagram` code. Tables become entities and `Ref:` relations become Mermaid relationships.
+
+### ER Diagram Generator from SQL
+
+URL: https://sqltoerdiagram.com/er-diagram-generator/
+
+A free online **ER diagram generator**. Paste your SQL — `CREATE TABLE` statements or a full DDL dump — and instantly generate an interactive entity-relationship diagram with every table, column and foreign key drawn for you.
+
+- Input: SQL `CREATE TABLE` statements or a full DDL dump, for PostgreSQL, MySQL, MariaDB, SQLite, SQL Server, Oracle or Snowflake.
+- Output: An interactive ER diagram you can rearrange, then export as PNG, SVG, Mermaid, DBML or PlantUML, or share as a link.
+
+#### Steps
+
+1. Copy your SQL schema (PostgreSQL, MySQL, SQLite, SQL Server, Oracle, Snowflake…).
+2. Paste it into the generator — the dialect is detected automatically.
+3. The ER diagram is generated instantly: tables with columns, and foreign keys as relations.
+4. Arrange, hide tables, then export PNG/SVG or convert to Mermaid/DBML/PlantUML.
+
+#### Example
+
+Paste SQL like this:
+
+```
+CREATE TABLE authors (
+  id BIGINT PRIMARY KEY,
+  name VARCHAR(120) NOT NULL
+);
+
+CREATE TABLE books (
+  id BIGINT PRIMARY KEY,
+  author_id BIGINT NOT NULL REFERENCES authors(id),
+  title VARCHAR(200)
+);
+```
+
+…and the generator draws two tables with a relation from `books.author_id` → `authors.id`.
+
+#### Guide
+
+This is the general-purpose entry point: paste SQL from any of the supported dialects — PostgreSQL, MySQL/MariaDB, SQLite, SQL Server, Oracle, Snowflake, BigQuery — and the generator detects the dialect, draws every table with its columns and keys, and connects foreign keys as relations. Dumps are fine: `pg_dump --schema-only`, `mysqldump --no-data`, SSMS scripts, `.schema` output — noise statements are skipped, `ALTER TABLE` foreign keys are stitched back on.
+
+#### Getting a good diagram out
+
+- **Start with auto-arrange**, then drag clusters apart by domain — the layout is a first draft, not a verdict.
+
+- **Hide tables** you don't need; a 25-table diagram communicates more than a 200-table one.
+
+- **No foreign keys in the schema?** Use **Infer links** — it draws relations from `user_id`-style column conventions.
+
+- **Export SVG** for docs (scales forever), PNG for slides and tickets.
+
+Everything happens in your browser — the schema is parsed and rendered locally, and never uploaded. That's not a limitation; it's the feature that makes pasting a production dump unremarkable.
+
+#### FAQ
+
+**Q: How do I generate an ER diagram from SQL?**
+
+A: Paste your `CREATE TABLE` statements (or a schema dump) and the ER diagram is generated instantly — tables become entities and foreign keys become relations. No signup, nothing uploaded.
+
+**Q: Which databases does the generator support?**
+
+A: PostgreSQL, MySQL, MariaDB, SQLite, SQL Server, Oracle, Snowflake and BigQuery DDL, plus Prisma, DBML, Mermaid, SQLAlchemy and Sequelize.
+
+## Viewers & visualizers
+
+### DBML to ER Diagram
+
+URL: https://sqltoerdiagram.com/dbml-to-er-diagram/
+
+Paste **DBML** and instantly render an interactive entity-relationship diagram — drag, arrange, and export. A free, in-browser DBML viewer.
+
+- Input: DBML (Database Markup Language) text.
+- Output: An interactive ER diagram you can rearrange, then export as PNG, SVG, Mermaid, DBML or PlantUML, or share as a link.
+
+#### Steps
+
+1. Copy your DBML (from dbdiagram.io or a `.dbml` file).
+2. Paste it into the editor — DBML is auto-detected.
+3. Tables and `Ref:` relations are drawn immediately.
+4. Arrange, hide tables, then export PNG/SVG or convert to Mermaid/PlantUML.
+
+#### Example
+
+DBML like this:
+
+```
+Table users {
+  id integer [pk]
+  email varchar [unique]
+}
+Table orders {
+  id integer [pk]
+  user_id integer [ref: > users.id]
+  total decimal
+}
+```
+
+…renders two tables with a relation from `orders.user_id` → `users.id`.
+
+#### Guide
+
+This is the dbdiagram-style rendering flow, without the account: export your DBML from dbdiagram.io (**Export → DBML**), or grab any `.dbml` file from your repo, paste it here, and the diagram appears immediately. From there it diverges from dbdiagram in useful ways:
+
+- **You can rearrange by hand.** Drag tables into domain groups — the auto-layout is a starting point, not a cage.
+
+- **You can hide tables.** Presenting the billing schema? Hide the other 80 tables and screenshot only what matters.
+
+- **Exports go both ways.** PNG and SVG for docs, but also Mermaid for Markdown and PlantUML for Confluence — DBML in, any format out.
+
+Everything runs locally: the paste, the parse, the render. For internal schemas at companies with strict data policies, that's the reason this page exists — no upload step to argue with security about. The share link (if you use it) encodes the whole diagram in the URL fragment itself; there's no database on the other end holding your schema.
+
+#### FAQ
+
+**Q: Is this a free dbdiagram alternative?**
+
+A: Yes — paste DBML and get an interactive diagram for free, with no account. You can also export to Mermaid, PlantUML, PNG or SVG.
+
+**Q: Does it support Ref and inline references?**
+
+A: Yes — both standalone `Ref:` lines and inline `[ref: > table.col]` settings are parsed.
+
+### Mermaid to ERD
+
+URL: https://sqltoerdiagram.com/mermaid-to-erd/
+
+Paste a **Mermaid** `erDiagram` and turn the text into a fully interactive ERD — drag tables, auto-arrange, and export to image, DBML or PlantUML.
+
+- Input: A Mermaid `erDiagram` block.
+- Output: An interactive ER diagram you can rearrange, then export as PNG, SVG, Mermaid, DBML or PlantUML, or share as a link.
+
+#### Steps
+
+1. Copy your Mermaid `erDiagram`.
+2. Paste it into the editor — Mermaid is auto-detected.
+3. Entities become draggable tables; relationships are drawn with cardinality.
+4. Arrange, then export PNG/SVG or convert to DBML/PlantUML.
+
+#### Example
+
+A Mermaid erDiagram like this:
+
+```
+erDiagram
+  CUSTOMER ||--o{ ORDER : places
+  CUSTOMER {
+    int id PK
+    string name
+  }
+  ORDER {
+    int id PK
+    int customer_id FK
+  }
+```
+
+…becomes an interactive ERD with `CUSTOMER` linked to `ORDER`.
+
+#### Guide
+
+Mermaid renders your `erDiagram` as a fixed SVG — you take what the layout engine gives you. Paste the same block here and it becomes a real ERD canvas: entities are tables you can drag into place, relationships re-route as you move things, and the whole picture stays consistent when you edit it.
+
+The typical flow: copy the `erDiagram` out of your README or design doc, paste, untangle the layout (auto-arrange first, then drag the exceptions), and export an SVG that actually fits the slide. Along the way you can convert the Mermaid into DBML — handy when the sketch graduated into a real schema that lives in a DBML-based tool.
+
+Supported syntax: all nine cardinality combinations (`||`, `o|`, `}o`, `||`… on both ends), attribute blocks with `PK`/`FK`/`UK` key markers, quoted relationship labels, and entities referenced before they're defined. If your block renders in GitHub, it will parse here — the grammar is the same, the output is just editable.
+
+#### FAQ
+
+**Q: How do I turn Mermaid text into a diagram I can edit?**
+
+A: Paste the Mermaid erDiagram here — it renders as draggable tables you can arrange, then export as an image or convert to DBML/PlantUML.
+
+### PlantUML to ER Diagram
+
+URL: https://sqltoerdiagram.com/plantuml/
+
+Paste a **PlantUML** entity or class diagram and turn it into a fully interactive ER diagram — drag tables, auto-arrange, and export — no Java or PlantUML server required.
+
+- Input: A PlantUML entity or class diagram: an `@startuml … @enduml` block.
+- Output: An interactive ER diagram you can rearrange, then export as PNG, SVG, Mermaid, DBML or PlantUML, or share as a link.
+
+#### Steps
+
+1. Copy your PlantUML `@startuml … @enduml` block (entity or class diagram).
+2. Paste it into the editor — PlantUML is auto-detected.
+3. Each `entity` / `class` becomes a table; relationship lines become relations.
+4. Arrange, hide tables, then export PNG/SVG or convert to Mermaid/DBML.
+
+#### Example
+
+PlantUML like this:
+
+```
+@startuml
+entity users {
+  * id : int
+  email : varchar
+}
+entity orders {
+  * id : int
+  user_id : int
+}
+users ||--o{ orders
+@enduml
+```
+
+…renders two tables with a relation from `orders` → `users`.
+
+#### Guide
+
+PlantUML's entity and class diagrams have been the default way to put an ERD in a wiki for a decade — but rendering them requires the PlantUML jar, a Java runtime, or a round-trip to the public PlantUML server. This page renders them client-side: paste your `@startuml … @enduml` block and get an interactive canvas instead of a fixed image.
+
+#### What's supported
+
+- `entity users { * id : int … }` blocks — the `*` mandatory marker becomes a NOT-NULL badge, types carry over.
+
+- Class-diagram style `class users { id : int }` blocks (common in older diagrams).
+
+- Relationship connectors with IE crow's-foot notation: `users ||--o{ orders`, plus `--` plain associations.
+
+Skinparam, theme and `hide circle` directives are skipped — they're render hints, not schema. The point isn't to replace PlantUML for every diagram type; it's that when the diagram is *about your database*, you should be able to drag a table two inches to the left without re-running a render pipeline. Export SVG/PNG when you're happy, or convert to Mermaid/DBML to move the schema into a different toolchain.
+
+#### FAQ
+
+**Q: Do I need a PlantUML server or Java?**
+
+A: No — paste the PlantUML text and it renders directly in your browser as an interactive diagram you can edit and export.
+
+**Q: Which PlantUML diagrams work?**
+
+A: Entity-relationship and class diagrams: `entity` / `class` blocks with fields, plus relationship connectors like `||--o{`.
+
+### DBML Viewer
+
+URL: https://sqltoerdiagram.com/dbml-viewer/
+
+A free, in-browser **DBML viewer**. Paste any DBML — or the contents of a `.dbml` file — and see it rendered as an interactive entity-relationship diagram you can drag, arrange and export. Nothing is uploaded.
+
+- Input: DBML text, or the contents of a `.dbml` file.
+- Output: An interactive ER diagram you can rearrange, then export as PNG, SVG, Mermaid, DBML or PlantUML, or share as a link.
+
+#### Steps
+
+1. Open your `.dbml` file (or copy DBML from dbdiagram.io).
+2. Paste it into the viewer — DBML is auto-detected.
+3. Every `Table` renders with its columns; `Ref:` and inline `[ref: > …]` become relations.
+4. Drag to arrange, then export PNG/SVG or convert to Mermaid/PlantUML.
+
+#### Example
+
+Paste DBML like this:
+
+```
+Table projects {
+  id integer [pk]
+  name varchar [not null]
+}
+Table tasks {
+  id integer [pk]
+  project_id integer [ref: > projects.id]
+  title varchar
+  done boolean
+}
+```
+
+…and the viewer draws two tables with a relation from `tasks.project_id` → `projects.id`.
+
+#### Guide
+
+A viewer, not an editor: paste DBML — from dbdiagram.io's export dialog, a `.dbml` file in your repo, or a snippet someone sent you — and see it as a diagram in about a second. No project to create, no schema to upload, no account.
+
+#### Opening a .dbml file
+
+- Open the `.dbml` file in any text editor (it's plain text).
+
+- Select all, copy, paste here. Or drag the file onto the editor pane.
+
+- The diagram renders; drag tables to tidy up, hide what you don't need.
+
+Because rendering is local, this is the viewer to reach for when the DBML contains real names — production table names, internal codenames, client project schemas. Nothing is transmitted; the share link, if you use one, encodes the diagram entirely in the URL fragment, so there is no server-side copy anywhere. When viewing turns into editing — rearranging for a deck, exporting an SVG for docs — the same paste works in the full editor via the button at the top.
+
+#### FAQ
+
+**Q: How do I open a .dbml file?**
+
+A: Copy the contents of the `.dbml` file and paste it here — it renders instantly as an interactive diagram. Nothing is uploaded; it all runs in your browser.
+
+**Q: Is this a free dbdiagram viewer?**
+
+A: Yes — paste DBML and view it as an interactive ER diagram for free, with no account, and export to Mermaid, PlantUML, PNG or SVG.
+
+### Prisma Schema Visualizer
+
+URL: https://sqltoerdiagram.com/prisma-schema-visualizer/
+
+A free, in-browser **Prisma schema visualizer**. Paste your `schema.prisma` and instantly see every model, field and relation drawn as an interactive ER diagram — no CLI, no generators, nothing uploaded.
+
+- Input: A Prisma schema: the contents of `schema.prisma`.
+- Output: An interactive ER diagram you can rearrange, then export as PNG, SVG, Mermaid, DBML or PlantUML, or share as a link.
+
+#### Steps
+
+1. Copy the contents of your `schema.prisma`.
+2. Paste it into the visualizer — Prisma is auto-detected.
+3. Each `model` becomes a table; `@relation` fields become relations with the right cardinality.
+4. Drag to arrange, then export PNG/SVG or convert to DBML/Mermaid.
+
+#### Example
+
+Paste a schema like this:
+
+```
+model Team {
+  id      Int      @id @default(autoincrement())
+  name    String   @unique
+  members Member[]
+}
+model Member {
+  id     Int    @id @default(autoincrement())
+  email  String
+  team   Team   @relation(fields: [teamId], references: [id])
+  teamId Int
+}
+```
+
+…and the visualizer draws `Team` and `Member` with a relation between them.
+
+#### Guide
+
+The Prisma ecosystem's own visualization options all require running things: `prisma-erd-generator` (renders at `prisma generate` time into a static SVG), or third-party CLIs that read the schema file. This page skips the toolchain entirely — paste the contents of `schema.prisma` and the ER diagram renders in the browser, interactive and exportable.
+
+When that's the better path:
+
+- **Code review** — paste a PR's proposed schema change and look at the relations before approving.
+
+- **Restricted machines** — no npm install, no generator in the build; a browser tab is enough.
+
+- **Multi-file schemas** — concatenate your `schema/` folder files and paste once.
+
+- **Sensitive schemas** — the schema text never leaves the tab.
+
+Models render with all scalar fields, enums attach to their columns, `@relation` attributes draw with correct cardinality, and implicit many-to-many relations draw as a direct edge between the models. From the same render you can export DBML (for dbdiagram), Mermaid (for Markdown), or PNG/SVG for docs — the visualizer is also a converter.
+
+#### FAQ
+
+**Q: Is there a way to visualize Prisma schema models and their relations graphically?**
+
+A: Yes — paste your `schema.prisma` here and every model and `@relation` is drawn as an interactive ER diagram, instantly and for free.
+
+**Q: Do I need to run Prisma or install anything?**
+
+A: No. It reads the schema text directly in your browser — nothing is generated, executed or uploaded.
+
+### PlantUML Viewer
+
+URL: https://sqltoerdiagram.com/plantuml-viewer/
+
+A free, in-browser **PlantUML viewer** for entity and class diagrams. Paste your `@startuml … @enduml` block and see it rendered as an interactive diagram — no Java, no PlantUML server, nothing uploaded.
+
+- Input: A PlantUML entity or class diagram: an `@startuml … @enduml` block.
+- Output: An interactive ER diagram you can rearrange, then export as PNG, SVG, Mermaid, DBML or PlantUML, or share as a link.
+
+#### Steps
+
+1. Copy your PlantUML `@startuml … @enduml` block.
+2. Paste it into the viewer — PlantUML is auto-detected.
+3. Each `entity` / `class` becomes a table; relationship lines become relations.
+4. Drag to arrange, then export PNG/SVG or convert to Mermaid/DBML.
+
+#### Example
+
+Paste PlantUML like this:
+
+```
+@startuml
+entity authors {
+  * id : int
+  name : varchar
+}
+entity books {
+  * id : int
+  author_id : int
+  title : varchar
+}
+authors ||--o{ books
+@enduml
+```
+
+…and the viewer draws two tables with a relation from `books` → `authors`.
+
+#### Guide
+
+The usual way to view PlantUML is a round trip: the jar and Java, or a company PlantUML server, or the public server — which means sending your diagram text to something. This viewer renders entity and class diagrams entirely in the browser: paste the `@startuml … @enduml` block, and the diagram appears with zero requests.
+
+That privacy property is the reason most people bookmark this page — the diagram text for an internal database schema is itself sensitive, and "paste it into a public web service" is a non-starter in a lot of organisations. Here the paste is the whole story: no upload endpoint exists to receive it.
+
+Supported input: `entity` and `class` blocks with typed fields, `*` mandatory-field markers, and crow's-foot relationship connectors (`||--o{` etc.). Skinparams and themes are ignored. What you get that a static render doesn't give you: drag to rearrange, hide tables to focus, and export PNG/SVG at whatever arrangement looks best — or convert the schema to Mermaid or DBML if your docs platform changed under you.
+
+#### FAQ
+
+**Q: Do I need a PlantUML server or Java to view a diagram?**
+
+A: No — paste the PlantUML text and it renders directly in your browser as an interactive diagram you can edit and export.
+
+**Q: Which PlantUML diagrams can I view?**
+
+A: Entity-relationship and class diagrams: `entity` / `class` blocks with fields, plus relationship connectors like `||--o{`.
+
+## Comparisons
+
+URL: https://sqltoerdiagram.com/alternatives/
+
+This comparison is written by the maintainers of SQL to ER Diagram. It describes other products only in general terms and lists no prices or plan limits, because those change. Check each product’s own site for its current features and pricing. Product names are trademarks of their respective owners.
+
+### What SQL to ER Diagram is
+
+- **Free and open source** under the MIT license. There are no paid plans.
+- **No signup.** There are no accounts; you open the page and paste a schema.
+- **Runs entirely in your browser.** The schema is parsed and drawn locally and is never uploaded to a server.
+- **Reads the schema you already have:** SQL DDL for PostgreSQL, MySQL, MariaDB, SQLite, SQL Server, Oracle, Snowflake and BigQuery, plus Prisma, DBML, Mermaid, PlantUML, SQLAlchemy, Sequelize, TypeORM entities and Django models.
+- **Imports from a live database** without connecting to it: you run one read-only catalog query in your own client and paste the result.
+- **Converts and migrates:** exports the schema as DDL for another SQL dialect, and compares two versions to produce migration SQL.
+- **Exports** PNG, SVG, Mermaid, DBML and PlantUML, copies the diagram to the clipboard, and makes share-ready snapshot images.
+- **Share by URL:** a share link encodes the whole diagram in the URL fragment, which browsers do not send to a server.
+- **Editor features:** undo/redo, a ⌘K command palette that jumps to any table or column, a minimap, and a clickable list of parse problems.
+- **Works offline** after the first visit, and stays smooth at around 300 tables because layout runs in a Web Worker.
+- **Headless CLI** that turns a schema file into an SVG, for docs and CI.
+
+### What SQL to ER Diagram does not do
+
+- It has no accounts and no server, so there is no real-time multi-user editing and no cloud workspace. Diagrams and their version history live in your browser, in a file you save, or in a link you share.
+- It never connects to your database itself: you paste schema text, or run one read-only catalog query in your own client and paste its result.
+
+### SQL to ER Diagram vs dbdiagram.io
+
+URL: https://sqltoerdiagram.com/vs/dbdiagram/
+
+Both tools turn text into an ER diagram. dbdiagram.io is an editor built around the DBML language; SQL to ER Diagram is a free, open-source page that reads the schema you already have and never uploads it.
+
+About dbdiagram.io: dbdiagram.io is a database diagram editor made by Holistics. You describe the schema as DBML code in its editor and the diagram is drawn from that code as you type. DBML, the language it is built around, is open source. It can also generate a diagram from a database or a SQL dump file, and generate the SQL to create the tables. Diagrams can be shared online, and a team can be invited to collaborate on them.
+
+Choose SQL to ER Diagram when:
+
+- You already have SQL, a database dump, or a Prisma, SQLAlchemy or Sequelize schema and want the diagram without rewriting it as DBML.
+- The schema must not leave your machine: nothing is uploaded and there is no account.
+- You want a free, MIT-licensed tool you can self-host or run from a CLI.
+
+Choose dbdiagram.io when:
+
+- You want DBML to be the source you write and keep.
+- Your team wants to collaborate on the same diagrams online.
+
+**Q: Can I move a diagram between dbdiagram.io and SQL to ER Diagram?**
+
+A: Yes, through DBML. SQL to ER Diagram reads DBML, so you can paste DBML text into it, and it exports any schema as DBML that other DBML tools can read.
+
+**Q: Do I need to learn DBML to use SQL to ER Diagram?**
+
+A: No. Paste the SQL DDL, Prisma schema or ORM models you already have and the diagram is drawn from that. DBML is one of the supported inputs and outputs, not a requirement.
+
+### SQL to ER Diagram vs DrawSQL
+
+URL: https://sqltoerdiagram.com/vs/drawsql/
+
+DrawSQL is a visual database design tool for engineering teams, with real-time collaboration. SQL to ER Diagram is a free, open-source page that draws the diagram from schema text you already have, without an account and without uploading anything.
+
+About DrawSQL: DrawSQL describes itself as visual database design for engineering teams. It can import SQL: you paste CREATE TABLE statements and get a schema diagram. It offers real-time multiplayer editing for teams. It offers a library of real-world schema templates to start from.
+
+Choose SQL to ER Diagram when:
+
+- Your schema is not only SQL: you also want to read Prisma, DBML, Mermaid, PlantUML, SQLAlchemy, Sequelize, TypeORM or Django models.
+- You want no signup and no upload: the schema stays in your browser.
+- You want a free, MIT-licensed tool that also works offline and from a CLI.
+
+Choose DrawSQL when:
+
+- You are designing a schema visually and want to start from a template.
+- Your team wants to edit the same diagram together in real time.
+
+**Q: Does SQL to ER Diagram have example schemas like a template gallery?**
+
+A: Yes. The examples gallery has ready-made schemas (e-commerce, blog, SaaS, CRM, ERP and more), each with the full SQL and a diagram you can open and edit.
+
+### SQL to ER Diagram vs ChartDB
+
+URL: https://sqltoerdiagram.com/vs/chartdb/
+
+Both are open-source database diagram tools. ChartDB imports a schema with a single query you run against your database, and adds an AI diagram generator; SQL to ER Diagram reads pasted schema text in many formats and keeps everything in your browser.
+
+About ChartDB: ChartDB is a free and open-source database design editor. It is available as a cloud app in the browser and can also be self-hosted. For each supported database it provides a single query that fetches your entire schema. It advertises an AI diagram generator that turns a description into an editable ER diagram, and exports DDL in your preferred SQL dialect.
+
+Choose SQL to ER Diagram when:
+
+- Your starting point is a file: a SQL dump, `schema.prisma`, DBML, Mermaid, PlantUML, or SQLAlchemy or Sequelize models.
+- You want share links that carry the whole diagram in the URL fragment, with nothing stored on a server.
+- You want a headless CLI that writes an SVG for docs or CI.
+
+Choose ChartDB when:
+
+- You want an AI to draft a diagram from a description.
+- You want a cloud app with a self-hosted option.
+
+**Q: Are both tools open source?**
+
+A: SQL to ER Diagram is MIT-licensed and its source is on GitHub. ChartDB also describes itself as free and open source; check its repository for the current license.
+
+### SQL to ER Diagram vs drawDB
+
+URL: https://sqltoerdiagram.com/vs/drawdb/
+
+Both are free, open-source tools that run in the browser. drawDB is a visual editor for building a schema and generating SQL from it; SQL to ER Diagram goes the other way, from existing schema text to a diagram.
+
+About drawDB: drawDB is an open-source (AGPL-3.0) entity-relationship diagram editor that runs in the browser. It is a diagram editor and SQL generator: you build the diagram and export SQL scripts from it. It can also import SQL scripts. It can be used without creating an account.
+
+Choose SQL to ER Diagram when:
+
+- You are starting from code: SQL DDL in eight dialects, or a Prisma, DBML, Mermaid, PlantUML, SQLAlchemy or Sequelize schema.
+- You want to convert between text formats, for example SQL to Mermaid, DBML or PlantUML.
+- You want a ⌘K command palette, a minimap and a layout that stays smooth at around 300 tables.
+
+Choose drawDB when:
+
+- You are starting from a blank canvas and want SQL generated from what you draw.
+
+**Q: Which one should I use for an existing database?**
+
+A: If you already have the schema as SQL or ORM code, SQL to ER Diagram draws it directly from that text. If you want to design tables by drawing them, a visual editor such as drawDB is built for that.
+
+## Schema examples
+
+URL: https://sqltoerdiagram.com/examples/
+
+### E-commerce database schema
+
+URL: https://sqltoerdiagram.com/examples/ecommerce/
+
+This models a typical online store: customers place orders made up of line items referencing products, ship to saved addresses, pay via payments, and leave product reviews.
+
+Tables: customers, addresses, categories, products, orders, order_items, payments and reviews (8 tables, 10 relationships).
+
+```sql
+CREATE TABLE customers (
+  id SERIAL PRIMARY KEY,
+  email VARCHAR(255) NOT NULL UNIQUE,
+  full_name VARCHAR(120),
+  created_at TIMESTAMP
+);
+CREATE TABLE addresses (
+  id SERIAL PRIMARY KEY,
+  customer_id INT NOT NULL REFERENCES customers(id),
+  line1 VARCHAR(255), city VARCHAR(80), country CHAR(2)
+);
+CREATE TABLE categories (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(120) NOT NULL,
+  parent_id INT REFERENCES categories(id)
+);
+CREATE TABLE products (
+  id SERIAL PRIMARY KEY,
+  category_id INT REFERENCES categories(id),
+  sku VARCHAR(64) UNIQUE, name VARCHAR(200),
+  price_cents INT, active BOOLEAN
+);
+CREATE TABLE orders (
+  id SERIAL PRIMARY KEY,
+  customer_id INT NOT NULL REFERENCES customers(id),
+  address_id INT REFERENCES addresses(id),
+  status VARCHAR(32), total_cents INT, placed_at TIMESTAMP
+);
+CREATE TABLE order_items (
+  id SERIAL PRIMARY KEY,
+  order_id INT NOT NULL REFERENCES orders(id),
+  product_id INT NOT NULL REFERENCES products(id),
+  quantity INT, unit_cents INT
+);
+CREATE TABLE payments (
+  id SERIAL PRIMARY KEY,
+  order_id INT NOT NULL REFERENCES orders(id),
+  amount_cents INT, method VARCHAR(32), paid_at TIMESTAMP
+);
+CREATE TABLE reviews (
+  id SERIAL PRIMARY KEY,
+  product_id INT NOT NULL REFERENCES products(id),
+  customer_id INT NOT NULL REFERENCES customers(id),
+  rating SMALLINT, body TEXT
+);
+```
+
+### Blog / CMS database schema
+
+URL: https://sqltoerdiagram.com/examples/blog/
+
+Authors (users) write posts in a category; readers leave comments; posts and tags have a many-to-many relationship through a join table.
+
+Tables: users, categories, posts, comments, tags and post_tags (6 tables, 8 relationships).
+
+```sql
+CREATE TABLE users (
+  id SERIAL PRIMARY KEY,
+  username VARCHAR(50) UNIQUE NOT NULL,
+  email VARCHAR(255) UNIQUE,
+  bio TEXT
+);
+CREATE TABLE categories (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  slug VARCHAR(120) UNIQUE
+);
+CREATE TABLE posts (
+  id SERIAL PRIMARY KEY,
+  author_id INT NOT NULL REFERENCES users(id),
+  category_id INT REFERENCES categories(id),
+  title VARCHAR(200), slug VARCHAR(220) UNIQUE,
+  body TEXT, published_at TIMESTAMP
+);
+CREATE TABLE comments (
+  id SERIAL PRIMARY KEY,
+  post_id INT NOT NULL REFERENCES posts(id),
+  author_id INT REFERENCES users(id),
+  parent_id INT REFERENCES comments(id),
+  body TEXT, created_at TIMESTAMP
+);
+CREATE TABLE tags (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(60) UNIQUE NOT NULL
+);
+CREATE TABLE post_tags (
+  post_id INT NOT NULL REFERENCES posts(id),
+  tag_id INT NOT NULL REFERENCES tags(id),
+  PRIMARY KEY (post_id, tag_id)
+);
+```
+
+### SaaS (multi-tenant) database schema
+
+URL: https://sqltoerdiagram.com/examples/saas/
+
+Each organization (tenant) has users joined through memberships (with roles), owns projects, and subscribes to a plan; invoices belong to a subscription.
+
+Tables: organizations, users, memberships, projects, plans, subscriptions and invoices (7 tables, 6 relationships).
+
+```sql
+CREATE TABLE organizations (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(120) NOT NULL,
+  slug VARCHAR(120) UNIQUE,
+  created_at TIMESTAMP
+);
+CREATE TABLE users (
+  id SERIAL PRIMARY KEY,
+  email VARCHAR(255) UNIQUE NOT NULL,
+  name VARCHAR(120)
+);
+CREATE TABLE memberships (
+  id SERIAL PRIMARY KEY,
+  organization_id INT NOT NULL REFERENCES organizations(id),
+  user_id INT NOT NULL REFERENCES users(id),
+  role VARCHAR(20)
+);
+CREATE TABLE projects (
+  id SERIAL PRIMARY KEY,
+  organization_id INT NOT NULL REFERENCES organizations(id),
+  name VARCHAR(160), archived BOOLEAN
+);
+CREATE TABLE plans (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(60), price_cents INT, seats INT
+);
+CREATE TABLE subscriptions (
+  id SERIAL PRIMARY KEY,
+  organization_id INT NOT NULL REFERENCES organizations(id),
+  plan_id INT NOT NULL REFERENCES plans(id),
+  status VARCHAR(20), renews_at TIMESTAMP
+);
+CREATE TABLE invoices (
+  id SERIAL PRIMARY KEY,
+  subscription_id INT NOT NULL REFERENCES subscriptions(id),
+  amount_cents INT, issued_at TIMESTAMP, paid BOOLEAN
+);
+```
+
+### Social network database schema
+
+URL: https://sqltoerdiagram.com/examples/social-network/
+
+Users follow other users (self-referencing many-to-many via follows), create posts, like and comment on them, and send each other direct messages.
+
+Tables: users, follows, posts, likes, comments and messages (6 tables, 10 relationships).
+
+```sql
+CREATE TABLE users (
+  id SERIAL PRIMARY KEY,
+  handle VARCHAR(30) UNIQUE NOT NULL,
+  display_name VARCHAR(80), avatar_url TEXT
+);
+CREATE TABLE follows (
+  follower_id INT NOT NULL REFERENCES users(id),
+  followee_id INT NOT NULL REFERENCES users(id),
+  created_at TIMESTAMP,
+  PRIMARY KEY (follower_id, followee_id)
+);
+CREATE TABLE posts (
+  id SERIAL PRIMARY KEY,
+  author_id INT NOT NULL REFERENCES users(id),
+  body VARCHAR(280), created_at TIMESTAMP
+);
+CREATE TABLE likes (
+  user_id INT NOT NULL REFERENCES users(id),
+  post_id INT NOT NULL REFERENCES posts(id),
+  PRIMARY KEY (user_id, post_id)
+);
+CREATE TABLE comments (
+  id SERIAL PRIMARY KEY,
+  post_id INT NOT NULL REFERENCES posts(id),
+  author_id INT NOT NULL REFERENCES users(id),
+  body VARCHAR(280), created_at TIMESTAMP
+);
+CREATE TABLE messages (
+  id SERIAL PRIMARY KEY,
+  sender_id INT NOT NULL REFERENCES users(id),
+  recipient_id INT NOT NULL REFERENCES users(id),
+  body TEXT, sent_at TIMESTAMP
+);
+```
+
+### Project management database schema
+
+URL: https://sqltoerdiagram.com/examples/project-management/
+
+Projects contain tasks; tasks are assigned to users through a join table, carry many-to-many labels, and accumulate comments.
+
+Tables: users, projects, tasks, task_assignees, labels, task_labels and task_comments (7 tables, 9 relationships).
+
+```sql
+CREATE TABLE users (
+  id SERIAL PRIMARY KEY,
+  email VARCHAR(255) UNIQUE NOT NULL,
+  name VARCHAR(120)
+);
+CREATE TABLE projects (
+  id SERIAL PRIMARY KEY,
+  key VARCHAR(10) UNIQUE, name VARCHAR(160),
+  lead_id INT REFERENCES users(id)
+);
+CREATE TABLE tasks (
+  id SERIAL PRIMARY KEY,
+  project_id INT NOT NULL REFERENCES projects(id),
+  title VARCHAR(200), status VARCHAR(20),
+  priority SMALLINT, due_date DATE,
+  reporter_id INT REFERENCES users(id)
+);
+CREATE TABLE task_assignees (
+  task_id INT NOT NULL REFERENCES tasks(id),
+  user_id INT NOT NULL REFERENCES users(id),
+  PRIMARY KEY (task_id, user_id)
+);
+CREATE TABLE labels (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(40) UNIQUE, color VARCHAR(7)
+);
+CREATE TABLE task_labels (
+  task_id INT NOT NULL REFERENCES tasks(id),
+  label_id INT NOT NULL REFERENCES labels(id),
+  PRIMARY KEY (task_id, label_id)
+);
+CREATE TABLE task_comments (
+  id SERIAL PRIMARY KEY,
+  task_id INT NOT NULL REFERENCES tasks(id),
+  author_id INT NOT NULL REFERENCES users(id),
+  body TEXT, created_at TIMESTAMP
+);
+```
+
+### Inventory / warehouse database schema
+
+URL: https://sqltoerdiagram.com/examples/inventory/
+
+Suppliers provide products; stock tracks quantity of each product per warehouse; purchase orders to suppliers contain line items for products.
+
+Tables: suppliers, products, warehouses, stock, purchase_orders and purchase_order_items (6 tables, 7 relationships).
+
+```sql
+CREATE TABLE suppliers (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(160) NOT NULL,
+  email VARCHAR(255)
+);
+CREATE TABLE products (
+  id SERIAL PRIMARY KEY,
+  supplier_id INT REFERENCES suppliers(id),
+  sku VARCHAR(64) UNIQUE, name VARCHAR(200),
+  unit_cost_cents INT
+);
+CREATE TABLE warehouses (
+  id SERIAL PRIMARY KEY,
+  code VARCHAR(10) UNIQUE, name VARCHAR(120),
+  location VARCHAR(160)
+);
+CREATE TABLE stock (
+  id SERIAL PRIMARY KEY,
+  product_id INT NOT NULL REFERENCES products(id),
+  warehouse_id INT NOT NULL REFERENCES warehouses(id),
+  quantity INT
+);
+CREATE TABLE purchase_orders (
+  id SERIAL PRIMARY KEY,
+  supplier_id INT NOT NULL REFERENCES suppliers(id),
+  warehouse_id INT REFERENCES warehouses(id),
+  status VARCHAR(20), ordered_at TIMESTAMP
+);
+CREATE TABLE purchase_order_items (
+  id SERIAL PRIMARY KEY,
+  purchase_order_id INT NOT NULL REFERENCES purchase_orders(id),
+  product_id INT NOT NULL REFERENCES products(id),
+  quantity INT, unit_cost_cents INT
+);
+```
+
+### CRM database schema
+
+URL: https://sqltoerdiagram.com/examples/crm/
+
+Accounts (companies) have many contacts; leads are captured and converted into opportunities tied to an account; opportunities move through pipeline stages as deals, while activities (calls, emails, meetings) are logged against contacts and opportunities.
+
+Tables: users, accounts, contacts, leads, opportunities and activities (6 tables, 7 relationships).
+
+```sql
+CREATE TABLE users (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(120), email VARCHAR(255) UNIQUE
+);
+CREATE TABLE accounts (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(160) NOT NULL,
+  industry VARCHAR(80), owner_id INT REFERENCES users(id)
+);
+CREATE TABLE contacts (
+  id SERIAL PRIMARY KEY,
+  account_id INT REFERENCES accounts(id),
+  first_name VARCHAR(80), last_name VARCHAR(80),
+  email VARCHAR(255), phone VARCHAR(40)
+);
+CREATE TABLE leads (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(160), email VARCHAR(255),
+  source VARCHAR(60), status VARCHAR(30),
+  owner_id INT REFERENCES users(id)
+);
+CREATE TABLE opportunities (
+  id SERIAL PRIMARY KEY,
+  account_id INT NOT NULL REFERENCES accounts(id),
+  name VARCHAR(160), amount_cents INT,
+  stage VARCHAR(40), close_date DATE,
+  owner_id INT REFERENCES users(id)
+);
+CREATE TABLE activities (
+  id SERIAL PRIMARY KEY,
+  contact_id INT REFERENCES contacts(id),
+  opportunity_id INT REFERENCES opportunities(id),
+  type VARCHAR(30), notes TEXT, occurred_at TIMESTAMP
+);
+```
+
+### ERP database schema
+
+URL: https://sqltoerdiagram.com/examples/erp/
+
+Employees belong to departments; the company buys products via purchase orders to suppliers and sells them via sales orders to customers; each order produces an invoice, and invoices post entries to accounts in the general ledger.
+
+Tables: departments, employees, products, suppliers, customers, purchase_orders, sales_orders, invoices, gl_accounts and ledger_entries (10 tables, 6 relationships).
+
+```sql
+CREATE TABLE departments (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(120) NOT NULL
+);
+CREATE TABLE employees (
+  id SERIAL PRIMARY KEY,
+  department_id INT REFERENCES departments(id),
+  name VARCHAR(160), email VARCHAR(255) UNIQUE,
+  hired_on DATE
+);
+CREATE TABLE products (
+  id SERIAL PRIMARY KEY,
+  sku VARCHAR(64) UNIQUE, name VARCHAR(200),
+  unit_cost_cents INT, unit_price_cents INT
+);
+CREATE TABLE suppliers (
+  id SERIAL PRIMARY KEY, name VARCHAR(160) NOT NULL
+);
+CREATE TABLE customers (
+  id SERIAL PRIMARY KEY, name VARCHAR(160) NOT NULL
+);
+CREATE TABLE purchase_orders (
+  id SERIAL PRIMARY KEY,
+  supplier_id INT NOT NULL REFERENCES suppliers(id),
+  status VARCHAR(20), ordered_at TIMESTAMP
+);
+CREATE TABLE sales_orders (
+  id SERIAL PRIMARY KEY,
+  customer_id INT NOT NULL REFERENCES customers(id),
+  status VARCHAR(20), ordered_at TIMESTAMP
+);
+CREATE TABLE invoices (
+  id SERIAL PRIMARY KEY,
+  sales_order_id INT REFERENCES sales_orders(id),
+  amount_cents INT, issued_at TIMESTAMP, paid BOOLEAN
+);
+CREATE TABLE gl_accounts (
+  id SERIAL PRIMARY KEY,
+  code VARCHAR(20) UNIQUE, name VARCHAR(120), type VARCHAR(20)
+);
+CREATE TABLE ledger_entries (
+  id SERIAL PRIMARY KEY,
+  invoice_id INT REFERENCES invoices(id),
+  account_id INT NOT NULL REFERENCES gl_accounts(id),
+  debit_cents INT, credit_cents INT, entered_at TIMESTAMP
+);
+```
+
+### Hospital database schema
+
+URL: https://sqltoerdiagram.com/examples/hospital/
+
+Doctors work in departments and see patients through appointments; patients may be admitted to a room during a stay, and doctors write prescriptions for medications against a patient visit.
+
+Tables: departments, doctors, patients, appointments, rooms, admissions, medications and prescriptions (8 tables, 7 relationships).
+
+```sql
+CREATE TABLE departments (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(120) NOT NULL
+);
+CREATE TABLE doctors (
+  id SERIAL PRIMARY KEY,
+  department_id INT REFERENCES departments(id),
+  name VARCHAR(160), specialty VARCHAR(80)
+);
+CREATE TABLE patients (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(160) NOT NULL,
+  date_of_birth DATE, phone VARCHAR(40)
+);
+CREATE TABLE appointments (
+  id SERIAL PRIMARY KEY,
+  patient_id INT NOT NULL REFERENCES patients(id),
+  doctor_id INT NOT NULL REFERENCES doctors(id),
+  scheduled_at TIMESTAMP, status VARCHAR(20)
+);
+CREATE TABLE rooms (
+  id SERIAL PRIMARY KEY,
+  number VARCHAR(10) UNIQUE, ward VARCHAR(40)
+);
+CREATE TABLE admissions (
+  id SERIAL PRIMARY KEY,
+  patient_id INT NOT NULL REFERENCES patients(id),
+  room_id INT REFERENCES rooms(id),
+  admitted_at TIMESTAMP, discharged_at TIMESTAMP
+);
+CREATE TABLE medications (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(160) NOT NULL, form VARCHAR(40)
+);
+CREATE TABLE prescriptions (
+  id SERIAL PRIMARY KEY,
+  appointment_id INT REFERENCES appointments(id),
+  medication_id INT NOT NULL REFERENCES medications(id),
+  dosage VARCHAR(60), duration_days INT
+);
+```
+
+### School / LMS database schema
+
+URL: https://sqltoerdiagram.com/examples/school/
+
+Teachers teach courses; students enroll in courses through an enrollment join table; each course has assignments, and each enrolled student receives grades on those assignments.
+
+Tables: teachers, students, courses, enrollments, assignments and grades (6 tables, 6 relationships).
+
+```sql
+CREATE TABLE teachers (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(160) NOT NULL, email VARCHAR(255) UNIQUE
+);
+CREATE TABLE students (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(160) NOT NULL, email VARCHAR(255) UNIQUE,
+  enrolled_on DATE
+);
+CREATE TABLE courses (
+  id SERIAL PRIMARY KEY,
+  code VARCHAR(16) UNIQUE, title VARCHAR(200),
+  teacher_id INT REFERENCES teachers(id)
+);
+CREATE TABLE enrollments (
+  id SERIAL PRIMARY KEY,
+  student_id INT NOT NULL REFERENCES students(id),
+  course_id INT NOT NULL REFERENCES courses(id),
+  enrolled_on DATE,
+  UNIQUE (student_id, course_id)
+);
+CREATE TABLE assignments (
+  id SERIAL PRIMARY KEY,
+  course_id INT NOT NULL REFERENCES courses(id),
+  title VARCHAR(200), due_date DATE, max_points INT
+);
+CREATE TABLE grades (
+  id SERIAL PRIMARY KEY,
+  enrollment_id INT NOT NULL REFERENCES enrollments(id),
+  assignment_id INT NOT NULL REFERENCES assignments(id),
+  points NUMERIC(5,2), graded_at TIMESTAMP
+);
+```

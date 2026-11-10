@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SQL to ER Diagram — Free Online SQL Diagram &amp; ERD Generator</title>
-  <meta name="description" content="Convert SQL to an ER diagram online. Paste your CREATE TABLE / DDL and instantly visualize your database schema — a free, in-browser SQL schema visualizer and SQL-to-ERD converter. Also reads Prisma, DBML, Mermaid, SQLAlchemy & Sequelize. No signup, nothing uploaded." />
+  <meta name="description" content="Convert SQL to an ER diagram online. Paste CREATE TABLE / DDL and instantly visualize your database schema. Free, in-browser, no signup, nothing uploaded." />
   <meta name="keywords" content="sql to er diagram, sql to diagram, sql diagram generator, sql to erd, sql to erd converter, convert sql to diagram, erd generator from sql, ddl to er diagram, database diagram generator, sql schema visualizer, er diagram from sql, generate er diagram from sql, dbml to mermaid, prisma schema visualizer" />
   <link rel="canonical" href="https://sqltoerdiagram.com/" />
 
@@ -30,7 +30,36 @@
     "operatingSystem": "Any (web browser)",
     "description": "Paste a SQL schema (CREATE TABLE statements) and instantly generate a clean, interactive ER diagram. Free, open source, runs entirely in your browser.",
     "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
-    "isAccessibleForFree": true
+    "isAccessibleForFree": true,
+    "publisher": { "@id": "https://sqltoerdiagram.com/#org" }
+  }
+  </script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://sqltoerdiagram.com/#org",
+        "name": "SQL to ER Diagram",
+        "url": "https://sqltoerdiagram.com/",
+        "logo": "https://sqltoerdiagram.com/icon-512.png",
+        "sameAs": ["https://github.com/royalbhati/sqltoerdiagram"],
+        "contactPoint": {
+          "@type": "ContactPoint",
+          "contactType": "customer support",
+          "url": "https://github.com/royalbhati/sqltoerdiagram/issues"
+        }
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://sqltoerdiagram.com/#website",
+        "name": "SQL to ER Diagram",
+        "url": "https://sqltoerdiagram.com/",
+        "publisher": { "@id": "https://sqltoerdiagram.com/#org" }
+      }
+    ]
   }
   </script>
 
@@ -64,12 +93,25 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <link rel="manifest" href="/site.webmanifest" />
 
-  <!-- Umami: privacy-friendly, cookieless analytics (anonymous page views only; never sees your SQL/schema) -->
-  <script defer src="https://cloud.umami.is/script.js" data-website-id="27b5b4ba-93ad-4ef3-aaa0-af516881d308"></script>
+  <!-- Umami: privacy-friendly, cookieless analytics (anonymous page views only; never sees your SQL/schema).
+       data-exclude-hash keeps share-link fragments (#s=…) from fragmenting page stats; the before-send
+       hook drops embedded diagrams so they don't count as visits. Do NOT hand umami.track() a plain
+       object — that replaces the whole payload (website id included) and the collector 400s. -->
+  <script>
+    window.umamiBeforeSend = function (type, payload) {
+      if (new URLSearchParams(location.search).has('embed')) return false; // don't count embedded diagrams
+      return payload;
+    };
+  </script>
+  <script defer src="https://cloud.umami.is/script.js"
+          data-website-id="27b5b4ba-93ad-4ef3-aaa0-af516881d308"
+          data-exclude-hash="true"
+          data-before-send="umamiBeforeSend"></script>
 </head>
 <body>
   <h1 class="sr-only">SQL to ER Diagram — a free online SQL diagram generator and database schema visualizer. Convert a SQL schema (CREATE TABLE / DDL) into an interactive entity-relationship diagram (ERD) right in your browser. Turn SQL into a diagram instantly — no signup, nothing uploaded.</h1>
 
+  <div class="app-shell">
   <header class="topbar">
     <div class="brand">
       <span class="logo" aria-hidden="true">
@@ -81,13 +123,22 @@
         <span class="name">SQL&nbsp;to&nbsp;ER&nbsp;Diagram</span>
         <a class="brand-sub" href="https://yourbrowsercandoit.com/" target="_blank" rel="noopener">part of yourbrowsercandoit.com</a>
       </span>
+      <!-- which diagram is open; the menu lists every diagram saved in this browser -->
+      <div class="menu-wrap doc-wrap">
+        <button id="doc-btn" class="btn ghost caret doc-btn" title="Your diagrams (saved in this browser)" aria-haspopup="true" data-umami-event="doc-menu"><span id="doc-name">Untitled diagram</span></button>
+        <input id="doc-rename" class="doc-rename" type="text" aria-label="Diagram name" maxlength="80" hidden />
+        <div id="doc-menu" class="menu doc-menu" hidden></div>
+      </div>
     </div>
 
     <div class="actions">
       <!-- diagram content actions (view controls live on the canvas, bottom-right) -->
       <div class="tb-group">
-        <button id="btn-example" class="btn ghost" title="Load a sample schema" data-umami-event="load-example">Example</button>
-        <button id="btn-infer" class="btn ghost" title="Auto-detect relationships by column name (for schemas without foreign keys)" data-umami-event="infer-links">Infer links</button>
+        <button id="btn-palette" class="btn ghost search-btn" aria-label="Search tables, columns and actions" data-umami-event="palette">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <span class="search-label">Search</span>
+          <kbd id="palette-kbd">⌘K</kbd>
+        </button>
       </div>
 
       <!-- output: get the diagram out -->
@@ -95,24 +146,41 @@
         <div class="menu-wrap">
           <button id="btn-file" class="btn ghost caret" title="Open, save or embed a project" data-umami-event="file-menu">File</button>
           <div id="file-menu" class="menu" hidden>
-            <button id="btn-open" class="menu-item" title="Open a saved project (.json)" data-umami-event="open-project">Open project…</button>
+            <button id="btn-new" class="menu-item" title="Start a new, empty diagram (the current one stays in My diagrams)" data-umami-event="new-diagram">New diagram</button>
+            <button id="btn-open" class="menu-item" title="Open a saved project (.json) or a schema file (.sql, .prisma, .dbml…). You can also drop a file anywhere on the page." data-umami-event="open-project">Open file…</button>
+            <button id="btn-import-db" class="menu-item" title="Bring in the schema of a live database with one copy-paste query" data-umami-event="import-db">Import from database…</button>
+            <button id="btn-example" class="menu-item" title="Load a sample schema" data-umami-event="load-example">Load example</button>
+            <div class="menu-sep"></div>
             <button id="btn-save" class="menu-item" title="Save SQL + layout to a file" data-umami-event="save-project">Save project</button>
+            <button id="btn-versions" class="menu-item" title="Saved versions of this diagram — restore or compare" data-umami-event="versions">Version history…</button>
+            <button id="btn-compare" class="menu-item" title="Compare two versions of the schema and get the migration SQL" data-umami-event="compare">Compare &amp; migrate…</button>
             <div class="menu-sep"></div>
             <button id="btn-embed" class="menu-item" title="Get an &lt;iframe&gt; snippet to embed this diagram (read-only, live)" data-umami-event="embed">Embed diagram…</button>
           </div>
         </div>
-        <input id="file-open" type="file" accept=".json,application/json" hidden />
+        <input id="file-open" type="file" aria-label="Open a saved project or schema file" accept=".json,.sql,.ddl,.prisma,.dbml,.mmd,.mermaid,.puml,.plantuml,.py,.js,.ts,.txt,application/json,text/plain" hidden />
         <div class="menu-wrap">
           <button id="btn-export" class="btn ghost caret" title="Export the diagram (image or code)" data-umami-event="export-menu">Export</button>
           <div id="export-menu" class="menu" hidden>
+            <button id="btn-snapshot" class="menu-item" title="A share-ready picture of the diagram, with a backdrop and title" data-umami-event="snapshot">Snapshot…</button>
+            <div class="menu-sep"></div>
             <div class="menu-label">Image</div>
-            <button class="menu-item" data-export="png">PNG</button>
-            <button class="menu-item" data-export="svg">SVG</button>
+            <button class="menu-item" data-export="png-copy" data-umami-event="export-png-copy">Copy as PNG</button>
+            <button class="menu-item" data-export="png" data-umami-event="export-png">PNG</button>
+            <button class="menu-item" data-export="png-transparent" data-umami-event="export-png-transparent">PNG, transparent</button>
+            <button class="menu-item" data-export="svg" data-umami-event="export-svg">SVG</button>
             <div class="menu-sep"></div>
             <div class="menu-label">Code</div>
             <button class="menu-item" data-export="mermaid">Mermaid</button>
             <button class="menu-item" data-export="dbml">DBML</button>
             <button class="menu-item" data-export="plantuml">PlantUML</button>
+            <div class="menu-sep"></div>
+            <div class="menu-label">SQL for…</div>
+            <button class="menu-item" data-export="sql-postgres" data-umami-event="export-sql-postgres">PostgreSQL</button>
+            <button class="menu-item" data-export="sql-mysql" data-umami-event="export-sql-mysql">MySQL</button>
+            <button class="menu-item" data-export="sql-sqlite" data-umami-event="export-sql-sqlite">SQLite</button>
+            <button class="menu-item" data-export="sql-sqlserver" data-umami-event="export-sql-sqlserver">SQL Server</button>
+            <button class="menu-item" data-export="sql-snowflake" data-umami-event="export-sql-snowflake">Snowflake</button>
           </div>
         </div>
         <button id="btn-share" class="btn primary" title="Copy a shareable link — the diagram is encoded in the URL, nothing is stored on a server" data-umami-event="share-link">Share</button>
@@ -126,16 +194,20 @@
             <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.6 7.6 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
           </svg>
         </a>
-        <button id="btn-theme" class="btn ghost icon muted" title="Toggle light / dark" aria-label="Toggle theme" data-umami-event="toggle-theme">
-          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor" stroke="none"/>
-          </svg>
-        </button>
+        <div class="menu-wrap">
+          <button id="btn-theme" class="btn ghost icon muted" title="Theme" aria-label="Choose a theme" aria-haspopup="true" data-umami-event="theme-menu">
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor" stroke="none"/>
+            </svg>
+          </button>
+          <div id="theme-menu" class="menu theme-menu" hidden></div>
+        </div>
       </div>
     </div>
   </header>
 
-  <main class="layout" id="layout">
+  <main class="app-main">
+    <div class="layout" id="layout">
     <section class="editor-pane" id="editor-pane">
       <div class="pane-head">
         <div class="pane-head-left">
@@ -143,11 +215,10 @@
             <button class="seg-btn active" data-mode="code" role="tab" title="Edit the SQL" data-umami-event="mode-code">Code</button>
             <button class="seg-btn" data-mode="visual" role="tab" title="Edit tables &amp; columns visually" data-umami-event="mode-visual">Visual</button>
           </div>
-          <span id="status" class="status"></span>
         </div>
         <div class="pane-head-right">
           <div class="menu-wrap">
-            <button id="btn-format" class="btn ghost caret compact" title="Input format (SQL · Prisma · DBML · Mermaid · PlantUML · SQLAlchemy · Sequelize)" data-umami-event="format-menu">Auto</button>
+            <button id="btn-format" class="btn ghost caret compact" title="Input format (SQL · Prisma · DBML · Mermaid · PlantUML · SQLAlchemy · Sequelize · TypeORM · Django)" data-umami-event="format-menu">Auto</button>
             <div id="format-menu" class="menu" hidden></div>
           </div>
           <div class="menu-wrap" id="dialect-wrap">
@@ -163,10 +234,15 @@
       </div>
       <div class="editor-stack">
         <pre class="hl" aria-hidden="true"><code id="hl"></code></pre>
-        <textarea id="sql" spellcheck="false" autocomplete="off" autocapitalize="off"
-          placeholder="Paste SQL (CREATE TABLE), BigQuery WITH…, Prisma, SQLAlchemy, or Sequelize…"></textarea>
+        <textarea id="sql" aria-label="Schema input (SQL, Prisma, DBML, Mermaid, PlantUML, SQLAlchemy, Sequelize, TypeORM or Django)" spellcheck="false" autocomplete="off" autocapitalize="off"
+          placeholder="Paste SQL (CREATE TABLE), Prisma, DBML, Mermaid, or ORM models (SQLAlchemy, Django, Sequelize, TypeORM)…"></textarea>
       </div>
       <div class="visual-editor" id="visual-editor" hidden></div>
+      <!-- status bar: what was parsed, and anything that couldn't be -->
+      <div class="editor-status">
+        <span id="status" class="status" role="status"></span>
+        <a class="about-link" href="#about" title="What this is, guides and FAQ">About &amp; FAQ ↓</a>
+      </div>
     </section>
 
     <div class="splitter" id="splitter" title="Drag to resize"></div>
@@ -184,8 +260,12 @@
       <div id="empty" class="empty-hint">
         <div class="empty-card">
           <h2>Paste SQL, see the schema.</h2>
-          <p>Drop your <code>CREATE TABLE</code> statements on the left. Drag tables, scroll to zoom, double-click to rename, export when done.</p>
-          <button id="btn-example2" class="btn primary" data-umami-event="load-example-empty">Load example schema</button>
+          <p>Paste <code>CREATE TABLE</code> statements on the left, or drop a <code>.sql</code>, Prisma, DBML or Mermaid file anywhere on this page.</p>
+          <div class="empty-actions">
+            <button id="btn-example2" class="btn primary" data-umami-event="load-example-empty">Load example schema</button>
+            <button id="btn-open2" class="btn outline" data-umami-event="open-empty">Open a file</button>
+            <button id="btn-import2" class="btn outline" data-umami-event="import-db-empty">Import from a database</button>
+          </div>
           <p class="privacy">
             <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
@@ -200,6 +280,13 @@
       </div>
 
       <div class="tool-palette">
+        <button id="btn-undo" class="btn ghost icon" aria-label="Undo" disabled data-umami-event="undo">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
+        </button>
+        <button id="btn-redo" class="btn ghost icon" aria-label="Redo" disabled data-umami-event="redo">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg>
+        </button>
+        <span class="vsep" aria-hidden="true"></span>
         <button id="tool-note" class="btn ghost tool" title="Add a sticky note" data-umami-event="add-note">
           <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M15 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8l6-6V6a2 2 0 0 0-2-2Z"/><path d="M14 20v-5a1 1 0 0 1 1-1h5"/>
@@ -226,6 +313,13 @@
             <button class="menu-item" data-spacing="compact">Compact</button>
             <button class="menu-item" data-spacing="comfortable">Comfortable</button>
             <button class="menu-item" data-spacing="spacious">Spacious</button>
+            <div class="menu-sep"></div>
+            <div class="menu-label">Lines</div>
+            <button class="menu-item" data-edges="angled" title="Straight segments with rounded corners that route around tables">Angled</button>
+            <button class="menu-item" data-edges="curved" title="Smooth curves between columns">Curved</button>
+            <div class="menu-sep"></div>
+            <div class="menu-label">Relationships</div>
+            <button id="btn-infer" class="menu-item" title="Auto-detect relationships by column name (for schemas without foreign keys)" data-umami-event="infer-links">Infer links from names</button>
           </div>
         </div>
         <button id="btn-fit" class="btn ghost" title="Fit diagram to screen" data-umami-event="fit">Fit</button>
@@ -235,79 +329,84 @@
         <button id="zoom-in" class="btn ghost icon" title="Zoom in" aria-label="Zoom in">+</button>
       </div>
     </section>
+    </div>
   </main>
+  </div>
 
-  <!-- Crawlable content for search engines (long-tail keywords + matches the FAQ schema) -->
-  <section class="sr-only" aria-label="About SQL to ER Diagram">
-    <h2>SQL to ER Diagram — free online SQL diagram generator &amp; schema visualizer</h2>
-    <p>SQL to ER Diagram is a free, open-source tool that <strong>converts a SQL schema into a
-      diagram</strong> — an interactive entity-relationship diagram (ERD) — right in your browser.
-      Paste your <code>CREATE TABLE</code> statements or raw DDL and instantly visualize tables,
-      columns, primary keys, foreign keys and relationships. Use it as a <strong>SQL diagram
-      generator</strong>, a <strong>SQL schema visualizer</strong>, or a <strong>SQL-to-ERD
-      converter</strong> — it works with PostgreSQL, MySQL, SQLite, SQL Server, Oracle, MariaDB,
-      Snowflake and BigQuery. Drag tables, auto-arrange the layout, add notes, and export to PNG,
-      SVG, Mermaid, DBML or PlantUML. Nothing is uploaded — your schema stays on your machine. It
-      also reads <a href="/prisma/">Prisma schemas</a>, DBML, Mermaid, SQLAlchemy and Sequelize.
-      It's part of <a href="https://yourbrowsercandoit.com/" target="_blank" rel="noopener">yourbrowsercandoit.com</a>,
-      a collection of free tools that run entirely in your browser — nothing uploaded.</p>
-    <h2>Guides &amp; converters</h2>
-    <ul>
-      <li><a href="/examples/">Database schema examples gallery</a></li>
-      <li><a href="/postgresql/">PostgreSQL to ER diagram</a></li>
-      <li><a href="/mysql/">MySQL to ER diagram</a></li>
-      <li><a href="/sqlite/">SQLite to ER diagram</a></li>
-      <li><a href="/sql-server/">SQL Server to ER diagram</a></li>
-      <li><a href="/oracle/">Oracle to ER diagram</a></li>
-      <li><a href="/mariadb/">MariaDB to ER diagram</a></li>
-      <li><a href="/snowflake/">Snowflake to ER diagram</a></li>
-      <li><a href="/bigquery/">BigQuery to ER diagram</a></li>
-      <li><a href="/prisma/">Prisma schema visualizer</a></li>
-      <li><a href="/dbml/">DBML to ER diagram</a></li>
-      <li><a href="/mermaid/">Mermaid to ER diagram</a></li>
-      <li><a href="/plantuml/">PlantUML to ER diagram</a></li>
-      <li><a href="/sqlalchemy/">SQLAlchemy to ER diagram</a></li>
-      <li><a href="/sequelize/">Sequelize to ER diagram</a></li>
-      <li><a href="/typeorm/">TypeORM to ER diagram</a></li>
-      <li><a href="/django/">Django to ER diagram</a></li>
-      <li><a href="/ddl-to-er-diagram/">DDL to ER diagram</a></li>
-      <li><a href="/sql-to-mermaid/">SQL to Mermaid converter</a></li>
-      <li><a href="/sql-to-dbml/">SQL to DBML converter</a></li>
-      <li><a href="/sql-to-plantuml/">SQL to PlantUML converter</a></li>
-      <li><a href="/prisma-to-dbml/">Prisma to DBML converter</a></li>
-      <li><a href="/dbml-to-mermaid/">DBML to Mermaid converter</a></li>
-      <li><a href="/dbml-to-er-diagram/">DBML to ER diagram</a></li>
-      <li><a href="/mermaid-to-erd/">Mermaid to ERD</a></li>
-    </ul>
-    <h2>Frequently asked questions</h2>
-    <h3>How do I create an ER diagram from SQL?</h3>
-    <p>Paste your SQL <code>CREATE TABLE</code> statements into the editor and SQL to ER
-      Diagram instantly renders an interactive entity-relationship diagram. Drag tables to
-      arrange them, then export as PNG or SVG.</p>
-    <h3>How do I convert SQL to a diagram online?</h3>
-    <p>Paste your SQL <code>CREATE TABLE</code> statements or DDL and the tool instantly converts
-      them into an interactive diagram you can drag, arrange and export to PNG, SVG, Mermaid, DBML
-      or PlantUML — a free online SQL-to-diagram converter, no signup.</p>
-    <h3>Is this a SQL schema visualizer?</h3>
-    <p>Yes. It visualizes any SQL database schema as an entity-relationship diagram — every table,
-      column, key and foreign-key relationship — and works with PostgreSQL, MySQL, MariaDB, SQLite,
-      SQL Server, Oracle, Snowflake and BigQuery.</p>
-    <h3>Which SQL dialects are supported?</h3>
-    <p>It parses standard <code>CREATE TABLE</code> and <code>ALTER TABLE</code> DDL and works
-      with PostgreSQL, MySQL, MariaDB, SQLite, SQL Server, Oracle, Snowflake and BigQuery syntax,
-      including primary keys, foreign keys, unique and not-null constraints.</p>
-    <h3>Is it free?</h3>
-    <p>Yes. SQL to ER Diagram is completely free and open source, with no account or sign-up
-      required.</p>
-    <h3>Is my data private? Does my SQL get uploaded?</h3>
-    <p>Everything runs locally in your browser. Your SQL schema is never uploaded to or stored
-      on any server.</p>
-    <h3>Can I export the diagram?</h3>
-    <p>Yes. You can export a high-resolution PNG or a vector SVG, save the full project as a
-      file, or copy a shareable link that encodes the diagram in the URL.</p>
-    <h3>Do I need to install anything?</h3>
-    <p>No installation needed. It runs entirely in your web browser on both desktop and mobile.</p>
-  </section>
+  <!-- About, guides and FAQ: real page content below the app (matches the FAQ schema) -->
+    <section class="about" id="about" aria-label="About SQL to ER Diagram">
+    <div class="about-inner">
+      <h2>SQL to ER Diagram — free online SQL diagram generator &amp; schema visualizer</h2>
+      <p>SQL to ER Diagram is a free, open-source tool that <strong>converts a SQL schema into a
+        diagram</strong> — an interactive entity-relationship diagram (ERD) — right in your browser.
+        Paste your <code>CREATE TABLE</code> statements or raw DDL and instantly visualize tables,
+        columns, primary keys, foreign keys and relationships. Use it as a <strong>SQL diagram
+        generator</strong>, a <strong>SQL schema visualizer</strong>, or a <strong>SQL-to-ERD
+        converter</strong> — it works with PostgreSQL, MySQL, SQLite, SQL Server, Oracle, MariaDB,
+        Snowflake and BigQuery. Drag tables, auto-arrange the layout, add notes, and export to PNG,
+        SVG, Mermaid, DBML or PlantUML. Nothing is uploaded — your schema stays on your machine. It
+        also reads <a href="/prisma/">Prisma schemas</a>, DBML, Mermaid, SQLAlchemy, Django, Sequelize and TypeORM.
+        It's part of <a href="https://yourbrowsercandoit.com/" target="_blank" rel="noopener">yourbrowsercandoit.com</a>,
+        a collection of free tools that run entirely in your browser — nothing uploaded.</p>
+      <h2>Guides &amp; converters</h2>
+      <ul>
+        <li><a href="/examples/">Database schema examples gallery</a></li>
+        <li><a href="/postgresql/">PostgreSQL to ER diagram</a></li>
+        <li><a href="/mysql/">MySQL to ER diagram</a></li>
+        <li><a href="/sqlite/">SQLite to ER diagram</a></li>
+        <li><a href="/sql-server/">SQL Server to ER diagram</a></li>
+        <li><a href="/oracle/">Oracle to ER diagram</a></li>
+        <li><a href="/mariadb/">MariaDB to ER diagram</a></li>
+        <li><a href="/snowflake/">Snowflake to ER diagram</a></li>
+        <li><a href="/bigquery/">BigQuery to ER diagram</a></li>
+        <li><a href="/prisma/">Prisma schema visualizer</a></li>
+        <li><a href="/dbml/">DBML to ER diagram</a></li>
+        <li><a href="/mermaid/">Mermaid to ER diagram</a></li>
+        <li><a href="/plantuml/">PlantUML to ER diagram</a></li>
+        <li><a href="/sqlalchemy/">SQLAlchemy to ER diagram</a></li>
+        <li><a href="/sequelize/">Sequelize to ER diagram</a></li>
+        <li><a href="/typeorm/">TypeORM to ER diagram</a></li>
+        <li><a href="/django/">Django to ER diagram</a></li>
+        <li><a href="/ddl-to-er-diagram/">DDL to ER diagram</a></li>
+        <li><a href="/sql-to-mermaid/">SQL to Mermaid converter</a></li>
+        <li><a href="/sql-to-dbml/">SQL to DBML converter</a></li>
+        <li><a href="/sql-to-plantuml/">SQL to PlantUML converter</a></li>
+        <li><a href="/prisma-to-dbml/">Prisma to DBML converter</a></li>
+        <li><a href="/dbml-to-mermaid/">DBML to Mermaid converter</a></li>
+        <li><a href="/dbml-to-er-diagram/">DBML to ER diagram</a></li>
+        <li><a href="/mermaid-to-erd/">Mermaid to ERD</a></li>
+      </ul>
+      <h2>Frequently asked questions</h2>
+      <h3>How do I create an ER diagram from SQL?</h3>
+      <p>Paste your SQL <code>CREATE TABLE</code> statements into the editor and SQL to ER
+        Diagram instantly renders an interactive entity-relationship diagram. Drag tables to
+        arrange them, then export as PNG or SVG.</p>
+      <h3>How do I convert SQL to a diagram online?</h3>
+      <p>Paste your SQL <code>CREATE TABLE</code> statements or DDL and the tool instantly converts
+        them into an interactive diagram you can drag, arrange and export to PNG, SVG, Mermaid, DBML
+        or PlantUML — a free online SQL-to-diagram converter, no signup.</p>
+      <h3>Is this a SQL schema visualizer?</h3>
+      <p>Yes. It visualizes any SQL database schema as an entity-relationship diagram — every table,
+        column, key and foreign-key relationship — and works with PostgreSQL, MySQL, MariaDB, SQLite,
+        SQL Server, Oracle, Snowflake and BigQuery.</p>
+      <h3>Which SQL dialects are supported?</h3>
+      <p>It parses standard <code>CREATE TABLE</code> and <code>ALTER TABLE</code> DDL and works
+        with PostgreSQL, MySQL, MariaDB, SQLite, SQL Server, Oracle, Snowflake and BigQuery syntax,
+        including primary keys, foreign keys, unique and not-null constraints.</p>
+      <h3>Is it free?</h3>
+      <p>Yes. SQL to ER Diagram is completely free and open source, with no account or sign-up
+        required.</p>
+      <h3>Is my data private? Does my SQL get uploaded?</h3>
+      <p>Everything runs locally in your browser. Your SQL schema is never uploaded to or stored
+        on any server.</p>
+      <h3>Can I export the diagram?</h3>
+      <p>Yes. You can export a high-resolution PNG or a vector SVG, save the full project as a
+        file, or copy a shareable link that encodes the diagram in the URL.</p>
+      <h3>Do I need to install anything?</h3>
+      <p>No installation needed. It runs entirely in your web browser on both desktop and mobile.</p>
+    </div>
+    </section>
+
 
   <script type="module" src="/src/main.js"></script>
 </body>

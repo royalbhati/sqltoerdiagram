@@ -1,0 +1,14 @@
+@startuml
+entity "users" as users {
+  * id : int <<PK>>
+  --
+  email : varchar
+}
+entity "posts" as posts {
+  * id : int <<PK>>
+  --
+  user_id : int <<FK>>
+  title : text
+}
+users ||--o{ posts
+@enduml

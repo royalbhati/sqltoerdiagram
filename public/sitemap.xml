@@ -1,162 +1,310 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
   <url>
     <loc>https://sqltoerdiagram.com/</loc>
+    <lastmod>2026-11-10</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
     <loc>https://sqltoerdiagram.com/prisma/</loc>
+    <lastmod>2026-11-10</lastmod>
     <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.7</priority>
+    <image:image><image:loc>https://sqltoerdiagram.com/og/prisma.svg</image:loc></image:image>
   </url>
   <url>
     <loc>https://sqltoerdiagram.com/mysql/</loc>
+    <lastmod>2026-11-10</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
+    <image:image><image:loc>https://sqltoerdiagram.com/og/mysql.svg</image:loc></image:image>
   </url>
   <url>
     <loc>https://sqltoerdiagram.com/postgresql/</loc>
+    <lastmod>2026-11-10</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
+    <image:image><image:loc>https://sqltoerdiagram.com/og/postgresql.svg</image:loc></image:image>
   </url>
   <url>
     <loc>https://sqltoerdiagram.com/sqlite/</loc>
+    <lastmod>2026-11-10</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
+    <image:image><image:loc>https://sqltoerdiagram.com/og/sqlite.svg</image:loc></image:image>
   </url>
   <url>
     <loc>https://sqltoerdiagram.com/sql-server/</loc>
+    <lastmod>2026-11-10</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
+    <image:image><image:loc>https://sqltoerdiagram.com/og/sql-server.svg</image:loc></image:image>
   </url>
   <url>
     <loc>https://sqltoerdiagram.com/dbml/</loc>
+    <lastmod>2026-11-10</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
+    <image:image><image:loc>https://sqltoerdiagram.com/og/dbml.svg</image:loc></image:image>
   </url>
   <url>
     <loc>https://sqltoerdiagram.com/mermaid/</loc>
+    <lastmod>2026-11-10</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
+    <image:image><image:loc>https://sqltoerdiagram.com/og/mermaid.svg</image:loc></image:image>
   </url>
   <url>
     <loc>https://sqltoerdiagram.com/sqlalchemy/</loc>
+    <lastmod>2026-11-10</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
+    <image:image><image:loc>https://sqltoerdiagram.com/og/sqlalchemy.svg</image:loc></image:image>
   </url>
   <url>
     <loc>https://sqltoerdiagram.com/sequelize/</loc>
+    <lastmod>2026-11-10</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
+    <image:image><image:loc>https://sqltoerdiagram.com/og/sequelize.svg</image:loc></image:image>
   </url>
   <url>
     <loc>https://sqltoerdiagram.com/typeorm/</loc>
+    <lastmod>2026-11-10</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
+    <image:image><image:loc>https://sqltoerdiagram.com/og/typeorm.svg</image:loc></image:image>
   </url>
   <url>
     <loc>https://sqltoerdiagram.com/django/</loc>
+    <lastmod>2026-11-10</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
+    <image:image><image:loc>https://sqltoerdiagram.com/og/django.svg</image:loc></image:image>
   </url>
   <url>
     <loc>https://sqltoerdiagram.com/sql-to-mermaid/</loc>
+    <lastmod>2026-11-10</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
+    <image:image><image:loc>https://sqltoerdiagram.com/og/sql-to-mermaid.svg</image:loc></image:image>
   </url>
   <url>
     <loc>https://sqltoerdiagram.com/prisma-to-dbml/</loc>
+    <lastmod>2026-11-10</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
+    <image:image><image:loc>https://sqltoerdiagram.com/og/prisma-to-dbml.svg</image:loc></image:image>
   </url>
   <url>
     <loc>https://sqltoerdiagram.com/dbml-to-er-diagram/</loc>
+    <lastmod>2026-11-10</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
+    <image:image><image:loc>https://sqltoerdiagram.com/og/dbml-to-er-diagram.svg</image:loc></image:image>
   </url>
   <url>
     <loc>https://sqltoerdiagram.com/mermaid-to-erd/</loc>
+    <lastmod>2026-11-10</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
+    <image:image><image:loc>https://sqltoerdiagram.com/og/mermaid-to-erd.svg</image:loc></image:image>
   </url>
   <url>
     <loc>https://sqltoerdiagram.com/oracle/</loc>
+    <lastmod>2026-11-10</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
+    <image:image><image:loc>https://sqltoerdiagram.com/og/oracle.svg</image:loc></image:image>
   </url>
   <url>
     <loc>https://sqltoerdiagram.com/mariadb/</loc>
+    <lastmod>2026-11-10</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
+    <image:image><image:loc>https://sqltoerdiagram.com/og/mariadb.svg</image:loc></image:image>
   </url>
   <url>
     <loc>https://sqltoerdiagram.com/snowflake/</loc>
+    <lastmod>2026-11-10</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
+    <image:image><image:loc>https://sqltoerdiagram.com/og/snowflake.svg</image:loc></image:image>
   </url>
   <url>
     <loc>https://sqltoerdiagram.com/bigquery/</loc>
+    <lastmod>2026-11-10</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
+    <image:image><image:loc>https://sqltoerdiagram.com/og/bigquery.svg</image:loc></image:image>
   </url>
   <url>
     <loc>https://sqltoerdiagram.com/plantuml/</loc>
+    <lastmod>2026-11-10</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
+    <image:image><image:loc>https://sqltoerdiagram.com/og/plantuml.svg</image:loc></image:image>
   </url>
   <url>
     <loc>https://sqltoerdiagram.com/ddl-to-er-diagram/</loc>
+    <lastmod>2026-11-10</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
+    <image:image><image:loc>https://sqltoerdiagram.com/og/ddl-to-er-diagram.svg</image:loc></image:image>
   </url>
   <url>
     <loc>https://sqltoerdiagram.com/sql-to-dbml/</loc>
+    <lastmod>2026-11-10</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
+    <image:image><image:loc>https://sqltoerdiagram.com/og/sql-to-dbml.svg</image:loc></image:image>
   </url>
   <url>
     <loc>https://sqltoerdiagram.com/sql-to-plantuml/</loc>
+    <lastmod>2026-11-10</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
+    <image:image><image:loc>https://sqltoerdiagram.com/og/sql-to-plantuml.svg</image:loc></image:image>
   </url>
   <url>
     <loc>https://sqltoerdiagram.com/dbml-to-mermaid/</loc>
+    <lastmod>2026-11-10</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
+    <image:image><image:loc>https://sqltoerdiagram.com/og/dbml-to-mermaid.svg</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://sqltoerdiagram.com/dbml-viewer/</loc>
+    <lastmod>2026-11-10</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <image:image><image:loc>https://sqltoerdiagram.com/og/dbml-viewer.svg</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://sqltoerdiagram.com/prisma-schema-visualizer/</loc>
+    <lastmod>2026-11-10</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <image:image><image:loc>https://sqltoerdiagram.com/og/prisma-schema-visualizer.svg</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://sqltoerdiagram.com/plantuml-viewer/</loc>
+    <lastmod>2026-11-10</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <image:image><image:loc>https://sqltoerdiagram.com/og/plantuml-viewer.svg</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://sqltoerdiagram.com/er-diagram-generator/</loc>
+    <lastmod>2026-11-10</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <image:image><image:loc>https://sqltoerdiagram.com/og/er-diagram-generator.svg</image:loc></image:image>
   </url>
   <url>
     <loc>https://sqltoerdiagram.com/examples/</loc>
+    <lastmod>2026-11-10</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://sqltoerdiagram.com/examples/ecommerce/</loc>
+    <lastmod>2026-11-10</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
+    <image:image><image:loc>https://sqltoerdiagram.com/og/examples-ecommerce.svg</image:loc></image:image>
   </url>
   <url>
     <loc>https://sqltoerdiagram.com/examples/blog/</loc>
+    <lastmod>2026-11-10</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
+    <image:image><image:loc>https://sqltoerdiagram.com/og/examples-blog.svg</image:loc></image:image>
   </url>
   <url>
     <loc>https://sqltoerdiagram.com/examples/saas/</loc>
+    <lastmod>2026-11-10</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
+    <image:image><image:loc>https://sqltoerdiagram.com/og/examples-saas.svg</image:loc></image:image>
   </url>
   <url>
     <loc>https://sqltoerdiagram.com/examples/social-network/</loc>
+    <lastmod>2026-11-10</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
+    <image:image><image:loc>https://sqltoerdiagram.com/og/examples-social-network.svg</image:loc></image:image>
   </url>
   <url>
     <loc>https://sqltoerdiagram.com/examples/project-management/</loc>
+    <lastmod>2026-11-10</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+    <image:image><image:loc>https://sqltoerdiagram.com/og/examples-project-management.svg</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://sqltoerdiagram.com/examples/inventory/</loc>
+    <lastmod>2026-11-10</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+    <image:image><image:loc>https://sqltoerdiagram.com/og/examples-inventory.svg</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://sqltoerdiagram.com/examples/crm/</loc>
+    <lastmod>2026-11-10</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+    <image:image><image:loc>https://sqltoerdiagram.com/og/examples-crm.svg</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://sqltoerdiagram.com/examples/erp/</loc>
+    <lastmod>2026-11-10</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+    <image:image><image:loc>https://sqltoerdiagram.com/og/examples-erp.svg</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://sqltoerdiagram.com/examples/hospital/</loc>
+    <lastmod>2026-11-10</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+    <image:image><image:loc>https://sqltoerdiagram.com/og/examples-hospital.svg</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://sqltoerdiagram.com/examples/school/</loc>
+    <lastmod>2026-11-10</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+    <image:image><image:loc>https://sqltoerdiagram.com/og/examples-school.svg</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://sqltoerdiagram.com/alternatives/</loc>
+    <lastmod>2026-11-10</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://sqltoerdiagram.com/vs/dbdiagram/</loc>
+    <lastmod>2026-11-10</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://sqltoerdiagram.com/examples/inventory/</loc>
+    <loc>https://sqltoerdiagram.com/vs/drawsql/</loc>
+    <lastmod>2026-11-10</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://sqltoerdiagram.com/vs/chartdb/</loc>
+    <lastmod>2026-11-10</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://sqltoerdiagram.com/vs/drawdb/</loc>
+    <lastmod>2026-11-10</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
   </url>

@@ -1,0 +1,454 @@
+{
+  "diagram.mmd": {
+    "format": "mermaid",
+    "tables": [
+      {
+        "name": "CUSTOMER",
+        "columns": [
+          "id | int | pk",
+          "name | string",
+          "email | string | unique"
+        ]
+      },
+      {
+        "name": "LINE_ITEM",
+        "columns": [
+          "order_id | int | fk",
+          "sku | string",
+          "qty | int"
+        ]
+      },
+      {
+        "name": "ORDER",
+        "columns": [
+          "id | int | pk",
+          "customer_id | int | fk",
+          "placed_on | date"
+        ]
+      }
+    ],
+    "relations": [
+      "LINE_ITEM() -> ORDER()",
+      "ORDER() -> CUSTOMER()"
+    ],
+    "warnings": []
+  },
+  "diagram.puml": {
+    "format": "plantuml",
+    "tables": [
+      {
+        "name": "posts",
+        "columns": [
+          "id | int | pk notnull",
+          "user_id | int | fk",
+          "title | text"
+        ]
+      },
+      {
+        "name": "users",
+        "columns": [
+          "id | int | pk notnull",
+          "email | varchar"
+        ]
+      }
+    ],
+    "relations": [
+      "posts() -> users()"
+    ],
+    "warnings": []
+  },
+  "django_models.py": {
+    "format": "django",
+    "tables": [
+      {
+        "name": "Author",
+        "columns": [
+          "id | bigint | pk notnull",
+          "created_at | timestamp | notnull",
+          "name | varchar(100) | notnull",
+          "email | varchar | unique notnull",
+          "bio | text"
+        ]
+      },
+      {
+        "name": "Book",
+        "columns": [
+          "id | bigint | pk notnull",
+          "created_at | timestamp | notnull",
+          "title | varchar(200) | notnull",
+          "author_id | bigint | fk notnull",
+          "editor_id | bigint | fk",
+          "price | decimal(8,2) | notnull",
+          "sequel_of_id | bigint | fk unique"
+        ]
+      },
+      {
+        "name": "book_tags",
+        "columns": [
+          "id | bigint | pk notnull",
+          "book_id | bigint | fk notnull",
+          "tag_id | bigint | fk notnull"
+        ]
+      },
+      {
+        "name": "Tag",
+        "columns": [
+          "slug | varchar | pk notnull"
+        ]
+      }
+    ],
+    "relations": [
+      "Book(author_id) -> Author(id)",
+      "Book(editor_id) -> Author(id)",
+      "Book(sequel_of_id) -> Book(id)",
+      "book_tags(book_id) -> Book(id)",
+      "book_tags(tag_id) -> Tag(slug)"
+    ],
+    "warnings": []
+  },
+  "entities.ts": {
+    "format": "typeorm",
+    "tables": [
+      {
+        "name": "Profile",
+        "columns": [
+          "id | int | pk notnull",
+          "avatarUrl | varchar | notnull"
+        ]
+      },
+      {
+        "name": "Tag",
+        "columns": [
+          "id | int | pk notnull",
+          "label | varchar | notnull"
+        ]
+      },
+      {
+        "name": "Team",
+        "columns": [
+          "id | int | pk notnull",
+          "name | varchar(80) | unique notnull"
+        ]
+      },
+      {
+        "name": "User",
+        "columns": [
+          "id | uuid | pk notnull",
+          "email | varchar(255) | unique notnull",
+          "bio | text",
+          "balance | decimal(10,2) | notnull",
+          "createdAt | timestamp | notnull",
+          "team_id | int | fk notnull",
+          "profileId | int | fk unique"
+        ]
+      },
+      {
+        "name": "user_tags_tag",
+        "columns": [
+          "userId | int | pk fk notnull",
+          "tagId | int | pk fk notnull"
+        ]
+      }
+    ],
+    "relations": [
+      "User(profileId) -> Profile(id)",
+      "User(team_id) -> Team(id)",
+      "user_tags_tag(tagId) -> Tag(id)",
+      "user_tags_tag(userId) -> User(id)"
+    ],
+    "warnings": []
+  },
+  "models.js": {
+    "format": "sequelize",
+    "tables": [
+      {
+        "name": "Player",
+        "columns": [
+          "id | INTEGER | pk",
+          "teamId | INTEGER | fk",
+          "nickname | STRING"
+        ]
+      },
+      {
+        "name": "Team",
+        "columns": [
+          "id | INTEGER | pk",
+          "name | STRING | notnull"
+        ]
+      }
+    ],
+    "relations": [
+      "Player(teamId) -> Team(id)"
+    ],
+    "warnings": []
+  },
+  "models.py": {
+    "format": "sqlalchemy",
+    "tables": [
+      {
+        "name": "authors",
+        "columns": [
+          "id | Integer | pk",
+          "name | String | notnull"
+        ]
+      },
+      {
+        "name": "books",
+        "columns": [
+          "id | Integer | pk",
+          "author_id | Integer | fk notnull",
+          "title | String"
+        ]
+      }
+    ],
+    "relations": [
+      "books(author_id) -> authors(id)"
+    ],
+    "warnings": []
+  },
+  "mysql-mysqldump.sql": {
+    "format": "sql",
+    "tables": [
+      {
+        "name": "customers",
+        "columns": [
+          "id | int | pk notnull",
+          "email | varchar(191) | unique notnull",
+          "tier | enum('free','pro','enterprise') | notnull",
+          "note | text",
+          "created_at | datetime | notnull"
+        ]
+      },
+      {
+        "name": "invoices",
+        "columns": [
+          "id | bigint | pk notnull",
+          "customer_id | int | fk notnull",
+          "amount | decimal(10,2) | notnull",
+          "paid | tinyint(1) | notnull"
+        ]
+      }
+    ],
+    "relations": [
+      "invoices(customer_id) -> customers(id)"
+    ],
+    "warnings": []
+  },
+  "oracle.sql": {
+    "format": "sql",
+    "tables": [
+      {
+        "name": "COUNTRIES",
+        "columns": [
+          "COUNTRY_ID | char(2 BYTE) | pk notnull",
+          "COUNTRY_NAME | varchar2(40 BYTE)",
+          "REGION_ID | number | fk"
+        ]
+      },
+      {
+        "name": "REGIONS",
+        "columns": [
+          "REGION_ID | number | pk notnull",
+          "REGION_NAME | varchar2(25 BYTE)"
+        ]
+      }
+    ],
+    "relations": [
+      "COUNTRIES(REGION_ID) -> REGIONS(REGION_ID)"
+    ],
+    "warnings": []
+  },
+  "postgres-pg_dump.sql": {
+    "format": "sql",
+    "tables": [
+      {
+        "name": "accounts",
+        "columns": [
+          "id | uuid | pk notnull",
+          "email | character varying(255) | unique notnull",
+          "tags | text[]",
+          "settings | jsonb | notnull",
+          "created_at | timestamp with time zone | notnull"
+        ]
+      },
+      {
+        "name": "order_items",
+        "columns": [
+          "order_id | bigint | pk fk notnull",
+          "line_no | integer | pk notnull",
+          "sku | text | notnull",
+          "qty | integer | notnull"
+        ]
+      },
+      {
+        "name": "orders",
+        "columns": [
+          "id | bigint | pk notnull",
+          "account_id | uuid | fk notnull",
+          "status | public.order_status | notnull",
+          "total | numeric(12,2) | notnull"
+        ]
+      }
+    ],
+    "relations": [
+      "order_items(order_id) -> orders(id)",
+      "orders(account_id) -> accounts(id)"
+    ],
+    "warnings": []
+  },
+  "schema.dbml": {
+    "format": "dbml",
+    "tables": [
+      {
+        "name": "order_items",
+        "columns": [
+          "order_id | integer | fk",
+          "product_id | integer"
+        ]
+      },
+      {
+        "name": "orders",
+        "columns": [
+          "id | integer | pk",
+          "user_id | integer | fk",
+          "status | varchar"
+        ]
+      },
+      {
+        "name": "users",
+        "columns": [
+          "id | integer | pk",
+          "email | varchar(255) | unique notnull",
+          "created_at | timestamp"
+        ]
+      }
+    ],
+    "relations": [
+      "order_items(order_id) -> orders(id)",
+      "orders(user_id) -> users(id)"
+    ],
+    "warnings": []
+  },
+  "schema.prisma": {
+    "format": "prisma",
+    "tables": [
+      {
+        "name": "Post",
+        "columns": [
+          "id | Int | pk notnull",
+          "title | String | notnull",
+          "authorId | Int | fk notnull"
+        ]
+      },
+      {
+        "name": "Profile",
+        "columns": [
+          "id | Int | pk notnull",
+          "bio | String?",
+          "userId | Int | fk unique notnull"
+        ]
+      },
+      {
+        "name": "User",
+        "columns": [
+          "id | Int | pk notnull",
+          "email | String | unique notnull",
+          "role | Role | notnull"
+        ]
+      }
+    ],
+    "relations": [
+      "Post(authorId) -> User(id)",
+      "Profile(userId) -> User(id)"
+    ],
+    "warnings": []
+  },
+  "snowflake.sql": {
+    "format": "sql",
+    "tables": [
+      {
+        "name": "DIM_CUSTOMER",
+        "columns": [
+          "CUSTOMER_KEY | number(38,0) | pk notnull",
+          "EMAIL | varchar(16777216)",
+          "ATTRS | variant",
+          "LOADED_AT | timestamp_ntz(9)"
+        ]
+      },
+      {
+        "name": "FACT_ORDER",
+        "columns": [
+          "ORDER_KEY | number(38,0) | notnull",
+          "CUSTOMER_KEY | number(38,0) | fk",
+          "AMOUNT | number(12,2)"
+        ]
+      }
+    ],
+    "relations": [
+      "FACT_ORDER(CUSTOMER_KEY) -> DIM_CUSTOMER(CUSTOMER_KEY)"
+    ],
+    "warnings": []
+  },
+  "sqlite.sql": {
+    "format": "sql",
+    "tables": [
+      {
+        "name": "albums",
+        "columns": [
+          "id | integer | pk",
+          "artist_id | integer | fk notnull",
+          "title | text | notnull",
+          "released | date"
+        ]
+      },
+      {
+        "name": "artists",
+        "columns": [
+          "id | integer | pk",
+          "name | text | unique notnull"
+        ]
+      },
+      {
+        "name": "tracks",
+        "columns": [
+          "id | integer | pk",
+          "album_id | integer | fk",
+          "title | text",
+          "seconds | real"
+        ]
+      }
+    ],
+    "relations": [
+      "albums(artist_id) -> artists(id)",
+      "tracks(album_id) -> albums(id)"
+    ],
+    "warnings": []
+  },
+  "sqlserver.sql": {
+    "format": "sql",
+    "tables": [
+      {
+        "name": "Departments",
+        "columns": [
+          "DepartmentId | int | pk notnull",
+          "Name | nvarchar(100) | notnull"
+        ]
+      },
+      {
+        "name": "Employees",
+        "columns": [
+          "EmployeeId | uniqueidentifier | pk notnull",
+          "DepartmentId | int | fk notnull",
+          "ManagerId | uniqueidentifier | fk",
+          "Salary | decimal(18,2)",
+          "HiredOn | datetime2(7) | notnull"
+        ]
+      }
+    ],
+    "relations": [
+      "Employees(DepartmentId) -> Departments(DepartmentId)",
+      "Employees(ManagerId) -> Employees(EmployeeId)"
+    ],
+    "warnings": []
+  }
+}

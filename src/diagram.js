@@ -1,10 +1,11 @@
 // Diagram controller: owns the camera, input handling (pan / zoom / drag),
 // the render loop, edge routing and export. Renders only when dirty and only
 // what is on screen.
-import { THEMES, rasterizeTable, columnY, measureTable, ROW_H, HEADER_H } from './renderer.js';
+import { THEMES, rasterizeTable, columnY, measureTable, edgeGeometry, ROW_H, HEADER_H, SANS } from './renderer.js';
 import { NOTE_COLORS, GROUP_COLORS, NOTE_ORDER, GROUP_ORDER, makeAnnotation } from './annotations.js';
 import { relationCardinality } from './cardinality.js';
 import { inferLinks as inferLinksCore } from './infer-links.js';
+import { routeEdge, roundedPath, routeMidpoint, routeDistance, nearbyObstacles } from './edge-route.js';
 
 export class Diagram {
   constructor(canvas) {
@@ -43,12 +44,23 @@ export class Diagram {
     this.selectedAnno = null;      // currently selected annotation
     this.annoDrag = null;          // annotation move
     this.annoResize = null;        // annotation resize
+    this.tableColors = {};         // table.key -> colour name (header accent)
+    this.onHoverInfo = null;       // callback({table, column|null, sx, sy} | null) for tooltips
+    this._hiRows = [];             // column rows to tint: the ends of highlighted relations
+    this.edgeStyle = 'angled';     // 'angled' (elbow lines that avoid tables) | 'curved'
+    this._routes = new Map();      // cached angled routes, valid for one arrangement of tables
+    this._routeSig = '';
+    this.anim = null;              // active camera / table-position tween
+    this.onFrame = null;           // fired after every render (minimap)
+    this.reducedMotion = typeof matchMedia === 'function'
+      ? matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
 
     this._bindInput();
     this._loop = this._loop.bind(this);
   }
 
   setModel(model, { keepCamera = false } = {}) {
+    this._finishAnim(true);        // settle any tween before the tables are replaced
     // preserve positions of tables that still exist (so live edits don't jump)
     const prev = new Map((this.model.tables || []).map(t => [t.key, t]));
     for (const t of model.tables) {
@@ -58,6 +70,7 @@ export class Diagram {
       t.w = dims.w; t.h = dims.h; t.rowH = dims.rowH; t.headerH = dims.headerH;
       const old = prev.get(t.key);
       if (old && Number.isFinite(old.x)) { t.x = old.x; t.y = old.y; }
+      t.color = this.tableColors[t.key] || null;
     }
     this.model = model;
     this.bitmaps.clear();
@@ -124,11 +137,14 @@ export class Diagram {
 
   resize() {
     const rect = this.canvas.getBoundingClientRect();
+    const w = Math.round(rect.width * this.dpr), h = Math.round(rect.height * this.dpr);
+    if (w === this.canvas.width && h === this.canvas.height && this.viewW === rect.width) return;
     this.viewW = rect.width;
     this.viewH = rect.height;
-    this.canvas.width = Math.round(rect.width * this.dpr);
-    this.canvas.height = Math.round(rect.height * this.dpr);
-    this.markDirty();
+    this.canvas.width = w;            // resizing clears the canvas…
+    this.canvas.height = h;
+    this.dirty = false;
+    this._render();                   // …so repaint in the same frame (no blank flash)
   }
 
   start() {
@@ -206,19 +222,48 @@ export class Diagram {
       ctx.globalAlpha = dim ? 0.22 : 1;
       // soft shadow (skip for dimmed tables to keep them recessive)
       if (!dim) {
+        // a wide, soft shadow: the card floats instead of sitting in a dark box
+        const lifted = this.drag?.t === t;
         ctx.shadowColor = theme.shadow;
-        ctx.shadowBlur = 16;
-        ctx.shadowOffsetY = 6;
+        ctx.shadowBlur = (lifted ? 34 : 22) * cam.scale * dpr;
+        ctx.shadowOffsetY = (lifted ? 14 : 8) * cam.scale * dpr;
       }
       ctx.drawImage(bm, t.x, t.y, t.w, t.h);
       ctx.restore();
 
-      const emphasised = this.hover === t || this.drag?.t === t || pinned === t || this.selected.has(t);
+      const strong = pinned === t || this.selected.has(t);
+      const emphasised = strong || this.hover === t || this.drag?.t === t;
       if (emphasised) {
-        ctx.strokeStyle = theme.edgeHi;
-        ctx.lineWidth = (pinned === t || this.selected.has(t) ? 2.5 : 2) / cam.scale;
+        // a crisp hairline ring, with a soft halo when the table is selected
+        if (strong) {
+          ctx.strokeStyle = hexA(theme.edgeHi, 0.22);
+          ctx.lineWidth = 5 / cam.scale;
+          roundRectPath(ctx, t.x - 1.5 / cam.scale, t.y - 1.5 / cam.scale, t.w + 3 / cam.scale, t.h + 3 / cam.scale, 10 + 1.5 / cam.scale);
+          ctx.stroke();
+        }
+        ctx.strokeStyle = strong ? theme.edgeHi : hexA(theme.edgeHi, 0.7);
+        ctx.lineWidth = 1.5 / cam.scale;
         roundRectPath(ctx, t.x, t.y, t.w, t.h, 10);
         ctx.stroke();
+      }
+    }
+
+    // tint the column rows at both ends of each highlighted relation, so it is
+    // obvious which columns a line actually joins
+    if (this._hiRows.length && !this.drag && !this.dragGroup) {
+      ctx.fillStyle = hexA(theme.edgeHi, 0.16);
+      for (const r of this._hiRows) {
+        if (r.y - r.t.y < HEADER_H) continue;             // unknown column -> header; skip
+        ctx.fillRect(r.t.x + 1, r.y - ROW_H / 2, r.t.w - 2, ROW_H);
+      }
+    }
+
+    // the column row under the cursor, so it is clear what a click / hover refers to
+    if (this.hoverConn && !this.drag && !this.dragGroup && !this.pan && !this.linking) {
+      const { t, colIndex } = this.hoverConn;
+      if (Number.isFinite(t.x) && !this.hidden.has(t.key)) {
+        ctx.fillStyle = hexA(theme.edgeHi, 0.09);
+        ctx.fillRect(t.x + 1, t.y + HEADER_H + colIndex * ROW_H, t.w - 2, ROW_H);
       }
     }
 
@@ -272,6 +317,83 @@ export class Diagram {
       dot(ctx, k.wx, k.wy, 4 / cam.scale);
       ctx.restore();
     }
+
+    this.onFrame?.();
+  }
+
+  // ---- motion ----
+  // One tween at a time drives the camera and/or table positions. Any direct
+  // input (pointer, wheel, touch) settles it instantly, so motion never fights
+  // the user. With prefers-reduced-motion everything snaps.
+  //   cam:    target {x, y, scale} (optional)
+  //   moves:  [{t, x0, y0, x1, y1}] table position changes (optional)
+  _animate({ cam = null, moves = [], dur = 260, ease = easeOut } = {}) {
+    this._finishAnim();
+    const snap = dur <= 0 || this.reducedMotion.matches || (!cam && !moves.length);
+    if (snap) {
+      for (const m of moves) { m.t.x = m.x1; m.t.y = m.y1; }
+      if (cam) { this.cam = { ...cam }; this.onZoom?.(cam.scale); }
+      this.markDirty();
+      return;
+    }
+    const from = { ...this.cam };
+    for (const m of moves) { m.t.x = m.x0; m.t.y = m.y0; m.t._tx = m.x1; m.t._ty = m.y1; }
+    const a = { cam, from, moves, dur, ease, t0: performance.now() };
+    this.anim = a;
+    const tick = (now) => {
+      if (this.anim !== a) return;                       // superseded or settled
+      const u = clamp((now - a.t0) / a.dur, 0, 1);
+      if (u >= 1) { this._finishAnim(); return; }
+      const e = a.ease(u);
+      for (const m of a.moves) {
+        m.t.x = m.x0 + (m.x1 - m.x0) * e;
+        m.t.y = m.y0 + (m.y1 - m.y0) * e;
+      }
+      if (a.cam) {
+        // interpolate the world point at the view centre + log-scale, so a
+        // combined pan/zoom travels in a straight, evenly-paced line
+        const cx0 = (this.viewW / 2 - a.from.x) / a.from.scale, cy0 = (this.viewH / 2 - a.from.y) / a.from.scale;
+        const cx1 = (this.viewW / 2 - a.cam.x) / a.cam.scale, cy1 = (this.viewH / 2 - a.cam.y) / a.cam.scale;
+        const scale = a.from.scale * Math.pow(a.cam.scale / a.from.scale, e);
+        const cx = cx0 + (cx1 - cx0) * e, cy = cy0 + (cy1 - cy0) * e;
+        this.cam = { x: this.viewW / 2 - cx * scale, y: this.viewH / 2 - cy * scale, scale };
+        this.onZoom?.(scale);
+      }
+      this.markDirty();
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }
+
+  // jump the active tween to its end state
+  _finishAnim(silent = false) {
+    const a = this.anim;
+    if (!a) return;
+    this.anim = null;
+    for (const m of a.moves) { m.t.x = m.x1; m.t.y = m.y1; delete m.t._tx; delete m.t._ty; }
+    if (a.cam) { this.cam = { ...a.cam }; this.onZoom?.(a.cam.scale); }
+    this.markDirty();
+    if (!silent) this.onLayoutChange?.();
+  }
+
+  // Where things will be once any running tween lands — what persistence and
+  // undo history must record (never a mid-flight frame).
+  settledPos(t) { return { x: t._tx ?? t.x, y: t._ty ?? t.y }; }
+  settledCam() { return (this.anim && this.anim.cam) || this.cam; }
+
+  // After a re-layout: glide tables from where they were (`from`: key -> {x,y})
+  // to their new spots, and bring the result into view.
+  transition(from, { fit = true, animate = true } = {}) {
+    const moves = [];
+    if (animate && from) {
+      for (const t of this.model.tables) {
+        const p = from.get(t.key);
+        if (!p || !Number.isFinite(p.x) || !Number.isFinite(t.x)) continue;
+        if (p.x !== t.x || p.y !== t.y) moves.push({ t, x0: p.x, y0: p.y, x1: t.x, y1: t.y });
+      }
+    }
+    const cam = fit ? this._fitCam() : null;
+    this._animate({ cam, moves, dur: moves.length ? 420 : 0, ease: easeInOut });
   }
 
   // left/right connector dot positions for a column row (world coords)
@@ -299,7 +421,7 @@ export class Diagram {
     // label in the header strip
     if (a.text) {
       ctx.fillStyle = color;
-      ctx.font = `600 ${13 / cam.scale}px ui-sans-serif, system-ui, sans-serif`;
+      ctx.font = `600 ${13 / cam.scale}px ${SANS}`;
       ctx.textBaseline = 'middle';
       ctx.textAlign = 'left';
       const pad = 10 / cam.scale;
@@ -325,7 +447,7 @@ export class Diagram {
     roundRectPath(ctx, a.x, a.y, a.w, a.h, 8);
     ctx.clip();
     ctx.fillStyle = c.text;
-    ctx.font = `${13 / cam.scale}px ui-sans-serif, system-ui, sans-serif`;
+    ctx.font = `${13 / cam.scale}px ${SANS}`;
     ctx.textBaseline = 'top';
     ctx.textAlign = 'left';
     const pad = 10 / cam.scale;
@@ -535,7 +657,7 @@ export class Diagram {
     ctx.fillStyle = theme.edgeHi;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.font = `600 ${13 / cam.scale}px ui-sans-serif, system-ui, sans-serif`;
+    ctx.font = `600 ${13 / cam.scale}px ${SANS}`;
     ctx.fillText('+ add column', r.x + r.w / 2, r.y + r.h / 2);
     ctx.restore();
   }
@@ -549,17 +671,20 @@ export class Diagram {
 
   _drawGrid() {
     const { ctx, cam, theme, dpr } = this;
-    const step = 32 * cam.scale * dpr;
-    if (step < 8) return;
+    // A dot grid: enough texture to feel the canvas move, quiet enough to
+    // stay behind the diagram. Dots thin out (every 2nd, 4th…) as you zoom
+    // out so the density on screen stays roughly constant.
+    let step = 24 * cam.scale * dpr;
+    while (step < 16 * dpr) step *= 2;
     const W = this.canvas.width, H = this.canvas.height;
-    const ox = (cam.x * dpr) % step;
-    const oy = (cam.y * dpr) % step;
-    ctx.strokeStyle = theme.grid;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    for (let x = ox; x < W; x += step) { ctx.moveTo(x, 0); ctx.lineTo(x, H); }
-    for (let y = oy; y < H; y += step) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
-    ctx.stroke();
+    const ox = ((cam.x * dpr) % step + step) % step;
+    const oy = ((cam.y * dpr) % step + step) % step;
+    const r = Math.max(1, Math.round(dpr));          // dot = r × r device pixels
+    ctx.fillStyle = theme.grid;
+    for (let x = ox; x < W; x += step) {
+      const px = Math.round(x);
+      for (let y = oy; y < H; y += step) ctx.fillRect(px, Math.round(y), r, r);
+    }
   }
 
   // bezier segment between two table columns (or null if not drawable / off-screen)
@@ -570,16 +695,40 @@ export class Diagram {
     if (this.hidden.has(from.key) || this.hidden.has(to.key)) return null;
     const fy = from.y + columnY(from, fromCol);
     const ty = to.y + columnY(to, toCol);
-    const fromRight = (from.x + from.w / 2) < (to.x + to.w / 2);
-    const fx = fromRight ? from.x + from.w : from.x;
-    const tx = fromRight ? to.x : to.x + to.w;
-    if (cull) {
-      const minX = Math.min(fx, tx), maxX = Math.max(fx, tx);
+    const { fx, tx, c1x, c2x } = edgeGeometry(from, to, fy, ty);
+    const pts = this.edgeStyle === 'angled' ? this._route(from, to, fromCol, toCol, fy, ty) : null;
+    if (cull && pts) {
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      for (const p of pts) { minX = Math.min(minX, p[0]); maxX = Math.max(maxX, p[0]); minY = Math.min(minY, p[1]); maxY = Math.max(maxY, p[1]); }
+      if (maxX < cull.x0 || minX > cull.x1 || maxY < cull.y0 || minY > cull.y1) return null;
+    } else if (cull) {
+      const minX = Math.min(fx, tx, c1x, c2x), maxX = Math.max(fx, tx, c1x, c2x);
       const minY = Math.min(fy, ty), maxY = Math.max(fy, ty);
       if (maxX < cull.x0 || minX > cull.x1 || maxY < cull.y0 || minY > cull.y1) return null;
     }
-    const dx = Math.max(28, Math.abs(tx - fx) * 0.4);
-    return { fx, fy, tx, ty, c1x: fx + (fromRight ? dx : -dx), c2x: tx + (fromRight ? -dx : dx), fromKey, toKey };
+    return {
+      fx, fy, tx, ty, c1x, c2x, fromKey, toKey, pts,
+      // the two column rows this relation joins (tinted when it is highlighted)
+      rows: [{ t: from, y: fy }, { t: to, y: ty }],
+    };
+  }
+
+  // An angled route for one relation, cached until any table moves. Beyond a
+  // few hundred tables the lines stop steering around others (still angled),
+  // which keeps every frame cheap.
+  _route(from, to, fromCol, toCol, fy, ty) {
+    const tables = this.model.tables;
+    let sig = this.hidden.size + ':' + tables.length;
+    for (const t of tables) sig += '|' + t.x + ',' + t.y + ',' + t.h;
+    if (sig !== this._routeSig) { this._routeSig = sig; this._routes.clear(); }
+    const key = from.key + '\u0000' + fromCol + '\u0000' + to.key + '\u0000' + toCol;
+    let pts = this._routes.get(key);
+    if (!pts) {
+      const obstacles = tables.length <= 200 ? nearbyObstacles(from, to, tables, (k) => this.hidden.has(k)) : [];
+      pts = routeEdge(from, to, fy, ty, obstacles);
+      this._routes.set(key, pts);
+    }
+    return pts;
   }
 
   _drawEdges(vx0, vy0, vx1, vy1) {
@@ -607,10 +756,11 @@ export class Diagram {
         if (connected) { highlighted.push(seg); continue; }
         this._stroke(seg, theme.edge, 1.2, fadeAlpha, e.manual);
       } else {
-        this._stroke(seg, theme.edge, 1.5, 0.5, e.manual);
+        this._stroke(seg, theme.edge, 1.4, 0.85, e.manual);
       }
     }
-    for (const seg of highlighted) this._stroke(seg, theme.edgeHi, 2.2, 1, seg.manual);
+    this._hiRows = focusKey ? highlighted.map(seg => seg.rows).flat() : [];
+    for (const seg of highlighted) this._stroke(seg, theme.edgeHi, 1.9, 1, seg.manual);
     for (const seg of highlighted) this._drawEdgeLabel(seg);   // words, on top of the lines
   }
 
@@ -620,18 +770,34 @@ export class Diagram {
     ctx.strokeStyle = color;
     ctx.fillStyle = color;
     ctx.lineWidth = width / cam.scale;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
     if (dashed) ctx.setLineDash([6 / cam.scale, 5 / cam.scale]);
     ctx.beginPath();
-    ctx.moveTo(seg.fx, seg.fy);
-    ctx.bezierCurveTo(seg.c1x, seg.fy, seg.c2x, seg.ty, seg.tx, seg.ty);
+    let fdir, tdir;                    // which way the line leaves each table
+    if (seg.pts) {
+      for (const c of roundedPath(seg.pts, 9)) {
+        if (c[0] === 'M') ctx.moveTo(c[1], c[2]);
+        else if (c[0] === 'L') ctx.lineTo(c[1], c[2]);
+        else ctx.quadraticCurveTo(c[1], c[2], c[3], c[4]);
+      }
+      const n = seg.pts.length;
+      fdir = Math.sign(seg.pts[1][0] - seg.pts[0][0]) || 1;
+      tdir = Math.sign(seg.pts[n - 2][0] - seg.pts[n - 1][0]) || 1;
+    } else {
+      ctx.moveTo(seg.fx, seg.fy);
+      ctx.bezierCurveTo(seg.c1x, seg.fy, seg.c2x, seg.ty, seg.tx, seg.ty);
+      fdir = Math.sign(seg.c1x - seg.fx) || 1;
+      tdir = Math.sign(seg.c2x - seg.tx) || 1;
+    }
     ctx.stroke();
     if (dashed) ctx.setLineDash([]);
     if (seg.card) {
       // markers sit just outside each table, pointing along the line
       const s = 1 / cam.scale;
-      const mw = Math.max(width, 1.4) / cam.scale;
-      drawMarker(ctx, seg.fx, seg.fy, Math.sign(seg.c1x - seg.fx) || 1, seg.card.from, s, mw);
-      drawMarker(ctx, seg.tx, seg.ty, Math.sign(seg.c2x - seg.tx) || 1, seg.card.to, s, mw);
+      const mw = Math.max(width, 1.3) / cam.scale;
+      drawMarker(ctx, seg.fx, seg.fy, fdir, seg.card.from, s, mw);
+      drawMarker(ctx, seg.tx, seg.ty, tdir, seg.card.to, s, mw);
     } else {
       dot(ctx, seg.fx, seg.fy, 3 / cam.scale);
       dot(ctx, seg.tx, seg.ty, 3 / cam.scale);
@@ -644,10 +810,11 @@ export class Diagram {
     if (!seg.card || !seg.card.label) return;
     const { ctx, cam } = this;
     const s = 1 / cam.scale;
-    const mx = (seg.fx + 3 * seg.c1x + 3 * seg.c2x + seg.tx) / 8;
-    const my = (seg.fy + seg.ty) / 2;
+    let mx = (seg.fx + 3 * seg.c1x + 3 * seg.c2x + seg.tx) / 8;
+    let my = (seg.fy + seg.ty) / 2;
+    if (seg.pts) [mx, my] = routeMidpoint(seg.pts);
     ctx.save();
-    ctx.font = `${11 * s}px ui-sans-serif, system-ui, sans-serif`;
+    ctx.font = `${11 * s}px ${SANS}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     const text = seg.card.label;
@@ -690,7 +857,9 @@ export class Diagram {
   _bindInput() {
     const c = this.canvas;
 
+    c.addEventListener('mouseleave', () => { this._hoverKey = null; this.onHoverInfo?.(null); });
     c.addEventListener('mousedown', (e) => {
+      this._hoverKey = null; this.onHoverInfo?.(null);
       if (e.button !== 0) return;   // ignore right/middle click (right-click = context menu)
       const r = c.getBoundingClientRect();
       this._pointerDown(e.clientX - r.left, e.clientY - r.top, e.shiftKey);
@@ -713,6 +882,12 @@ export class Diagram {
       }
       const changed = (conn?.t !== this.hoverConn?.t) || (conn?.colIndex !== this.hoverConn?.colIndex);
       if (changed) { this.hoverConn = conn; this.markDirty(); }
+      // tooltip target: a column row, or the table header
+      const over = e.target === c && t ? `${t.key}:${conn ? conn.colIndex : 'h'}` : null;
+      if (over !== this._hoverKey) {
+        this._hoverKey = over;
+        this.onHoverInfo?.(over ? { table: t, column: conn ? t.columns[conn.colIndex] : null, sx, sy } : null);
+      }
       if (this._connectorAt(sx, sy)) c.style.cursor = 'crosshair';
       else if (this._annoChromeAt(sx, sy) || this._addButtonAt(sx, sy)) c.style.cursor = 'pointer';
       else if (t) c.style.cursor = 'grab';
@@ -739,6 +914,7 @@ export class Diagram {
         tap = { sx: p.sx, sy: p.sy, moved: false };
         this._pointerDown(p.sx, p.sy, false, false);
       } else if (e.touches.length === 2) {
+        this._finishAnim();
         this.drag = this.pan = this.annoDrag = this.annoResize = null;   // cancel single-finger
         tap = null;
         const a = tpos(e.touches[0]), b = tpos(e.touches[1]);
@@ -800,6 +976,7 @@ export class Diagram {
     c.addEventListener('wheel', (e) => {
       e.preventDefault();
       this._cancelEdit();
+      this._finishAnim();
       const r = c.getBoundingClientRect();
       const sx = e.clientX - r.left, sy = e.clientY - r.top;
       // ctrl/cmd or pinch => zoom; otherwise treat as zoom too (diagram tool)
@@ -818,6 +995,7 @@ export class Diagram {
   // `additive` (Shift) drives multi-select: Shift+click toggles a table,
   // Shift+drag on empty draws a marquee box.
   _pointerDown(sx, sy, additive = false, allowConnect = true) {
+    this._finishAnim();
     // 1) chrome of the selected annotation (colour dots / delete / resize)
     const chrome = this._annoChromeAt(sx, sy);
     if (chrome) {
@@ -1076,14 +1254,63 @@ export class Diagram {
   }
 
   // centre the camera on a table (and pin it for focus)
-  centerOn(key) {
+  // `minScale` zooms in when the view is too far out to read the table.
+  centerOn(key, { minScale = 0 } = {}) {
     const t = this.model.tables.find(x => x.key === key);
-    if (!t || !Number.isFinite(t.x)) return;
+    if (!t) return;
+    this._finishAnim();
+    if (!Number.isFinite(t.x)) return;
     if (this.hidden.has(key)) this.setTableHidden(key, false);
-    const s = this.cam.scale;
-    this.cam.x = this.viewW / 2 - (t.x + t.w / 2) * s;
-    this.cam.y = this.viewH / 2 - (t.y + t.h / 2) * s;
+    const s = Math.max(this.cam.scale, minScale);
     this._setPin(t);
+    this._animate({
+      cam: { x: this.viewW / 2 - (t.x + t.w / 2) * s, y: this.viewH / 2 - (t.y + t.h / 2) * s, scale: s },
+      dur: 380, ease: easeInOut,
+    });
+  }
+
+  // centre the view on a world point (minimap drag) — immediate, no tween
+  panTo(wx, wy) {
+    this._finishAnim();
+    this.cam.x = this.viewW / 2 - wx * this.cam.scale;
+    this.cam.y = this.viewH / 2 - wy * this.cam.scale;
+    this.markDirty();
+    this.onLayoutChange?.();
+  }
+
+  setEdgeStyle(style) {
+    this.edgeStyle = style === 'curved' ? 'curved' : 'angled';
+    this._routes.clear(); this._routeSig = '';
+    this.markDirty();
+  }
+
+  // ---- table colours ----
+  setTableColors(map) {
+    this.tableColors = map && typeof map === 'object' ? { ...map } : {};
+    for (const t of this.model.tables) t.color = this.tableColors[t.key] || null;
+    this.bitmaps.clear();
+    this.markDirty();
+  }
+
+  // colour one table, or the whole selection if it is part of one; null clears
+  setTableColor(t, color) {
+    const targets = this.selected.has(t) && this.selected.size > 1 ? [...this.selected] : [t];
+    for (const x of targets) {
+      if (color) this.tableColors[x.key] = color; else delete this.tableColors[x.key];
+      x.color = color || null;
+      this.bitmaps.delete(x.key);
+    }
+    this.markDirty();
+    this.onLayoutChange?.();
+  }
+
+  // re-measure and re-rasterise every table (after web fonts finish loading)
+  refreshMetrics() {
+    for (const t of this.model.tables) {
+      const dims = measureTable(t);
+      t.w = dims.w; t.h = dims.h;
+    }
+    this.bitmaps.clear();
     this.markDirty();
   }
 
@@ -1146,6 +1373,7 @@ export class Diagram {
     for (const l of this.manualLinks) {
       const seg = this._edgeSeg(l.from.table, l.from.col, l.to.table, l.to.col, null);
       if (!seg) continue;
+      if (seg.pts) { if (routeDistance(seg.pts, w.x, w.y) <= tol) return l; continue; }
       // sample the bezier
       for (let i = 0; i <= 16; i++) {
         const u = i / 16, iu = 1 - u;
@@ -1306,38 +1534,53 @@ export class Diagram {
   // restore a saved camera ({x, y, scale})
   setCamera(cam) {
     if (!cam) return;
+    this._finishAnim(true);
     this.cam = { x: cam.x, y: cam.y, scale: cam.scale };
     this.markDirty();
     this.onZoom?.(cam.scale);
   }
 
+  // button / keyboard zoom: a short tween around the view centre
   zoomBy(factor) {
-    this._zoomAt(this.viewW / 2, this.viewH / 2, factor);
+    const base = this.settledCam();
+    const scale = clamp(base.scale * factor, 0.08, 4);
+    const k = scale / base.scale;
+    const cx = this.viewW / 2, cy = this.viewH / 2;
+    this._animate({ cam: { x: cx - (cx - base.x) * k, y: cy - (cy - base.y) * k, scale }, dur: 180 });
   }
 
   resetZoom() {
-    this._zoomAt(this.viewW / 2, this.viewH / 2, 1 / this.cam.scale);
+    this.zoomBy(1 / this.settledCam().scale);
   }
 
-  // fit all tables into view
-  fit(padding = 60) {
-    const ts = this.model.tables.filter(t => Number.isFinite(t.x));
-    if (!ts.length) return;
+  // camera that frames every visible table (using settled positions), or null
+  _fitCam(padding = 60) {
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-    for (const t of ts) {
-      x0 = Math.min(x0, t.x); y0 = Math.min(y0, t.y);
-      x1 = Math.max(x1, t.x + t.w); y1 = Math.max(y1, t.y + t.h);
+    for (const t of this.model.tables) {
+      if (this.hidden.has(t.key)) continue;
+      const p = this.settledPos(t);
+      if (!Number.isFinite(p.x)) continue;
+      x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y);
+      x1 = Math.max(x1, p.x + t.w); y1 = Math.max(y1, p.y + t.h);
     }
+    if (!Number.isFinite(x0)) return null;
     const bw = x1 - x0, bh = y1 - y0;
     const scale = clamp(Math.min(
       (this.viewW - padding * 2) / bw,
       (this.viewH - padding * 2) / bh,
     ), 0.08, 1.5);
-    this.cam.scale = scale;
-    this.cam.x = (this.viewW - bw * scale) / 2 - x0 * scale;
-    this.cam.y = (this.viewH - bh * scale) / 2 - y0 * scale;
-    this.markDirty();
-    this.onZoom?.(scale);
+    return {
+      x: (this.viewW - bw * scale) / 2 - x0 * scale,
+      y: (this.viewH - bh * scale) / 2 - y0 * scale,
+      scale,
+    };
+  }
+
+  // fit all visible tables into view
+  fit(padding = 60, { animate = false } = {}) {
+    const cam = this._fitCam(padding);
+    if (!cam) return;
+    this._animate({ cam, dur: animate ? 320 : 0, ease: easeInOut });
   }
 
   // ---- export ----
@@ -1360,15 +1603,24 @@ export class Diagram {
     };
   }
 
-  exportPNG(scale = 2) {
+  // Render the whole diagram to an offscreen canvas (null when empty).
+  // `transparent` skips the background so the image drops cleanly into docs
+  // and slides. The scale is reduced if needed to stay inside browser canvas
+  // limits, so huge schemas export smaller instead of failing blank.
+  renderExport(scale = 2, { transparent = false } = {}) {
+    this._finishAnim();
     const b = this.bounds();
     if (b.w === 0) return null;
+    const MAX_SIDE = 16384, MAX_AREA = 120e6;
+    scale = Math.min(scale, MAX_SIDE / b.w, MAX_SIDE / b.h, Math.sqrt(MAX_AREA / (b.w * b.h)));
     const cv = document.createElement('canvas');
     cv.width = Math.ceil(b.w * scale);
     cv.height = Math.ceil(b.h * scale);
     const ctx = cv.getContext('2d');
-    ctx.fillStyle = this.theme.bg;
-    ctx.fillRect(0, 0, cv.width, cv.height);
+    if (!transparent) {
+      ctx.fillStyle = this.theme.bg;
+      ctx.fillRect(0, 0, cv.width, cv.height);
+    }
     ctx.setTransform(scale, 0, 0, scale, -b.x0 * scale, -b.y0 * scale);
 
     // edges
@@ -1386,9 +1638,24 @@ export class Diagram {
     for (const a of this.annotations) if (a.type === 'note') this._drawNote(a, all);
     this.ctx = saved;
     this.cam = savedCam;
-    return cv.toDataURL('image/png');
+    return cv;
+  }
+
+  // PNG as a Blob (null when the diagram is empty)
+  exportPNGBlob(scale = 2, opts) {
+    const cv = this.renderExport(scale, opts);
+    if (!cv) return Promise.resolve(null);
+    return new Promise((resolve) => cv.toBlob(resolve, 'image/png'));
+  }
+
+  exportPNG(scale = 2, opts) {
+    const cv = this.renderExport(scale, opts);
+    return cv ? cv.toDataURL('image/png') : null;
   }
 }
+
+const easeOut = (u) => 1 - Math.pow(1 - u, 3);
+const easeInOut = (u) => (u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2);
 
 function dot(ctx, x, y, r) {
   ctx.beginPath();
@@ -1401,9 +1668,9 @@ function dot(ctx, x, y, r) {
 //   from here, -1 if -x. `s` = world-units-per-screen-pixel (1/scale).
 //   kind ∈ 'one' | 'many' | 'zero-or-one' | 'zero-or-many'. lw = line width.
 function drawMarker(ctx, x, y, dir, kind, s, lw) {
-  const foot = 11 * s;     // distance from edge to crow's-foot apex / bar tick
-  const spread = 5.5 * s;  // half-height of the foot / bar
-  const r = 3.2 * s;       // optionality ("zero") ring radius
+  const foot = 9 * s;      // distance from edge to crow's-foot apex / bar tick
+  const spread = 4.5 * s;  // half-height of the foot / bar
+  const r = 2.8 * s;       // optionality ("zero") ring radius
   const many = kind === 'many' || kind === 'zero-or-many';
   const optional = kind === 'zero-or-one' || kind === 'zero-or-many';
   ctx.lineWidth = lw;

@@ -68,6 +68,15 @@ function splitTopCommas(body, base) {
   return parts;
 }
 
+// The values of every '…' literal in a fragment ('' and \' unescaped).
+function sqlStrings(text) {
+  const out = [];
+  const re = /'((?:[^'\\]|\\.|'')*)'/g;
+  let m;
+  while ((m = re.exec(text)) !== null) out.push(m[1].replace(/''/g, "'").replace(/\\(.)/g, '$1'));
+  return out;
+}
+
 function clean(id) {
   if (!id) return id;
   id = id.trim();
@@ -147,6 +156,14 @@ export function parseSchema(sql) {
   const tables = new Map();   // lowerName -> table object
   const relations = [];
   const errors = [];
+  // Non-fatal problems, each with a [start, end) span into the original SQL so
+  // the editor can underline it and jump to it: [{ message, start, end }]
+  const warnings = [];
+  const headSpan = (base, stmt, idx) => {
+    // the first line of the statement, from its CREATE keyword
+    const nl = stmt.indexOf('\n', idx);
+    return [base + idx, base + (nl < 0 ? stmt.length : nl)];
+  };
 
   const ensureTable = (name, nameSpan) => {
     const key = name.toLowerCase();
@@ -158,17 +175,47 @@ export function parseSchema(sql) {
     return tables.get(key);
   };
 
+  const enums = {};           // lower type name -> [values]  (CREATE TYPE … AS ENUM)
+  const pendingComments = []; // COMMENT ON … may precede or follow its CREATE
+  const pendingIndexes = [];
+
   for (const st of statements) {
     const stmt = st.text;
     const base = st.start;
     if (!stmt.trim()) continue;
+
+    // CREATE TYPE mood AS ENUM ('sad', 'ok')
+    const em = stmt.match(/create\s+type\s+(\S+)\s+as\s+enum\s*\(([\s\S]*)\)/i);
+    if (em) { enums[bareName(em[1]).toLowerCase()] = sqlStrings(em[2]); continue; }
+
+    // COMMENT ON TABLE t IS '…' / COMMENT ON COLUMN t.c IS '…'
+    const cmm = stmt.match(/comment\s+on\s+(table|column)\s+(\S+)\s+is\s+('(?:[^']|'')*')/i);
+    if (cmm) {
+      const parts = cmm[2].split('.').map(clean);
+      const text = sqlStrings(cmm[3])[0] || '';
+      if (cmm[1].toLowerCase() === 'table') pendingComments.push({ table: parts[parts.length - 1], text });
+      else if (parts.length >= 2) pendingComments.push({ table: parts[parts.length - 2], column: parts[parts.length - 1], text });
+      continue;
+    }
+
+    // CREATE [UNIQUE] INDEX [name] ON t [USING x] (a, b)
+    const im = stmt.match(/create\s+(unique\s+)?(?:clustered\s+|nonclustered\s+)?index\s+(?:concurrently\s+)?(?:if\s+not\s+exists\s+)?(?:(\S+)\s+)?on\s+(?:only\s+)?([^\s(]+)\s*(?:using\s+\w+\s*)?\(([^)]*)\)/i);
+    if (im) {
+      pendingIndexes.push({ table: bareName(im[3]), name: im[2] ? bareName(im[2]) : '', unique: !!im[1], cols: parseColumnsFromParen('(' + im[4] + ')') });
+      continue;
+    }
 
     const cm = stmt.match(CREATE_RE);
     if (cm) {
       const afterStart = cm.index + cm[0].length;
       const after = stmt.slice(afterStart);
       const open = after.indexOf('(');
-      if (open < 0) continue;
+      if (open < 0) {
+        const [ws, we] = headSpan(base, stmt, cm.index);
+        const what = /\b(as\s+select|like)\b/i.test(after) ? 'has no column list (CREATE TABLE … AS / LIKE)' : 'has no column list';
+        warnings.push({ message: `Skipped a CREATE TABLE that ${what}`, start: ws, end: we });
+        continue;
+      }
       // table name token sits between afterStart and the '('
       const nameRegion = after.slice(0, open);
       const rawNameMatch = nameRegion.match(/(\S+)/);
@@ -187,13 +234,27 @@ export function parseSchema(sql) {
         if (after[i] === '(') depth++;
         if (after[i] === ')') { depth--; if (depth === 0) { end = i; break; } }
       }
-      if (end < 0) { errors.push(`Unbalanced parens in table "${name}"`); continue; }
+      if (end < 0) {
+        errors.push(`Unbalanced parens in table "${name}"`);
+        const [ws, we] = headSpan(base, stmt, cm.index);
+        warnings.push({ message: `Skipped "${name}": its column list is missing a closing ")"`, start: ws, end: we });
+        continue;
+      }
+      if (tables.has(name.toLowerCase()) && tables.get(name.toLowerCase()).bodySpan) {
+        warnings.push({ message: `"${name}" is defined more than once — the definitions were merged`, start: nameSpan[0], end: nameSpan[1] });
+      }
       const bodyLocal = afterStart + open + 1;
       const body = after.slice(open + 1, end);
       const table = ensureTable(name, nameSpan);
       table.bodySpan = [base + bodyLocal, base + afterStart + end];
       table.stmtSpan = [base + cm.index, base + stmt.length];   // CREATE … (sans ';')
       parseTableBody(body, base + bodyLocal, table, relations);
+      // MySQL: ) ENGINE=… COMMENT='table comment'
+      const tcm = after.slice(end + 1).match(/\bcomment\s*=?\s*('(?:[^'\\]|\\.|'')*')/i);
+      if (tcm) table.comment = sqlStrings(tcm[1])[0] || '';
+      if (!table.columns.length) {
+        warnings.push({ message: `"${name}" has no columns that could be read`, start: nameSpan[0], end: nameSpan[1] });
+      }
       continue;
     }
 
@@ -205,7 +266,36 @@ export function parseSchema(sql) {
       const tail = stmt.slice(am.index + am[0].length);
       const tailBase = base + am.index + am[0].length;
       const rel = parseForeignKey(tail, tailBase, t);
-      if (rel) relations.push(rel);
+      if (rel) { relations.push(rel); continue; }
+      // ALTER TABLE x ADD [CONSTRAINT y] PRIMARY KEY (a, b) | UNIQUE (a) — how
+      // pg_dump (and many migration tools) declare keys, after the CREATE
+      const km = tail.match(/^(?:constraint\s+\S+\s+)?(primary\s+key|unique)\s*(?:(?:non)?clustered\s*)?\(([^)]*)\)/id);
+      const target = km && tables.get(t.toLowerCase());
+      if (target) {
+        const flag = /^primary/i.test(km[1]) ? 'pk' : 'unique';
+        for (const ref of colSpans(km[2], tailBase + km.indices[2][0])) {
+          const col = target.colIndex.get(ref.name);
+          if (col) col[flag] = true;
+          target.colRefs.push(ref);
+        }
+      }
+    }
+  }
+
+  for (const c of pendingComments) {
+    const t = tables.get(c.table.toLowerCase());
+    if (!t) continue;
+    if (!c.column) t.comment = c.text;
+    else { const col = t.colIndex.get(c.column.toLowerCase()); if (col) col.comment = c.text; }
+  }
+  for (const ix of pendingIndexes) {
+    const t = tables.get(ix.table.toLowerCase());
+    if (!t) continue;
+    for (const name of ix.cols) {
+      const col = t.colIndex.get(String(name).split(/\s/)[0].toLowerCase());   // "col DESC" -> col
+      if (!col) continue;
+      (col.indexes = col.indexes || []).push(ix.name || (ix.unique ? 'unique index' : 'index'));
+      if (ix.unique && ix.cols.length === 1) col.unique = true;
     }
   }
 
@@ -216,6 +306,13 @@ export function parseSchema(sql) {
     const from = tables.get(r.fromTable.toLowerCase());
     const to = tables.get(r.toTable.toLowerCase());
     if (!from) continue;
+    if (!to) {
+      const span = r.refSpan || from.nameSpan || [0, 0];
+      warnings.push({
+        message: `${from.name}.${r.fromCols[0] || '?'} references "${r.toTable}", which isn't defined here`,
+        start: span[0], end: span[1],
+      });
+    }
     for (const c of r.fromCols) {
       const col = from.colIndex.get(c.toLowerCase());
       if (col) col.fk = true;
@@ -230,7 +327,8 @@ export function parseSchema(sql) {
     });
   }
 
-  return { tables: tableList, relations: resolved, errors, sql: original };
+  warnings.sort((a, b) => a.start - b.start);
+  return { tables: tableList, relations: resolved, errors, warnings, enums, sql: original };
 }
 
 function parseTableBody(body, base, table, relations) {
@@ -264,8 +362,17 @@ function parseTableBody(body, base, table, relations) {
       }
       continue;
     }
-    if (head === 'key' || head === 'index' || head === 'check' ||
-        head === 'fulltext' || head === 'spatial') continue;
+    if (head === 'key' || head === 'index') {            // MySQL: KEY idx_name (a, b)
+      const grp = tokens.find(t => t.text.startsWith('('));
+      const idxName = tokens[1] && !tokens[1].text.startsWith('(') ? bareName(tokens[1].text) : 'index';
+      if (grp) for (const ref of colSpans(grp.text.slice(1, -1), grp.start + 1)) {
+        const col = table.colIndex.get(ref.name);
+        if (col) (col.indexes = col.indexes || []).push(idxName);
+        table.colRefs.push(ref);
+      }
+      continue;
+    }
+    if (head === 'check' || head === 'fulltext' || head === 'spatial') continue;
 
     // column definition
     const nameTok = tokens[0];
@@ -278,14 +385,28 @@ function parseTableBody(body, base, table, relations) {
     let type = '', typeSpan = null;
     if (tokens[1] && !/^\(/.test(tokens[1].text)) {
       const t1 = tokens[1];
+      const low = (i) => (tokens[i] ? tokens[i].text.toLowerCase() : '');
       type = clean(t1.text);
-      typeSpan = [t1.start, t1.end];
-      if (tokens[2] && tokens[2].text.startsWith('(')) { // e.g. varchar (255)
-        type += tokens[2].text;
-        typeSpan = [t1.start, tokens[2].end];
+      let last = 1;                                      // index of the type's final token
+      // two-word type names (pg_dump spells these out): character varying, double precision…
+      if ((/^(character|char|bit|nchar)$/.test(low(1)) && low(2) === 'varying') ||
+          (low(1) === 'double' && low(2) === 'precision')) {
+        type += ' ' + tokens[2].text;
+        last = 2;
+      }
+      if (tokens[last + 1] && tokens[last + 1].text.startsWith('(')) { // e.g. varchar (255)
+        type += tokens[last + 1].text;
+        last += 1;
       } else if (t1.text.includes('(')) {
         type = t1.text;
       }
+      // timestamp / time [(p)] with|without time zone
+      if (/^(timestamp|time)\b/.test(low(1)) && /^(with|without)$/.test(low(last + 1)) &&
+          low(last + 2) === 'time' && low(last + 3) === 'zone') {
+        type += ` ${low(last + 1)} time zone`;
+        last += 3;
+      }
+      typeSpan = [t1.start, tokens[last].end];
     }
 
     const rest = item.toLowerCase();
@@ -301,6 +422,10 @@ function parseTableBody(body, base, table, relations) {
       typeSpan,
       defSpan: [part.start, part.start + item.length],   // full "name type …" segment
     };
+    const ccm = item.match(/\bcomment\s+('(?:[^'\\]|\\.|'')*')/i);   // MySQL inline COMMENT '…'
+    if (ccm) col.comment = sqlStrings(ccm[1])[0] || '';
+    const dfm = item.match(/\bdefault\s+('(?:[^'\\]|\\.|'')*'|[^\s,(]+(?:\([^)]*\))?)/i);
+    if (dfm) col.default = dfm[1];
     table.columns.push(col);
     table.colIndex.set(colName.toLowerCase(), col);
 
@@ -352,7 +477,10 @@ function parseForeignKey(text, base, fromTable) {
 
 function prettyType(t) {
   if (!t) return '';
-  const m = t.match(/^([a-zA-Z_]+)(.*)$/s);
+  // one space between words (character varying), none around ( ) , — and keep
+  // the case of anything after the type name (enum values etc.)
+  t = t.replace(/\s+/g, ' ').replace(/\s*([(),])\s*/g, '$1').replace(/\)(?=\w)/g, ') ').trim();
+  const m = t.match(/^([a-zA-Z_ ]+)(.*)$/s);
   if (!m) return t.toLowerCase();
-  return m[1].toLowerCase() + (m[2] || '').replace(/\s+/g, '');
+  return m[1].toLowerCase() + (m[2] || '');
 }
