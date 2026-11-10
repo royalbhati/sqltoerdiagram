@@ -32,3 +32,12 @@ class Book(TimeStamped):
 
     def __str__(self):
         return self.title
+
+
+class Publisher(models.Model):
+    name = models.CharField(max_length=120)
+    books = models.ManyToManyField(Book)
+
+    class Meta:
+        db_table = "pub_publisher"
+        ordering = ["name"]

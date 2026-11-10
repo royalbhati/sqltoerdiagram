@@ -57,7 +57,7 @@ export function detectFormat(text) {
   if (/@startuml\b/.test(t) || (/\b(entity|class)\s+("?\w)/.test(t) && /\|\|--|\}o|--\{|<<PK>>/.test(t))) return 'plantuml';
   if (/^\s*Table\s+[^\s{]+\s*\{/m.test(t) || /^\s*Ref\b[^:]*:/m.test(t)) return 'dbml';
   if (/^\s*model\s+\w+\s*\{/m.test(t) || /\b(datasource|generator)\s+\w+\s*\{/.test(t)) return 'prisma';
-  if (/@Entity\s*\(/.test(t) && /@(Column|PrimaryGeneratedColumn|PrimaryColumn)\s*\(/.test(t)) return 'typeorm';
+  if ((/@Entity\s*\(/.test(t) && /@(Column|PrimaryGeneratedColumn|PrimaryColumn)\s*\(/.test(t)) || /new\s+EntitySchema\b/.test(t)) return 'typeorm';
   if (/\bmodels\.Model\b/.test(t) && /\bmodels\.(\w+Field|ForeignKey)\s*\(/.test(t)) return 'django';
   if (/\.define\s*\(\s*['"]/.test(t) || (/DataTypes\./.test(t) && /\.init\s*\(/.test(t))) return 'sequelize';
   if (/\bColumn\s*\(|mapped_column\s*\(/.test(t) && /\b(Base|db\.Model|DeclarativeBase|declarative_base|__tablename__)\b/.test(t)) return 'sqlalchemy';

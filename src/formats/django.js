@@ -10,9 +10,11 @@
 // Follows Django's own rules where they shape the diagram: an implicit `id`
 // primary key unless a field sets primary_key=True; ForeignKey / OneToOneField
 // become an `<name>_id` column + relation; ManyToManyField becomes a junction
-// table; fields of abstract base models are inherited. Tables are named after
-// the model class (not `app_model`). Python isn't fully parsed — dynamic or
-// unusual code may be missed.
+// table; fields of abstract base models are inherited. A table takes its name
+// from `class Meta: db_table = "…"` when the model sets one, otherwise from the
+// model class (Django's default `app_model` name needs the app label, which a
+// models.py doesn't contain). Python isn't fully parsed — dynamic or unusual
+// code may be missed.
 import { makeTable, addColumn, finalize, balanced, splitTopCommas } from './util.js';
 
 const REL = new Set(['ForeignKey', 'OneToOneField', 'ManyToManyField']);
@@ -60,7 +62,8 @@ export function parseDjango(src) {
     }
     const bases = m[2].split(',').map((s) => s.trim().split('.').pop()).filter(Boolean);
     const abstract = /class\s+Meta\b[\s\S]*?\babstract\s*=\s*True/.test(body);
-    if (fields.length || bases.includes('Model') || abstract) models.push({ name: m[1], bases, fields, abstract });
+    const dbTable = (body.match(/class\s+Meta\b[\s\S]*?\bdb_table\s*=\s*['"]([^'"]+)['"]/) || [])[1] || '';
+    if (fields.length || bases.includes('Model') || abstract) models.push({ name: m[1], bases, fields, abstract, dbTable });
   }
 
   const byName = new Map(models.map((x) => [x.name, x]));
@@ -78,7 +81,7 @@ export function parseDjango(src) {
   for (const model of models) {
     if (model.abstract || !isModel(model)) continue;
     const fields = allFields(model);
-    const table = makeTable(model.name);
+    const table = makeTable(model.dbTable || model.name);
     if (!fields.some((f) => isTrue(f.args, 'primary_key'))) addColumn(table, { name: 'id', type: 'bigint', pk: true, nn: true });
     for (const f of fields) {
       const first = (splitTopCommas(f.args)[0] || '').trim();
@@ -89,7 +92,7 @@ export function parseDjango(src) {
         if (f.kind === 'ManyToManyField') { junctions.push({ from: model.name, field: f.name, to, through: kw(f.args, 'through') }); continue; }
         const col = kw(f.args, 'db_column') || `${f.name}_id`;
         addColumn(table, { name: col, type: 'bigint', pk: isTrue(f.args, 'primary_key'), nn: !isTrue(f.args, 'null'), unique: f.kind === 'OneToOneField' || isTrue(f.args, 'unique') });
-        rels.push({ fromTable: model.name, fromCols: [col], toTable: to, toCols: [null] });
+        rels.push({ fromTable: table.name, fromCols: [col], toModel: to, toCols: [null] });
         continue;
       }
       let type = TYPES[f.kind] || f.kind.replace(/Field$/, '').toLowerCase();
@@ -104,17 +107,19 @@ export function parseDjango(src) {
   }
 
   const pkOf = (name) => { const t = tableOf.get(name); const pk = t && t.columns.find((c) => c.pk); return pk ? pk.name : 'id'; };
-  for (const r of rels) r.toCols = [pkOf(r.toTable)];
+  // relations were recorded by model name; the diagram links tables
+  const nameOf = (model) => (tableOf.get(model) ? tableOf.get(model).name : model);
+  for (const r of rels) { r.toCols = [pkOf(r.toModel)]; r.toTable = nameOf(r.toModel); }
   for (const j of junctions) {
     if (j.through || !j.to) continue;                              // an explicit through model is already a table
-    const t = makeTable(`${snake(j.from)}_${j.field}`);
+    const t = makeTable(`${byName.get(j.from).dbTable || snake(j.from)}_${j.field}`);
     const a = `${snake(j.from)}_id`, b = j.to === j.from ? `to_${snake(j.to)}_id` : `${snake(j.to)}_id`;
     addColumn(t, { name: 'id', type: 'bigint', pk: true, nn: true });
     addColumn(t, { name: a, type: 'bigint', nn: true });
     addColumn(t, { name: b, type: 'bigint', nn: true });
     tables.push(t);
-    rels.push({ fromTable: t.name, fromCols: [a], toTable: j.from, toCols: [pkOf(j.from)] });
-    rels.push({ fromTable: t.name, fromCols: [b], toTable: j.to, toCols: [pkOf(j.to)] });
+    rels.push({ fromTable: t.name, fromCols: [a], toTable: nameOf(j.from), toCols: [pkOf(j.from)] });
+    rels.push({ fromTable: t.name, fromCols: [b], toTable: nameOf(j.to), toCols: [pkOf(j.to)] });
   }
   return finalize(tables, rels);
 }

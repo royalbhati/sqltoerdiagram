@@ -10,9 +10,15 @@
 //
 // Owning-side relations (@ManyToOne, and @OneToOne with @JoinColumn) become a
 // foreign-key column + relation; @ManyToMany with @JoinTable becomes a
-// junction table. Tables are named after the entity class. TypeScript isn't
-// fully parsed — EntitySchema objects and unusual code may be missed.
-import { makeTable, addColumn, finalize, balanced } from './util.js';
+// junction table. Tables are named after the entity class.
+//
+// EntitySchema definitions are read too:
+//
+//   new EntitySchema({ name: 'User', columns: { id: { type: Number, primary: true, generated: true } },
+//                      relations: { team: { type: 'many-to-one', target: 'Team', joinColumn: true } } })
+//
+// TypeScript isn't fully parsed — unusual or computed code may be missed.
+import { makeTable, addColumn, finalize, balanced, splitTopCommas } from './util.js';
 
 const TS_TYPES = { string: 'varchar', number: 'int', boolean: 'boolean', Date: 'timestamp', bigint: 'bigint', Buffer: 'bytea' };
 const DATE_COLS = new Set(['CreateDateColumn', 'UpdateDateColumn', 'DeleteDateColumn']);
@@ -22,6 +28,20 @@ const firstString = (args) => { const m = args.match(/^\s*['"`]([^'"`]+)['"`]/);
 const opt = (args, key) => { const m = args.match(new RegExp(`\\b${key}\\s*:\\s*(?:['"\`]([^'"\`]*)['"\`]|([\\w.]+))`)); return m ? (m[1] ?? m[2]) : ''; };
 // () => Target | type => Target | 'Target'
 const target = (args) => { const m = args.match(/=>\s*([A-Za-z_]\w*)/) || args.match(/^\s*['"`]([A-Za-z_]\w*)['"`]/); return m ? m[1] : ''; };
+
+// ---- object-literal helpers (EntitySchema) ----
+const unquote = (s) => String(s).trim().replace(/^['"`]|['"`]$/g, '');
+// the text between an object literal's braces ('' if it isn't one)
+const inner = (raw) => { const s = String(raw || '').trim(); return s.startsWith('{') && s.endsWith('}') ? s.slice(1, -1) : ''; };
+// top-level `key: value` pairs of an object literal's inner text
+function props(objInner) {
+  const out = new Map();
+  for (const part of splitTopCommas(objInner)) {
+    const m = part.match(/^\s*['"`]?([A-Za-z_$][\w$]*)['"`]?\s*:\s*([\s\S]*)$/);
+    if (m) out.set(m[1], m[2].trim());
+  }
+  return out;
+}
 
 // Walk a class body: each member is its decorators + "name: Type".
 function members(body) {
@@ -104,6 +124,44 @@ export function parseTypeORM(src) {
       }
       const m2m = deco('ManyToMany'), jt = deco('JoinTable');
       if (m2m && jt) junctions.push({ from: name, prop: mem.name, to: target(m2m.args), name: opt(jt.args, 'name') });
+    }
+  }
+
+  // ---- EntitySchema objects ----
+  const schemaRe = /new\s+EntitySchema\s*(?:<[^>(]*>)?\s*\(/g;
+  while ((m = schemaRe.exec(text))) {
+    const b = balanced(text, m.index + m[0].length - 1, '{', '}');
+    if (!b) continue;
+    schemaRe.lastIndex = b[2];
+    const top = props(text.slice(b[0], b[1]));
+    const name = unquote(top.get('name') || '');
+    if (!name) continue;
+    const table = makeTable(name);
+    tables.push(table);
+    for (const [col, raw] of props(inner(top.get('columns')))) {
+      const o = props(inner(raw));
+      const rawType = unquote(o.get('type') || '');
+      let type = TS_TYPES[rawType[0] ? rawType[0].toLowerCase() + rawType.slice(1) : ''] || TS_TYPES[rawType] || rawType;
+      const gen = unquote(o.get('generated') || '');
+      if (gen === 'uuid') type = 'uuid';
+      const len = o.get('length'), prec = o.get('precision'), scale = o.get('scale');
+      if (len) type += `(${unquote(len)})`;
+      else if (prec) type += `(${prec}${scale ? ',' + scale : ''})`;
+      const pk = o.get('primary') === 'true';
+      addColumn(table, { name: col, type, pk, nn: pk || o.get('nullable') !== 'true', unique: o.get('unique') === 'true' });
+    }
+    for (const [prop, raw] of props(inner(top.get('relations')))) {
+      const o = props(inner(raw));
+      const kind = unquote(o.get('type') || '');
+      const to = target(o.get('target') || '') || unquote(o.get('target') || '');
+      const jc = o.get('joinColumn'), jt = o.get('joinTable');
+      if (kind === 'many-to-one' || (kind === 'one-to-one' && jc && jc !== 'false')) {
+        const fk = unquote(props(inner(jc)).get('name') || '') || `${prop}Id`;
+        if (!table.colIndex.has(fk.toLowerCase())) addColumn(table, { name: fk, type: 'int', nn: o.get('nullable') === 'false', unique: kind === 'one-to-one' });
+        if (to) rels.push({ fromTable: name, fromCols: [fk], toTable: to, toCols: [null] });
+      } else if (kind === 'many-to-many' && jt && jt !== 'false') {
+        junctions.push({ from: name, prop, to, name: unquote(props(inner(jt)).get('name') || '') });
+      }
     }
   }
 

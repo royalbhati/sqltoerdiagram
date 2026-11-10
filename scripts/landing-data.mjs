@@ -400,7 +400,7 @@ export class Post {
     badges: ['TypeORM', 'SQL', 'Prisma', 'Sequelize'],
     faq: [
       { q: 'How do I get an ER diagram from TypeORM?', a: 'Paste your entity classes into the editor. Every class marked <code>@Entity</code> becomes a table, its <code>@Column</code> properties become columns, and its relations become foreign keys.' },
-      { q: 'Which TypeORM features are read?', a: 'Decorator-style entities: <code>@Entity</code>, <code>@PrimaryGeneratedColumn</code>, <code>@PrimaryColumn</code>, <code>@Column</code>, the date and version columns, <code>@ManyToOne</code>, <code>@OneToOne</code> with <code>@JoinColumn</code>, and <code>@ManyToMany</code> with <code>@JoinTable</code>. <code>EntitySchema</code> objects are not read; for those, or for exact database types, paste the SQL from <code>typeorm migration:generate</code> instead.' },
+      { q: 'Which TypeORM features are read?', a: 'Decorator-style entities: <code>@Entity</code>, <code>@PrimaryGeneratedColumn</code>, <code>@PrimaryColumn</code>, <code>@Column</code>, the date and version columns, <code>@ManyToOne</code>, <code>@OneToOne</code> with <code>@JoinColumn</code>, and <code>@ManyToMany</code> with <code>@JoinTable</code>. <code>EntitySchema</code> definitions are read too. For exact database types, paste the SQL from <code>typeorm migration:generate</code> instead.' },
       FAQ_PRIVATE, FAQ_FREE,
     ],
     related: [R.sequelize, R.prisma, R.postgresql, R.sqlalchemy, R.home],
@@ -434,7 +434,7 @@ class Post(models.Model):
     faq: [
       { q: 'How do I make an ER diagram from Django models?', a: 'Paste your <code>models.py</code> into the editor. Each model becomes a table, and <code>ForeignKey</code>, <code>OneToOneField</code> and <code>ManyToManyField</code> become relations.' },
       { q: 'Can I see all apps at once?', a: 'Yes. Paste the models from several apps together — relations written as <code>"app.Model"</code> are linked by the model name.' },
-      { q: 'Are the table names the real database names?', a: 'Tables are labelled with the model class name (<code>Post</code>), not Django’s <code>app_post</code> database name. For the exact tables, paste the output of <code>python manage.py sqlmigrate yourapp 0001</code> instead.' },
+      { q: 'Are the table names the real database names?', a: 'A model that sets <code>db_table</code> in its <code>Meta</code> is shown under that name. Otherwise the table is labelled with the model class name (<code>Post</code>), because Django’s default <code>app_post</code> name depends on the app label, which <code>models.py</code> doesn’t contain. For the exact tables, paste the output of <code>python manage.py sqlmigrate yourapp 0001</code> instead.' },
       FAQ_PRIVATE, FAQ_FREE,
     ],
     related: [R.sqlalchemy, R.postgresql, R.prisma, R.mysql, R.home],
@@ -1129,7 +1129,7 @@ export const GLANCE = {
   mermaid: { thing: 'a Mermaid <code>erDiagram</code>', input: 'A Mermaid <code>erDiagram</code> block.' },
   sqlalchemy: { thing: 'SQLAlchemy models', input: 'SQLAlchemy declarative model classes (Python source).' },
   sequelize: { thing: 'Sequelize models', input: 'Sequelize model definitions (JavaScript source).' },
-  typeorm: { thing: 'TypeORM entities', input: 'Decorator-style TypeORM entity classes (<code>@Entity</code>, <code>@Column</code>, <code>@ManyToOne</code>, <code>@ManyToMany</code>…), or the SQL TypeORM generates from them. <code>EntitySchema</code> objects are not read.' },
+  typeorm: { thing: 'TypeORM entities', input: 'Decorator-style TypeORM entity classes (<code>@Entity</code>, <code>@Column</code>, <code>@ManyToOne</code>, <code>@ManyToMany</code>…), <code>EntitySchema</code> definitions, or the SQL TypeORM generates from them.' },
   django: { thing: 'Django models', input: 'A Django <code>models.py</code> (fields, <code>ForeignKey</code>, <code>OneToOneField</code>, <code>ManyToManyField</code>, abstract base models), or the SQL that <code>sqlmigrate</code> prints.' },
   'sql-to-mermaid': { thing: 'SQL <code>CREATE TABLE</code> statements', input: SQL_CONVERT_IN, outThing: 'a Mermaid <code>erDiagram</code>', output: 'Mermaid <code>erDiagram</code> code to copy, alongside a live interactive diagram.' },
   'prisma-to-dbml': { thing: 'a Prisma schema', input: 'A Prisma schema: the contents of <code>schema.prisma</code>.', outThing: 'DBML', output: 'DBML code to copy, alongside a live interactive diagram.' },

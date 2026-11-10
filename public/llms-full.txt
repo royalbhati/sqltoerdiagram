@@ -821,7 +821,7 @@ URL: https://sqltoerdiagram.com/typeorm/
 
 Visualize your **TypeORM** entities as an interactive ER diagram. Paste the entity classes as they are — `@Entity`, `@Column`, `@ManyToOne` and `@ManyToMany` are read directly — or paste the SQL TypeORM generates if you want every database-level detail.
 
-- Input: Decorator-style TypeORM entity classes (`@Entity`, `@Column`, `@ManyToOne`, `@ManyToMany`…), or the SQL TypeORM generates from them. `EntitySchema` objects are not read.
+- Input: Decorator-style TypeORM entity classes (`@Entity`, `@Column`, `@ManyToOne`, `@ManyToMany`…), `EntitySchema` definitions, or the SQL TypeORM generates from them.
 - Output: An interactive ER diagram you can rearrange, then export as PNG, SVG, Mermaid, DBML or PlantUML, or share as a link.
 
 #### Steps
@@ -880,7 +880,7 @@ A: Paste your entity classes into the editor. Every class marked `@Entity` becom
 
 **Q: Which TypeORM features are read?**
 
-A: Decorator-style entities: `@Entity`, `@PrimaryGeneratedColumn`, `@PrimaryColumn`, `@Column`, the date and version columns, `@ManyToOne`, `@OneToOne` with `@JoinColumn`, and `@ManyToMany` with `@JoinTable`. `EntitySchema` objects are not read; for those, or for exact database types, paste the SQL from `typeorm migration:generate` instead.
+A: Decorator-style entities: `@Entity`, `@PrimaryGeneratedColumn`, `@PrimaryColumn`, `@Column`, the date and version columns, `@ManyToOne`, `@OneToOne` with `@JoinColumn`, and `@ManyToMany` with `@JoinTable`. `EntitySchema` definitions are read too. For exact database types, paste the SQL from `typeorm migration:generate` instead.
 
 ### Django Models to ER Diagram
 
@@ -941,7 +941,7 @@ A: Yes. Paste the models from several apps together — relations written as `"a
 
 **Q: Are the table names the real database names?**
 
-A: Tables are labelled with the model class name (`Post`), not Django’s `app_post` database name. For the exact tables, paste the output of `python manage.py sqlmigrate yourapp 0001` instead.
+A: A model that sets `db_table` in its `Meta` is shown under that name. Otherwise the table is labelled with the model class name (`Post`), because Django’s default `app_post` name depends on the app label, which `models.py` doesn’t contain. For the exact tables, paste the output of `python manage.py sqlmigrate yourapp 0001` instead.
 
 ## Converters
 

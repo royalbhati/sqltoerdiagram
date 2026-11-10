@@ -91,6 +91,21 @@
         ]
       },
       {
+        "name": "pub_publisher",
+        "columns": [
+          "id | bigint | pk notnull",
+          "name | varchar(120) | notnull"
+        ]
+      },
+      {
+        "name": "pub_publisher_books",
+        "columns": [
+          "id | bigint | pk notnull",
+          "publisher_id | bigint | fk notnull",
+          "book_id | bigint | fk notnull"
+        ]
+      },
+      {
         "name": "Tag",
         "columns": [
           "slug | varchar | pk notnull"
@@ -102,7 +117,9 @@
       "Book(editor_id) -> Author(id)",
       "Book(sequel_of_id) -> Book(id)",
       "book_tags(book_id) -> Book(id)",
-      "book_tags(tag_id) -> Tag(slug)"
+      "book_tags(tag_id) -> Tag(slug)",
+      "pub_publisher_books(book_id) -> Book(id)",
+      "pub_publisher_books(publisher_id) -> pub_publisher(id)"
     ],
     "warnings": []
   },
@@ -152,6 +169,48 @@
     ],
     "relations": [
       "User(profileId) -> Profile(id)",
+      "User(team_id) -> Team(id)",
+      "user_tags_tag(tagId) -> Tag(id)",
+      "user_tags_tag(userId) -> User(id)"
+    ],
+    "warnings": []
+  },
+  "entity_schema.js": {
+    "format": "typeorm",
+    "tables": [
+      {
+        "name": "Tag",
+        "columns": [
+          "id | int | pk notnull",
+          "label | varchar | notnull"
+        ]
+      },
+      {
+        "name": "Team",
+        "columns": [
+          "id | int | pk notnull",
+          "name | varchar(80) | unique notnull"
+        ]
+      },
+      {
+        "name": "User",
+        "columns": [
+          "id | uuid | pk notnull",
+          "email | varchar | unique notnull",
+          "bio | text",
+          "createdAt | timestamp | notnull",
+          "team_id | int | fk notnull"
+        ]
+      },
+      {
+        "name": "user_tags_tag",
+        "columns": [
+          "userId | int | pk fk notnull",
+          "tagId | int | pk fk notnull"
+        ]
+      }
+    ],
+    "relations": [
       "User(team_id) -> Team(id)",
       "user_tags_tag(tagId) -> Tag(id)",
       "user_tags_tag(userId) -> User(id)"

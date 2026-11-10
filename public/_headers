@@ -6,6 +6,8 @@
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
 
-# The service worker must always be re-checked so updates roll out.
+# The service worker must always be re-checked so updates roll out. `no-store`
+# (rather than `no-cache`) keeps it out of Cloudflare's edge cache, where the
+# zone's Browser Cache TTL was rewriting the header to a 4-hour max-age.
 /sw.js
-  Cache-Control: no-cache
+  Cache-Control: no-store
