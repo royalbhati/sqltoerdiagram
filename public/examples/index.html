@@ -8,17 +8,24 @@
   <meta name="keywords" content="database schema examples, example er diagrams, sample database design, database schema templates" />
   <link rel="canonical" href="https://sqltoerdiagram.com/examples/" />
   <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="SQL to ER Diagram" />
   <meta property="og:url" content="https://sqltoerdiagram.com/examples/" />
   <meta property="og:title" content="Database Schema Examples — Interactive ER Diagrams" />
   <meta property="og:description" content="A gallery of example database schemas (e-commerce, blog, SaaS, social network, project management, inventory) as interactive ER diagrams you can open and edit for free." />
-  <meta property="og:image" content="https://sqltoerdiagram.com/og.png" />
+  <meta property="og:image" content="https://sqltoerdiagram.com/og/examples.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="ER diagram of the E-commerce example schema: customers, addresses, categories, products, orders, order_items, payments and reviews (8 tables, 10 relationships)" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Database Schema Examples — Interactive ER Diagrams" />
-  <meta name="twitter:image" content="https://sqltoerdiagram.com/og.png" />
+  <meta name="twitter:description" content="A gallery of example database schemas (e-commerce, blog, SaaS, social network, project management, inventory) as interactive ER diagrams you can open and edit for free." />
+  <meta name="twitter:image" content="https://sqltoerdiagram.com/og/examples.png" />
+  <meta name="twitter:image:alt" content="ER diagram of the E-commerce example schema: customers, addresses, categories, products, orders, order_items, payments and reviews (8 tables, 10 relationships)" />
   <link rel="icon" href="/favicon.ico" sizes="any" />
   <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <script defer src="https://cloud.umami.is/script.js" data-website-id="27b5b4ba-93ad-4ef3-aaa0-af516881d308" data-exclude-hash="true"></script>
   <script type="application/ld+json">
-  {"@context":"https://schema.org","@type":"ItemList","itemListElement":[{"@type":"ListItem","position":1,"name":"E-commerce schema","url":"https://sqltoerdiagram.com/examples/ecommerce/"},{"@type":"ListItem","position":2,"name":"Blog / CMS schema","url":"https://sqltoerdiagram.com/examples/blog/"},{"@type":"ListItem","position":3,"name":"SaaS (multi-tenant) schema","url":"https://sqltoerdiagram.com/examples/saas/"},{"@type":"ListItem","position":4,"name":"Social network schema","url":"https://sqltoerdiagram.com/examples/social-network/"},{"@type":"ListItem","position":5,"name":"Project management schema","url":"https://sqltoerdiagram.com/examples/project-management/"},{"@type":"ListItem","position":6,"name":"Inventory / warehouse schema","url":"https://sqltoerdiagram.com/examples/inventory/"}]}
+  {"@context":"https://schema.org","@type":"ItemList","itemListElement":[{"@type":"ListItem","position":1,"name":"E-commerce schema","url":"https://sqltoerdiagram.com/examples/ecommerce/"},{"@type":"ListItem","position":2,"name":"Blog / CMS schema","url":"https://sqltoerdiagram.com/examples/blog/"},{"@type":"ListItem","position":3,"name":"SaaS (multi-tenant) schema","url":"https://sqltoerdiagram.com/examples/saas/"},{"@type":"ListItem","position":4,"name":"Social network schema","url":"https://sqltoerdiagram.com/examples/social-network/"},{"@type":"ListItem","position":5,"name":"Project management schema","url":"https://sqltoerdiagram.com/examples/project-management/"},{"@type":"ListItem","position":6,"name":"Inventory / warehouse schema","url":"https://sqltoerdiagram.com/examples/inventory/"},{"@type":"ListItem","position":7,"name":"CRM schema","url":"https://sqltoerdiagram.com/examples/crm/"},{"@type":"ListItem","position":8,"name":"ERP schema","url":"https://sqltoerdiagram.com/examples/erp/"},{"@type":"ListItem","position":9,"name":"Hospital schema","url":"https://sqltoerdiagram.com/examples/hospital/"},{"@type":"ListItem","position":10,"name":"School / LMS schema","url":"https://sqltoerdiagram.com/examples/school/"}]}
   </script>
   <script type="application/ld+json">
   {"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"SQL to ER Diagram","item":"https://sqltoerdiagram.com/"},{"@type":"ListItem","position":2,"name":"Examples","item":"https://sqltoerdiagram.com/examples/"}]}
@@ -58,11 +65,29 @@
     .badges { display:flex; flex-wrap:wrap; gap:8px; margin:18px 0 0; }
     .badge { font-size:13px; color:#cdd6e0; background:var(--panel); border:1px solid var(--border); border-radius:999px; padding:6px 12px; }
     .related { display:flex; flex-wrap:wrap; gap:8px 18px; }
+    .cols { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:4px 22px; width:100%; }
+    .cols .col h4 { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:14px 0 6px; }
+    .cols .col a { display:block; font-size:14px; padding:2px 0; }
+    .chips { display:flex; flex-wrap:wrap; gap:8px; }
+    .chip { font-size:13px; color:#cdd6e0; background:var(--panel); border:1px solid var(--border); border-radius:999px; padding:4px 12px; font-family:ui-monospace,Menlo,Consolas,monospace; }
     .cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:14px; padding:0; list-style:none; }
     .card { display:block; padding:16px; background:var(--panel); border:1px solid var(--border); border-radius:12px; }
     .card:hover { border-color:var(--accent); text-decoration:none; }
     .card .t { font-weight:600; color:var(--text); margin-bottom:4px; }
     .card .d { font-size:13px; color:var(--muted); }
+    figure.diagram { margin:28px 0 0; }
+    figure.diagram img { display:block; max-width:100%; height:auto; border:1px solid var(--border); border-radius:12px; background:#0e1116; }
+    figcaption { font-size:13px; color:var(--muted); margin-top:8px; }
+    .glance dl { display:grid; grid-template-columns:max-content 1fr; gap:10px 20px; margin:0; }
+    .glance dt { color:var(--muted); font-weight:600; }
+    .glance dd { margin:0; color:#c4ccd6; }
+    @media (max-width:560px) { .glance dl { grid-template-columns:1fr; gap:2px; } .glance dd { margin-bottom:10px; } }
+    .card img { display:block; width:100%; height:130px; object-fit:contain; background:#0e1116; border:1px solid var(--border); border-radius:8px; margin-bottom:12px; }
+    .tablewrap { overflow-x:auto; }
+    table.cmp { border-collapse:collapse; width:100%; font-size:15px; }
+    table.cmp th, table.cmp td { text-align:left; vertical-align:top; padding:10px 12px; border-bottom:1px solid var(--border); color:#c4ccd6; }
+    table.cmp th { color:var(--muted); font-size:13px; text-transform:uppercase; letter-spacing:.06em; }
+    .fine { font-size:13px; color:var(--muted); }
     footer { border-top:1px solid var(--border); padding:26px 0 50px; color:var(--muted); font-size:14px; }
     footer .wrap { display:flex; gap:18px; flex-wrap:wrap; }
   </style>
@@ -86,21 +111,72 @@
       <p class="lead">Ready-made example database schemas — e-commerce, blog, SaaS, social, and more — each as an interactive ER diagram you can open, edit and export.</p>
     </div>
     <section><ul class="cards">
-      <li><a class="card" href="/examples/ecommerce/"><div class="t">E-commerce</div><div class="d">A complete e-commerce database schema example</div></a></li>
-      <li><a class="card" href="/examples/blog/"><div class="t">Blog / CMS</div><div class="d">A blog / CMS database schema example</div></a></li>
-      <li><a class="card" href="/examples/saas/"><div class="t">SaaS (multi-tenant)</div><div class="d">A multi-tenant SaaS database schema example</div></a></li>
-      <li><a class="card" href="/examples/social-network/"><div class="t">Social network</div><div class="d">A social network database schema example</div></a></li>
-      <li><a class="card" href="/examples/project-management/"><div class="t">Project management</div><div class="d">A project management database schema example (Jira-style)</div></a></li>
-      <li><a class="card" href="/examples/inventory/"><div class="t">Inventory / warehouse</div><div class="d">An inventory / warehouse database schema example</div></a></li>
+      <li><a class="card" href="/examples/ecommerce/"><img src="/og/examples-ecommerce.svg" width="1148" height="662" alt="E-commerce schema ER diagram: customers, addresses, categories, products, orders, order_items, payments and reviews" loading="lazy" decoding="async" /><div class="t">E-commerce</div><div class="d">A complete e-commerce database schema example</div></a></li>
+      <li><a class="card" href="/examples/blog/"><img src="/og/examples-blog.svg" width="1125" height="496" alt="Blog / CMS schema ER diagram: users, categories, posts, comments, tags and post_tags" loading="lazy" decoding="async" /><div class="t">Blog / CMS</div><div class="d">A complete blog / CMS database schema example</div></a></li>
+      <li><a class="card" href="/examples/saas/"><img src="/og/examples-saas.svg" width="873" height="587" alt="SaaS (multi-tenant) schema ER diagram: organizations, users, memberships, projects, plans, subscriptions and invoices" loading="lazy" decoding="async" /><div class="t">SaaS (multi-tenant)</div><div class="d">A multi-tenant SaaS database schema example</div></a></li>
+      <li><a class="card" href="/examples/social-network/"><img src="/og/examples-social-network.svg" width="1140" height="642" alt="Social network schema ER diagram: users, follows, posts, likes, comments and messages" loading="lazy" decoding="async" /><div class="t">Social network</div><div class="d">A social network database schema example</div></a></li>
+      <li><a class="card" href="/examples/project-management/"><img src="/og/examples-project-management.svg" width="1117" height="654" alt="Project management schema ER diagram: users, projects, tasks, task_assignees, labels, task_labels and task_comments" loading="lazy" decoding="async" /><div class="t">Project management</div><div class="d">A project management database schema example (Jira-style)</div></a></li>
+      <li><a class="card" href="/examples/inventory/"><img src="/og/examples-inventory.svg" width="899" height="522" alt="Inventory / warehouse schema ER diagram: suppliers, products, warehouses, stock, purchase_orders and purchase_order_items" loading="lazy" decoding="async" /><div class="t">Inventory / warehouse</div><div class="d">An inventory / warehouse database schema example</div></a></li>
+      <li><a class="card" href="/examples/crm/"><img src="/og/examples-crm.svg" width="1181" height="597" alt="CRM schema ER diagram: users, accounts, contacts, leads, opportunities and activities" loading="lazy" decoding="async" /><div class="t">CRM</div><div class="d">A complete CRM database schema example</div></a></li>
+      <li><a class="card" href="/examples/erp/"><img src="/og/examples-erp.svg" width="1460" height="962" alt="ERP schema ER diagram: departments, employees, products, suppliers, customers, purchase_orders, sales_orders, invoices, gl_accounts and ledger_entries" loading="lazy" decoding="async" /><div class="t">ERP</div><div class="d">A complete ERP database schema example</div></a></li>
+      <li><a class="card" href="/examples/hospital/"><img src="/og/examples-hospital.svg" width="1170" height="635" alt="Hospital schema ER diagram: departments, doctors, patients, appointments, rooms, admissions, medications and prescriptions" loading="lazy" decoding="async" /><div class="t">Hospital</div><div class="d">A hospital database schema example</div></a></li>
+      <li><a class="card" href="/examples/school/"><img src="/og/examples-school.svg" width="1117" height="426" alt="School / LMS schema ER diagram: teachers, students, courses, enrollments, assignments and grades" loading="lazy" decoding="async" /><div class="t">School / LMS</div><div class="d">A school / LMS database schema example</div></a></li>
     </ul></section>
   </main>
   <footer>
     <div class="wrap">
-      <a href="/">SQL to ER Diagram</a>
-      <a href="/examples/">Schema examples</a>
-      <a href="https://github.com/royalbhati/sqltoerdiagram" target="_blank" rel="noopener">Open source on GitHub</a>
-      <a href="https://yourbrowsercandoit.com/" target="_blank" rel="noopener">Part of yourbrowsercandoit.com ↗</a>
-      <span>Free · runs in your browser</span>
+      <div class="cols">
+      <div class="col"><h4>Databases</h4>
+        <a href="/mysql/">MySQL</a>
+        <a href="/postgresql/">PostgreSQL</a>
+        <a href="/sqlite/">SQLite</a>
+        <a href="/sql-server/">SQL Server</a>
+        <a href="/oracle/">Oracle</a>
+        <a href="/mariadb/">MariaDB</a>
+        <a href="/snowflake/">Snowflake</a>
+        <a href="/bigquery/">BigQuery</a>
+      </div>
+      <div class="col"><h4>Formats & ORMs</h4>
+        <a href="/prisma/">Prisma</a>
+        <a href="/dbml/">DBML</a>
+        <a href="/mermaid/">Mermaid</a>
+        <a href="/sqlalchemy/">SQLAlchemy</a>
+        <a href="/sequelize/">Sequelize</a>
+        <a href="/typeorm/">TypeORM</a>
+        <a href="/django/">Django</a>
+      </div>
+      <div class="col"><h4>Converters</h4>
+        <a href="/sql-to-mermaid/">SQL to Mermaid</a>
+        <a href="/sql-to-dbml/">SQL to DBML</a>
+        <a href="/sql-to-plantuml/">SQL to PlantUML</a>
+        <a href="/prisma-to-dbml/">Prisma to DBML</a>
+        <a href="/dbml-to-mermaid/">DBML to Mermaid</a>
+        <a href="/ddl-to-er-diagram/">DDL to ER Diagram</a>
+        <a href="/er-diagram-generator/">ER Diagram Generator</a>
+      </div>
+      <div class="col"><h4>Viewers & visualizers</h4>
+        <a href="/dbml-to-er-diagram/">DBML to ER Diagram</a>
+        <a href="/dbml-viewer/">DBML Viewer</a>
+        <a href="/mermaid-to-erd/">Mermaid to ERD</a>
+        <a href="/prisma-schema-visualizer/">Prisma Schema Visualizer</a>
+        <a href="/plantuml/">PlantUML</a>
+        <a href="/plantuml-viewer/">PlantUML Viewer</a>
+      </div>
+      <div class="col"><h4>Compare</h4>
+        <a href="/alternatives/">All alternatives</a>
+        <a href="/vs/dbdiagram/">vs dbdiagram.io</a>
+        <a href="/vs/drawsql/">vs DrawSQL</a>
+        <a href="/vs/chartdb/">vs ChartDB</a>
+        <a href="/vs/drawdb/">vs drawDB</a>
+      </div>
+      </div>
+      <div style="display:flex; gap:18px; flex-wrap:wrap; margin-top:18px;">
+        <a href="/">SQL to ER Diagram</a>
+        <a href="/examples/">Schema examples</a>
+        <a href="https://github.com/royalbhati/sqltoerdiagram" target="_blank" rel="noopener">Open source on GitHub</a>
+        <a href="https://yourbrowsercandoit.com/" target="_blank" rel="noopener">Part of yourbrowsercandoit.com ↗</a>
+        <span>Free · runs in your browser</span>
+      </div>
     </div>
   </footer>
 </body>

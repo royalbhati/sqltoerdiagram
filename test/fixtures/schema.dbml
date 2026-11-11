@@ -1,0 +1,17 @@
+Project shop { database_type: 'PostgreSQL' }
+Table users {
+  id integer [pk, increment]
+  email varchar(255) [not null, unique]
+  created_at timestamp [default: `now()`]
+}
+Table orders as O {
+  id integer [pk]
+  user_id integer [ref: > users.id]
+  status varchar [note: 'pending | paid']
+}
+Table order_items {
+  order_id integer
+  product_id integer
+  indexes { (order_id, product_id) [pk] }
+}
+Ref: order_items.order_id > orders.id

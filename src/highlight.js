@@ -29,7 +29,23 @@ const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, 
 // comment | string | quoted-ident | number | word | punctuation
 const RE = /(\/\*[\s\S]*?\*\/|--[^\n]*|#[^\n]*)|('(?:[^'\\]|\\.)*'?)|("(?:[^"\\]|\\.)*"|`[^`]*`|\[[^\]]*\])|(\b\d+(?:\.\d+)?\b)|([A-Za-z_][A-Za-z0-9_]*)|([(),;])/g;
 
-export function highlightSQL(sql) {
+// `marks` (optional): sorted, non-overlapping [{start, end}] ranges to wrap in
+// a squiggly-underline span (parse problems). Each piece is tokenised on its
+// own; ranges sit on statement boundaries, so tokens don't straddle them.
+export function highlightSQL(sql, marks) {
+  if (!marks || !marks.length) return highlightPlain(sql);
+  let out = '', pos = 0;
+  for (const m of marks) {
+    const s = Math.max(pos, Math.min(m.start, sql.length)), e = Math.min(Math.max(s, m.end), sql.length);
+    if (e <= s) continue;
+    out += highlightPlain(sql.slice(pos, s));
+    out += '<span class="t-err">' + highlightPlain(sql.slice(s, e)) + '</span>';
+    pos = e;
+  }
+  return out + highlightPlain(sql.slice(pos));
+}
+
+function highlightPlain(sql) {
   let out = '';
   let last = 0;
   let m;

@@ -1,0 +1,13 @@
+/*
+  Strict-Transport-Security: max-age=31536000
+
+# Vite fingerprints everything under /assets/ (the filename changes with the
+# content), so browsers can keep these forever and skip revalidation.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# The service worker must always be re-checked so updates roll out. `no-store`
+# (rather than `no-cache`) keeps it out of Cloudflare's edge cache, where the
+# zone's Browser Cache TTL was rewriting the header to a 4-hour max-age.
+/sw.js
+  Cache-Control: no-store

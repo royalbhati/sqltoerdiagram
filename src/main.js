@@ -1,11 +1,15 @@
+import '@fontsource-variable/inter/wght.css';
+import '@fontsource-variable/jetbrains-mono/wght.css';
 import './style.css';
-import { parseSchema, FORMATS } from './parse.js';
-import { layout } from './layout.js';
+import { parseSchema, FORMATS, resolveFormat, formatReady, loadFormat, loadAllFormats } from './parse.js';
+import { computeLayout, warmLayout } from './layout-client.js';
 import { Diagram } from './diagram.js';
-import { exportSVG } from './svg-export.js';
-import { serialize, SERIALIZERS } from './formats/serialize.js';
 import { applyEdit, addColumn, deleteColumn, toggleConstraint, addTable, deleteTable } from './edit.js';
-import { createVisualEditor } from './visual-editor.js';
+import { createMinimap } from './minimap.js';
+import { createHistory } from './history.js';
+import { createPalette } from './palette.js';
+import { createStore, hashText } from './store.js';
+import { TABLE_COLORS, TABLE_COLOR_ORDER, THEMES, THEME_LIST } from './renderer.js';
 import { DIALECTS, DEFAULT_DIALECT } from './dialects.js';
 import { highlightSQL } from './highlight.js';
 import { encodeShare, decodeShare } from './share.js';
@@ -24,20 +28,25 @@ const hlEl = $('hl');
 const diagram = new Diagram(canvas);
 diagram.onZoom = (s) => { zoomLabel.textContent = Math.round(s * 100) + '%'; };
 window.__dbdiga = diagram;   // debug handle
-let visualEditor = null;     // created after setup; refreshed on every model change
+let visualEditor = null;     // loaded on first use of Visual mode; refreshed on every model change
+warmLayout();                // boot the layout worker now so the first arrange doesn't wait for it
+
+const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+const MOD = isMac ? '⌘' : 'Ctrl';
 
 // read-only embed view (?embed=1) — never editable, no matter the input format
 const isEmbed = new URLSearchParams(location.search).has('embed');
 
 // ---- syntax highlight layer (painted behind the transparent textarea) ----
 let hlQueued = false;
+let hlMarks = [];            // parse-problem ranges, underlined in the editor
 function syncHighlight() {
   // coalesce to one repaint per frame so fast typing never blocks
   if (hlQueued) return;
   hlQueued = true;
   requestAnimationFrame(() => {
     hlQueued = false;
-    hlEl.innerHTML = highlightSQL(sqlEl.value);
+    hlEl.innerHTML = highlightSQL(sqlEl.value, hlMarks);
     hlEl.parentElement.scrollTop = sqlEl.scrollTop;
     hlEl.parentElement.scrollLeft = sqlEl.scrollLeft;
   });
@@ -52,19 +61,29 @@ const LAYOUT_KEY = 'dbdiga-layout';
 
 function collectLayout() {
   const positions = {};
+  // settled values: never persist a mid-animation frame
   for (const t of diagram.model.tables) {
-    if (Number.isFinite(t.x)) positions[t.key] = { x: Math.round(t.x), y: Math.round(t.y) };
+    const p = diagram.settledPos(t);
+    if (Number.isFinite(p.x)) positions[t.key] = { x: Math.round(p.x), y: Math.round(p.y) };
   }
+  const cam = diagram.settledCam();
   return {
     positions,
-    camera: { x: Math.round(diagram.cam.x), y: Math.round(diagram.cam.y), scale: +diagram.cam.scale.toFixed(4) },
+    camera: { x: Math.round(cam.x), y: Math.round(cam.y), scale: +cam.scale.toFixed(4) },
     annotations: diagram.annotations.map(a => ({ ...a })),
     hidden: [...diagram.hidden],
     manualLinks: diagram.manualLinks.map(l => ({ from: { ...l.from }, to: { ...l.to } })),
+    colors: { ...diagram.tableColors },
   };
 }
+// the layout part of a saved project / share link / version, in the shape rebuild({ restore }) takes
+const restoreOf = (d) => ({
+  positions: d && d.positions, camera: d && d.camera, annotations: d && d.annotations,
+  hidden: d && d.hidden, manualLinks: d && d.manualLinks, colors: d && d.colors,
+});
 function saveLayout() {
   try { localStorage.setItem(LAYOUT_KEY, JSON.stringify(collectLayout())); } catch { /* quota */ }
+  afterSave();
 }
 let saveTimer = null;
 function saveLayoutDebounced() {
@@ -87,23 +106,131 @@ function applyLayoutData(model, data) {
   }
   return placed > 0;
 }
-// position any tables that have no coordinates yet, beside the existing ones
+// Position any tables that have no coordinates yet, beside the existing ones.
+// Returns false when nothing is placed at all — the caller should run a full
+// auto-layout instead.
 function placeNewTables(model) {
-  const missing = model.tables.filter(t => !Number.isFinite(t.x));
-  if (!missing.length) return;
+  const missing = model.tables.filter(t => !Number.isFinite(t.x) && !diagram.hidden.has(t.key));
+  if (!missing.length) return true;
   const placed = model.tables.filter(t => Number.isFinite(t.x));
-  if (!placed.length) { layout(model, layoutOpts, diagram.hidden); return; }
+  if (!placed.length) return false;
   let x1 = -Infinity, y0 = Infinity;
   for (const t of placed) { x1 = Math.max(x1, t.x + t.w); y0 = Math.min(y0, t.y); }
   let x = x1 + 80, y = Number.isFinite(y0) ? y0 : 40;
   for (const t of missing) { t.x = x; t.y = y; y += t.h + 40; }
+  return true;
 }
 
-diagram.onLayoutChange = saveLayoutDebounced;
+// ---- undo / redo: whole-diagram snapshots ----
+const history = createHistory();
+let restoring = false;       // applying a snapshot — don't record it as a new step
+let layoutPending = false;   // an async auto-layout is in flight — state is mid-change
+let historyHold = 0;         // >0 while a multi-step change is being applied (commit once, at the end)
+
+function snapshot() {
+  const l = collectLayout();
+  return {
+    sql: sqlEl.value, format: formatChoice,
+    positions: l.positions, annotations: l.annotations, hidden: l.hidden, manualLinks: l.manualLinks, colors: l.colors,
+  };
+}
+function historyCommit(kind) {
+  if (restoring || layoutPending || historyHold) return;
+  const snap = snapshot();
+  history.commit(snap, JSON.stringify(snap), kind);
+  syncUndoButtons();
+}
+function syncUndoButtons() {
+  const u = $('btn-undo'), r = $('btn-redo');
+  if (u) u.disabled = !history.canUndo;
+  if (r) r.disabled = !history.canRedo;
+}
+function applySnapshot(snap) {
+  const before = sqlEl.value;
+  restoring = true;
+  try {
+    diagram._cancelEdit();
+    if (snap.format !== formatChoice) {
+      formatChoice = snap.format;
+      localStorage.setItem('dbdiga-format', formatChoice);
+      syncFormat();
+    }
+    sqlEl.value = snap.sql;
+    rebuild({
+      restore: {
+        positions: snap.positions, annotations: snap.annotations, hidden: snap.hidden, colors: snap.colors,
+        manualLinks: snap.manualLinks, camera: { ...diagram.settledCam() },   // undo never moves the view
+      },
+    });
+  } finally { restoring = false; }
+  // keep the caret at the change when undoing from the editor
+  if (document.activeElement === sqlEl && before !== snap.sql) {
+    let suffix = 0;
+    const max = Math.min(before.length, snap.sql.length);
+    while (suffix < max && before[before.length - 1 - suffix] === snap.sql[snap.sql.length - 1 - suffix]) suffix++;
+    const caret = snap.sql.length - suffix;
+    sqlEl.setSelectionRange(caret, caret);
+  }
+  saveLayoutDebounced();
+  syncUndoButtons();
+}
+function flushTyping() {
+  if (timer === null) return;
+  clearTimeout(timer); timer = null;
+  rebuild({ typing: true });
+}
+function undo() {
+  flushTyping();
+  const snap = history.undo();
+  if (snap) applySnapshot(snap);
+}
+function redo() {
+  flushTyping();
+  const snap = history.redo();
+  if (snap) applySnapshot(snap);
+}
+
+diagram.onLayoutChange = () => { saveLayoutDebounced(); historyCommit('layout'); };
+
+// ---- toast: brief confirmation, optionally with one action (e.g. Undo) ----
+const toastEl = document.createElement('div');
+toastEl.className = 'toast';
+toastEl.setAttribute('role', 'status');
+toastEl.setAttribute('aria-live', 'polite');
+toastEl.hidden = true;
+canvas.parentElement.appendChild(toastEl);
+let toastTimer = null;
+function toast(message, { action = null, tone = '', ms = 3200 } = {}) {
+  clearTimeout(toastTimer);
+  toastEl.className = 'toast' + (tone ? ' ' + tone : '');
+  toastEl.textContent = message;
+  if (action) {
+    const b = document.createElement('button');
+    b.className = 'toast-action';
+    b.textContent = action.label;
+    b.addEventListener('click', () => { toastEl.hidden = true; action.run(); });
+    toastEl.appendChild(b);
+  }
+  toastEl.hidden = false;
+  toastTimer = setTimeout(() => { toastEl.hidden = true; }, action ? Math.max(ms, 5000) : ms);
+}
+
+// ---- "Arranging…" chip: only shown when a layout takes long enough to notice ----
+const busyEl = document.createElement('div');
+busyEl.className = 'busy-chip';
+busyEl.setAttribute('role', 'status');
+busyEl.hidden = true;
+canvas.parentElement.appendChild(busyEl);
+let busyTimer = null;
+function setBusy(text) {
+  clearTimeout(busyTimer);
+  if (!text) { busyEl.hidden = true; return; }
+  busyTimer = setTimeout(() => { busyEl.textContent = text; busyEl.hidden = false; }, 180);
+}
 
 // theme: restore preference
 const savedTheme = localStorage.getItem('dbdiga-theme') || 'dark';
-diagram.setTheme(savedTheme);
+diagram.setTheme(THEMES[savedTheme] ? savedTheme : 'dark');
 
 diagram.start();
 
@@ -125,7 +252,7 @@ function syncHiddenChip() {
   hiddenChip.hidden = n === 0;
   hiddenChip.textContent = n ? `${n} hidden · Show all` : '';
 }
-diagram.onHiddenChange = () => { syncHiddenChip(); saveLayoutDebounced(); };
+diagram.onHiddenChange = () => { syncHiddenChip(); saveLayoutDebounced(); historyCommit('layout'); };
 
 canvas.addEventListener('contextmenu', (e) => {
   e.preventDefault();
@@ -144,6 +271,22 @@ canvas.addEventListener('contextmenu', (e) => {
   if (diagram.manualLinkCount() > 0) items.push({ label: `Clear manual links (${diagram.manualLinkCount()})`, act: () => diagram.clearManualLinks() });
   if (!items.length) { hideCtx(); return; }
   ctxMenu.innerHTML = '';
+  if (t && !isEmbed) {
+    const row = document.createElement('div');
+    row.className = 'ctx-colors';
+    row.setAttribute('role', 'group');
+    row.setAttribute('aria-label', 'Table colour');
+    for (const name of [null, ...TABLE_COLOR_ORDER]) {
+      const b = document.createElement('button');
+      b.className = 'ctx-color' + ((t.color || null) === name ? ' active' : '') + (name ? '' : ' none');
+      if (name) b.style.background = TABLE_COLORS[name];
+      b.title = name ? name[0].toUpperCase() + name.slice(1) : 'No colour';
+      b.setAttribute('aria-label', b.title);
+      b.addEventListener('click', () => { diagram.setTableColor(t, name); hideCtx(); });
+      row.appendChild(b);
+    }
+    ctxMenu.appendChild(row);
+  }
   for (const it of items) {
     const b = document.createElement('button');
     b.className = 'ctx-item';
@@ -251,20 +394,76 @@ const layoutOpts = {
 let formatChoice = localStorage.getItem('dbdiga-format') || 'auto';
 if (!FORMATS[formatChoice]) formatChoice = 'auto';
 
-function rebuild({ arrange = false, restore = null } = {}) {
+// Run the auto-layout (in a worker) and glide the tables to their new places.
+// `from`: positions before the change (key -> {x,y}), the start of the glide.
+let layoutGen = 0;
+function arrangeTables(model, { from = null, animate = true, fit = true } = {}) {
+  const gen = ++layoutGen;
+  if (!model.tables.length) return;
+  layoutPending = true;
+  const n = model.tables.length;
+  setBusy(`Arranging ${n} table${n !== 1 ? 's' : ''}…`);
+  computeLayout(model, layoutOpts, diagram.hidden).then((positions) => {
+    if (gen !== layoutGen) return;                     // a newer arrange owns the state
+    layoutPending = false;
+    setBusy(null);
+    if (diagram.model !== model) return;               // schema changed while we were computing
+    for (const t of model.tables) {
+      const p = positions[t.key];
+      if (p) { t.x = p.x; t.y = p.y; }
+    }
+    diagram._tmapDirty = true;
+    diagram.transition(animate ? from : null, { fit, animate });
+    saveLayoutDebounced();
+    historyCommit('edit');
+  }).catch((err) => {
+    if (gen !== layoutGen) return;
+    layoutPending = false;
+    setBusy(null);
+    console.error(err);
+    toast('Could not arrange the diagram', { tone: 'err' });
+  });
+}
+
+function rebuild(opts = {}) {
+  historyHold++;
+  let settled = false;
+  try { settled = rebuildNow(opts); }
+  finally { historyHold--; }
+  // one history step for the whole change (an async arrange records its own)
+  if (settled) { saveLayoutDebounced(); historyCommit(opts.typing ? 'type' : 'edit'); }
+}
+
+// Returns true when the new state is final, false if a parse error or a
+// pending auto-layout means there is nothing to record yet.
+function rebuildNow(opts) {
+  const { arrange = false, restore = null } = opts;
   const sql = sqlEl.value;
   localStorage.setItem('dbdiga-sql', sql);
-  syncHighlight();
+
+  // non-SQL parsers load on first use; come back once this one has arrived
+  const fmt = resolveFormat(sql, formatChoice);
+  if (!formatReady(fmt)) {
+    loadFormat(fmt).then(
+      () => { if (sqlEl.value === sql) rebuild(opts); },
+      (err) => { console.error(err); toast(`Could not load the ${FORMATS[fmt] || fmt} parser — check your connection`, { tone: 'err' }); },
+    );
+    syncHighlight();
+    return false;
+  }
 
   let result;
   try {
     result = parseSchema(sql, formatChoice);
   } catch (err) {
+    syncHighlight();
     statusEl.textContent = 'Parse error';
     statusEl.className = 'status err';
     console.error(err);
-    return;
+    return false;
   }
+  hlMarks = result.warnings;
+  syncHighlight();
 
   diagram.editable = result.editable && !isEmbed;   // only SQL supports edit-back; never in embed
   updateStatus(result, sql);
@@ -273,35 +472,44 @@ function rebuild({ arrange = false, restore = null } = {}) {
   const newKeys = result.tables.map(t => t.key).sort().join('|');
   const structureChanged = prevKeys !== newKeys;
 
-  // pre-apply restored positions before setModel (it preserves what we set)
-  if (restore) applyLayoutData(result, restore);
+  // where every table is now — the starting point if we re-arrange
+  const from = new Map(diagram.model.tables.map(t => [t.key, diagram.settledPos(t)]));
 
   diagram.setModel(result);
   diagram._tmapDirty = true;
+  // setModel keeps the positions of tables that already existed; restored
+  // positions (open / share link / undo) must win over those
+  if (restore) applyLayoutData(result, restore);
 
+  let needsLayout = false;
   if (arrange) {
-    layout(result, layoutOpts, diagram.hidden);
-    diagram.fit();
+    needsLayout = true;
   } else if (restore) {
     diagram.setHidden(restore.hidden);               // restore hidden tables before placing
     diagram.setManualLinks(restore.manualLinks);     // restore user-drawn / inferred links
-    placeNewTables(result);                          // tables not in the saved layout
+    diagram.setTableColors(restore.colors);
+    needsLayout = !placeNewTables(result);           // tables not in the saved layout
     diagram.setAnnotations(sanitizeAnnotations(restore.annotations));
     if (restore.camera) diagram.setCamera(restore.camera);
-    else diagram.fit();
+    else if (!needsLayout) diagram.fit();
   } else if (firstRender) {
-    layout(result, layoutOpts, diagram.hidden);
-    diagram.fit();
+    needsLayout = true;
   } else if (structureChanged) {
-    placeNewTables(result);                          // keep manual layout, place only new tables
+    needsLayout = !placeNewTables(result);           // keep manual layout, place only new tables
   }
 
   diagram.markDirty();
   lastModel = result;
+  const animate = !firstRender;                      // nothing to glide from on first paint
   firstRender = false;
-  saveLayoutDebounced();
   renderTables();
   if (visualEditor) visualEditor.render();
+
+  if (needsLayout && result.tables.length) {
+    arrangeTables(result, { from, animate, fit: !(restore && restore.camera) });
+    return false;
+  }
+  return true;
 }
 
 function updateStatus(result, sql) {
@@ -320,6 +528,75 @@ function updateStatus(result, sql) {
     statusEl.textContent = '';
     statusEl.className = 'status';
   }
+  syncIssues(result.warnings || []);
+}
+
+// ---- parse issues: "2 issues" chip -> list -> click jumps to the line ----
+const issuesBtn = document.createElement('button');
+issuesBtn.className = 'issues-btn';
+issuesBtn.hidden = true;
+issuesBtn.setAttribute('aria-haspopup', 'true');
+issuesBtn.setAttribute('aria-expanded', 'false');
+const issuesMenu = document.createElement('div');
+issuesMenu.className = 'menu up issues-menu';
+issuesMenu.hidden = true;
+const issuesWrap = document.createElement('div');
+issuesWrap.className = 'menu-wrap issues-wrap';
+issuesWrap.append(issuesBtn, issuesMenu);
+statusEl.after(issuesWrap);
+let issues = [];
+function syncIssues(list) {
+  issues = list;
+  issuesBtn.hidden = list.length === 0;
+  if (!list.length) { issuesMenu.hidden = true; issuesBtn.setAttribute('aria-expanded', 'false'); return; }
+  issuesBtn.textContent = `${list.length} issue${list.length !== 1 ? 's' : ''}`;
+  issuesBtn.title = 'Parts of the schema that could not be read — click to see them';
+  if (!issuesMenu.hidden) renderIssues();
+}
+function renderIssues() {
+  const text = sqlEl.value;
+  issuesMenu.innerHTML = '';
+  const head = document.createElement('div');
+  head.className = 'menu-label';
+  head.textContent = 'Could not read';
+  issuesMenu.appendChild(head);
+  for (const w of issues.slice(0, 50)) {
+    const line = text.slice(0, w.start).split('\n').length;
+    const b = document.createElement('button');
+    b.className = 'menu-item issue-item';
+    const msg = document.createElement('span');
+    msg.textContent = w.message;
+    const ln = document.createElement('span');
+    ln.className = 'issue-line';
+    ln.textContent = 'line ' + line;
+    b.append(msg, ln);
+    b.addEventListener('click', () => { issuesMenu.hidden = true; issuesBtn.setAttribute('aria-expanded', 'false'); revealInEditor(w.start, w.end); });
+    issuesMenu.appendChild(b);
+  }
+  if (issues.length > 50) {
+    const more = document.createElement('div');
+    more.className = 'menu-label';
+    more.textContent = `…and ${issues.length - 50} more`;
+    issuesMenu.appendChild(more);
+  }
+}
+issuesBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  issuesMenu.hidden = !issuesMenu.hidden;
+  issuesBtn.setAttribute('aria-expanded', String(!issuesMenu.hidden));
+  if (!issuesMenu.hidden) renderIssues();
+});
+document.addEventListener('click', () => { issuesMenu.hidden = true; issuesBtn.setAttribute('aria-expanded', 'false'); });
+
+// select a source range in the code editor and scroll it into view
+function revealInEditor(start, end) {
+  if (layoutEl.classList.contains('sql-hidden')) setSqlHidden(false);
+  if (editorMode !== 'code') setMode('code');
+  sqlEl.focus();
+  sqlEl.setSelectionRange(start, end);
+  const line = sqlEl.value.slice(0, start).split('\n').length - 1;
+  const lh = parseFloat(getComputedStyle(sqlEl).lineHeight) || 20;
+  sqlEl.scrollTop = Math.max(0, line * lh - sqlEl.clientHeight / 3);
 }
 
 // ---- shared commit: re-parse edited SQL, preserve positions, refresh views ----
@@ -328,9 +605,12 @@ function updateStatus(result, sql) {
 function commitSql(newSql, { pinKey = null, renameFrom = null, renameTo = null } = {}) {
   sqlEl.value = newSql;
   localStorage.setItem('dbdiga-sql', newSql);
-  syncHighlight();
   // remember current positions so the edit doesn't reshuffle the diagram
   const oldPos = new Map(diagram.model.tables.map(t => [t.key, { x: t.x, y: t.y }]));
+  if (renameTo && renameFrom !== renameTo && diagram.tableColors[renameFrom]) {   // a renamed table keeps its colour
+    diagram.tableColors[renameTo] = diagram.tableColors[renameFrom];
+    delete diagram.tableColors[renameFrom];
+  }
   const model = parseSchema(newSql, 'sql');
   for (const t of model.tables) {
     let p = oldPos.get(t.key);
@@ -338,14 +618,17 @@ function commitSql(newSql, { pinKey = null, renameFrom = null, renameTo = null }
     if (p && Number.isFinite(p.x)) { t.x = p.x; t.y = p.y; }
   }
   diagram.setModel(model);          // measures sizes, keeps the positions we set
-  placeNewTables(model);            // position any brand-new tables
+  const placed = placeNewTables(model);   // position any brand-new tables
   if (pinKey) diagram.pinByKey(pinKey);
   diagram.markDirty();
+  hlMarks = model.warnings || [];
+  syncHighlight();
   updateStatus(model, newSql);
   lastModel = model;
-  saveLayoutDebounced();
   renderTables();
   if (visualEditor) visualEditor.render();
+  if (!placed) arrangeTables(model, { animate: false });   // first table(s) on an empty canvas
+  else { saveLayoutDebounced(); historyCommit('edit'); }
 }
 
 // ---- canvas editing: edit a table/column on the diagram -> rewrite SQL ----
@@ -389,17 +672,29 @@ let timer = null;
 sqlEl.addEventListener('input', () => {
   syncHighlight();
   clearTimeout(timer);
-  timer = setTimeout(() => rebuild(), 180);
+  timer = setTimeout(() => { timer = null; rebuild({ typing: true }); }, 180);
+});
+// the app owns undo for the editor too (one history for text + canvas), so
+// route the browser's own undo/redo — Edit menu, shake, etc. — through it
+sqlEl.addEventListener('beforeinput', (e) => {
+  if (e.inputType === 'historyUndo') { e.preventDefault(); undo(); }
+  else if (e.inputType === 'historyRedo') { e.preventDefault(); redo(); }
 });
 
 // ---- buttons ----
 function loadExample() {
+  if (formatChoice !== 'auto' && formatChoice !== 'sql') {
+    formatChoice = 'auto';
+    localStorage.setItem('dbdiga-format', formatChoice);
+    syncFormat();
+  }
   sqlEl.value = EXAMPLE_SQL;
-  firstRender = true;
   rebuild({ arrange: true });
 }
 $('btn-example').addEventListener('click', loadExample);
 $('btn-example2')?.addEventListener('click', loadExample);
+$('btn-open2')?.addEventListener('click', () => fileInput.click());
+$('btn-import2')?.addEventListener('click', () => openDialog('import'));
 
 // Arrange button: re-arrange with current opts; the ▾ part toggles the menu.
 const arrangeMenu = $('arrange-menu');
@@ -408,7 +703,10 @@ function syncMenu() {
     el.classList.toggle('active', el.dataset.dir === layoutOpts.dir);
   for (const el of arrangeMenu.querySelectorAll('[data-spacing]'))
     el.classList.toggle('active', el.dataset.spacing === layoutOpts.spacing);
+  for (const el of arrangeMenu.querySelectorAll('[data-edges]'))
+    el.classList.toggle('active', el.dataset.edges === diagram.edgeStyle);
 }
+diagram.setEdgeStyle(localStorage.getItem('dbdiga-edges') || 'angled');
 syncMenu();
 
 $('btn-arrange').addEventListener('click', (e) => {
@@ -419,7 +717,13 @@ $('btn-arrange').addEventListener('click', (e) => {
 arrangeMenu.addEventListener('click', (e) => {
   e.stopPropagation();
   const item = e.target.closest('.menu-item');
-  if (!item) return;
+  if (!item || item.id === 'btn-infer') return;
+  if (item.dataset.edges) {                       // line style: a view setting, no re-layout
+    diagram.setEdgeStyle(item.dataset.edges);
+    localStorage.setItem('dbdiga-edges', diagram.edgeStyle);
+    syncMenu();
+    return;
+  }
   if (item.dataset.dir) {
     layoutOpts.dir = item.dataset.dir;
     localStorage.setItem('dbdiga-dir', layoutOpts.dir);
@@ -433,11 +737,13 @@ arrangeMenu.addEventListener('click', (e) => {
 });
 document.addEventListener('click', () => { arrangeMenu.hidden = true; });
 
-$('btn-fit').addEventListener('click', () => diagram.fit());
+$('btn-fit').addEventListener('click', () => diagram.fit(60, { animate: true }));
 
 $('btn-infer').addEventListener('click', () => {
   const n = diagram.inferLinks();
-  flashButton($('btn-infer'), n ? `+${n} link${n !== 1 ? 's' : ''}` : 'No links found');
+  arrangeMenu.hidden = true;
+  toast(n ? `Added ${n} link${n !== 1 ? 's' : ''} from matching column names` : 'No new links found — column names don’t point at other tables',
+    n ? { action: { label: 'Undo', run: undo } } : {});
 });
 
 // ---- annotation tools (note / group) ----
@@ -562,14 +868,25 @@ const veActions = {
   },
   focusTable(tableKey) { diagram.centerOn(tableKey); diagram.pinByKey(tableKey); },
 };
-visualEditor = createVisualEditor({
-  mount: $('visual-editor'),
-  getModel: () => diagram.model,
-  getDialect: () => DIALECTS[dialect],
-  getEditable: () => diagram.editable,
-  getFormatLabel: () => FORMATS[lastModel && lastModel.format] || 'another format',
-  actions: veActions,
-});
+// The visual editor is only needed in Visual mode, so its code loads on first use.
+let visualEditorLoading = null;
+function ensureVisualEditor() {
+  if (visualEditor) return Promise.resolve(visualEditor);
+  if (!visualEditorLoading) {
+    visualEditorLoading = import('./visual-editor.js').then(({ createVisualEditor }) => {
+      visualEditor = createVisualEditor({
+        mount: $('visual-editor'),
+        getModel: () => diagram.model,
+        getDialect: () => DIALECTS[dialect],
+        getEditable: () => diagram.editable,
+        getFormatLabel: () => FORMATS[lastModel && lastModel.format] || 'another format',
+        actions: veActions,
+      });
+      return visualEditor;
+    });
+  }
+  return visualEditorLoading;
+}
 
 const modeToggle = $('mode-toggle');
 const visualPane = $('visual-editor');
@@ -581,7 +898,7 @@ function setMode(mode) {
   visualPane.hidden = editorMode !== 'visual';
   for (const b of modeToggle.querySelectorAll('.seg-btn'))
     b.classList.toggle('active', b.dataset.mode === editorMode);
-  if (editorMode === 'visual') visualEditor.render();
+  if (editorMode === 'visual') ensureVisualEditor().then((ve) => { if (editorMode === 'visual') ve.render(); });
 }
 modeToggle.addEventListener('click', (e) => {
   const b = e.target.closest('.seg-btn');
@@ -593,11 +910,37 @@ $('zoom-in').addEventListener('click', () => diagram.zoomBy(1.25));
 $('zoom-out').addEventListener('click', () => diagram.zoomBy(0.8));
 $('zoom-reset').addEventListener('click', () => diagram.resetZoom());
 
-$('btn-theme').addEventListener('click', () => {
-  const next = diagram.themeName === 'dark' ? 'light' : 'dark';
-  diagram.setTheme(next);
-  localStorage.setItem('dbdiga-theme', next);
-});
+// ---- themes ----
+const themeMenu = $('theme-menu');
+function setTheme(name) {
+  if (!THEMES[name]) return;
+  diagram.setTheme(name);
+  localStorage.setItem('dbdiga-theme', name);
+  renderThemeMenu();
+}
+function renderThemeMenu() {
+  themeMenu.innerHTML = '';
+  const label = document.createElement('div');
+  label.className = 'menu-label'; label.textContent = 'Theme';
+  themeMenu.appendChild(label);
+  for (const t of THEME_LIST) {
+    const b = document.createElement('button');
+    b.className = 'menu-item theme-item' + (t.id === diagram.themeName ? ' active' : '');
+    b.dataset.umamiEvent = 'theme-' + t.id;
+    const dot = document.createElement('span');
+    dot.className = 'theme-dot';
+    dot.style.background = THEMES[t.id].tableBg;
+    dot.style.setProperty('--dot-accent', THEMES[t.id].edgeHi);
+    const name = document.createElement('span'); name.textContent = t.label;
+    b.append(dot, name);
+    b.addEventListener('click', () => { setTheme(t.id); themeMenu.hidden = true; });
+    themeMenu.appendChild(b);
+  }
+}
+renderThemeMenu();
+$('btn-theme').addEventListener('click', (e) => { e.stopPropagation(); themeMenu.hidden = !themeMenu.hidden; });
+themeMenu.addEventListener('click', (e) => e.stopPropagation());
+document.addEventListener('click', () => { themeMenu.hidden = true; });
 
 function download(filename, href) {
   const a = document.createElement('a');
@@ -655,14 +998,54 @@ function showCodeModal(title, text, filename, umamiLabel) {
   ta.focus(); ta.setSelectionRange(0, 0);
 }
 
-function exportImage(kind) {
-  if (kind === 'png') {
-    const url = diagram.exportPNG(2);
-    if (url) download('schema.png', url);
-  } else {
-    const svg = exportSVG(diagram.model, diagram.themeName, diagram.annotations, diagram.hidden);
+function downloadBlob(filename, blob) {
+  const url = URL.createObjectURL(blob);
+  download(filename, url);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// Image + code exporters load on demand — most visits never export.
+async function exportImage(kind) {
+  if (!diagram.model.tables.length && !diagram.annotations.length) { toast('Nothing to export yet'); return; }
+  if (kind === 'svg') {
+    const { exportSVG } = await import('./svg-export.js');
+    const svg = exportSVG(diagram.model, diagram.themeName, diagram.annotations, diagram.hidden, { edgeStyle: diagram.edgeStyle });
     if (svg) downloadText('schema.svg', svg, 'image/svg+xml');
+    return;
   }
+  if (kind === 'png-copy') {
+    // hand the clipboard a pending blob so the write stays inside the click gesture (Safari)
+    const pending = diagram.exportPNGBlob(2).then((blob) => {
+      if (!blob) throw new Error('empty diagram');
+      return blob;
+    });
+    try {
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': pending })]);
+      toast('Diagram copied — paste it into a doc, chat or slide');
+    } catch (err) {
+      // no image clipboard here (older browser / permission): download instead
+      const blob = await pending.catch(() => null);
+      if (blob) { downloadBlob('schema.png', blob); toast('Copy isn’t available in this browser — downloaded the PNG instead'); }
+    }
+    return;
+  }
+  const blob = await diagram.exportPNGBlob(2, { transparent: kind === 'png-transparent' });
+  if (blob) downloadBlob('schema.png', blob);
+  else toast('Could not render the PNG', { tone: 'err' });
+}
+
+async function exportCode(kind) {
+  if (kind.startsWith('sql-')) {
+    // the schema rewritten as CREATE TABLE for another database, types translated
+    const { toSQL, SQL_DIALECTS } = await import('./formats/sql-out.js');
+    const d = kind.slice(4);
+    showCodeModal(`Export — SQL for ${SQL_DIALECTS[d]}`, toSQL(diagram.model, d), `schema.${d}.sql`, 'sql-' + d);
+    return;
+  }
+  const { serialize, SERIALIZERS } = await import('./formats/serialize.js');
+  const fmt = SERIALIZERS[kind];
+  if (!fmt) return;
+  showCodeModal(`Export — ${fmt.label}`, serialize(diagram.model, kind), `schema.${fmt.ext}`, fmt.label.toLowerCase());
 }
 
 // ---- Export menu (image + code formats) ----
@@ -675,11 +1058,8 @@ exportMenu.addEventListener('click', (e) => {
   if (!item) return;
   exportMenu.hidden = true;
   const kind = item.dataset.export;
-  if (kind === 'png' || kind === 'svg') { exportImage(kind); return; }
-  const s = SERIALIZERS[kind];
-  if (!s) return;
-  const text = serialize(diagram.model, kind);
-  showCodeModal(`Export — ${s.label}`, text, `schema.${s.ext}`, s.label.toLowerCase());
+  if (kind === 'svg' || kind.startsWith('png')) exportImage(kind);
+  else exportCode(kind);
 });
 document.addEventListener('click', () => { exportMenu.hidden = true; });
 
@@ -690,7 +1070,7 @@ fileBtn.addEventListener('click', (e) => { e.stopPropagation(); fileMenu.hidden 
 document.addEventListener('click', () => { fileMenu.hidden = true; });
 
 // ---- Save / Open project (SQL + layout + camera + dialect) ----
-$('btn-save').addEventListener('click', () => {
+function saveProject() {
   const project = {
     app: 'dbdiga',
     version: 1,
@@ -702,7 +1082,8 @@ $('btn-save').addEventListener('click', () => {
   const url = URL.createObjectURL(blob);
   download('schema.sqltoerdiagram.json', url);
   setTimeout(() => URL.revokeObjectURL(url), 1000);
-});
+}
+$('btn-save').addEventListener('click', saveProject);
 
 // ---- Share link (project encoded in the URL hash; nothing stored server-side) ----
 function flashButton(btn, text) {
@@ -710,7 +1091,7 @@ function flashButton(btn, text) {
   btn.textContent = text;
   setTimeout(() => { btn.textContent = orig; }, 1500);
 }
-$('btn-share').addEventListener('click', async () => {
+async function shareLink() {
   const btn = $('btn-share');
   const project = { app: 'dbdiga', version: 1, sql: sqlEl.value, dialect, ...collectLayout() };
   let payload;
@@ -721,7 +1102,8 @@ $('btn-share').addEventListener('click', async () => {
   const url = location.origin + location.pathname + hash;
   try { await navigator.clipboard.writeText(url); flashButton(btn, 'Link copied ✓'); }
   catch { flashButton(btn, 'Link in URL ↑'); }          // clipboard blocked → it's in the URL
-});
+}
+$('btn-share').addEventListener('click', shareLink);
 
 // ---- Embed: an <iframe> snippet that renders this diagram read-only & live ----
 $('btn-embed').addEventListener('click', async () => {
@@ -736,31 +1118,107 @@ $('btn-embed').addEventListener('click', async () => {
   showCodeModal('Embed this diagram', snippet, null, 'embed');
 });
 
+// ---- Open: a saved project (.json) or any schema file (.sql, .prisma, .dbml, …) ----
+function loadProject(data) {
+  sqlEl.value = data.sql;
+  localStorage.setItem('dbdiga-sql', data.sql);
+  if (data.dialect && DIALECTS[data.dialect]) { dialect = data.dialect; localStorage.setItem('dbdiga-dialect', dialect); syncDialect(); }
+  if (data.format && FORMATS[data.format] && data.format !== formatChoice) {
+    formatChoice = data.format;
+    localStorage.setItem('dbdiga-format', formatChoice);
+    syncFormat();
+  }
+  rebuild({ restore: restoreOf(data) });
+  saveLayout();
+}
+
+// Replace the current schema with raw schema text; the format is auto-detected.
+function loadSchemaText(text) {
+  if (formatChoice !== 'auto') {
+    formatChoice = 'auto';
+    localStorage.setItem('dbdiga-format', formatChoice);
+    syncFormat();
+  }
+  sqlEl.value = text;
+  historyHold++;                 // a new schema starts clean; recorded as one step by rebuild
+  try {
+    diagram.setAnnotations([]);
+    diagram.setManualLinks([]);
+    diagram.setTableColors({});
+    diagram.setHidden([]);
+  } finally { historyHold--; }
+  rebuild({ arrange: true });
+  return lastModel ? lastModel.tables.length : 0;
+}
+
+// A dropped / opened file: a project if it parses as one, otherwise schema text.
+async function loadFileText(text, name) {
+  let project = null;
+  if (/^\s*\{/.test(text)) {
+    try { const data = JSON.parse(text); if (data && typeof data.sql === 'string') project = data; } catch { /* not JSON: treat as schema text */ }
+  }
+  if (project) {
+    loadProject(project);
+    toast(`Opened ${name}`, { action: { label: 'Undo', run: undo } });
+    return;
+  }
+  try { await loadFormat(resolveFormat(text, 'auto')); }
+  catch { toast('Could not load the parser for this file — check your connection', { tone: 'err' }); return; }
+  if (!parseSchema(text, 'auto').tables.length) {
+    toast(`No tables found in ${name}`, { tone: 'err' });
+    return;
+  }
+  const n = loadSchemaText(text);
+  toast(`Loaded ${name} · ${n} table${n !== 1 ? 's' : ''}`, { action: { label: 'Undo', run: undo } });
+}
+function readFile(file) {
+  if (!file) return;
+  if (file.size > 20 * 1024 * 1024) { toast(`${file.name} is too large to open (over 20 MB)`, { tone: 'err' }); return; }
+  const reader = new FileReader();
+  reader.onload = () => loadFileText(String(reader.result), file.name);
+  reader.onerror = () => toast(`Could not read ${file.name}`, { tone: 'err' });
+  reader.readAsText(file);
+}
+
 const fileInput = $('file-open');
 $('btn-open').addEventListener('click', () => fileInput.click());
 fileInput.addEventListener('change', () => {
-  const file = fileInput.files && fileInput.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    try {
-      const data = JSON.parse(String(reader.result));
-      if (typeof data.sql !== 'string') throw new Error('not a dbdiga project');
-      sqlEl.value = data.sql;
-      localStorage.setItem('dbdiga-sql', data.sql);
-      if (data.dialect && DIALECTS[data.dialect]) { dialect = data.dialect; localStorage.setItem('dbdiga-dialect', dialect); syncDialect(); }
-      firstRender = true;          // ensure a clean restore even if a model exists
-      rebuild({ restore: { positions: data.positions, camera: data.camera, annotations: data.annotations, hidden: data.hidden, manualLinks: data.manualLinks } });
-      saveLayout();
-    } catch (err) {
-      statusEl.textContent = 'Invalid project file';
-      statusEl.className = 'status err';
-      console.error(err);
-    }
-    fileInput.value = '';          // allow re-opening the same file
-  };
-  reader.readAsText(file);
+  readFile(fileInput.files && fileInput.files[0]);
+  fileInput.value = '';          // allow re-opening the same file
 });
+
+// ---- drop a file anywhere on the page ----
+const dropEl = document.createElement('div');
+dropEl.className = 'drop-overlay';
+dropEl.hidden = true;
+dropEl.innerHTML = '<div class="drop-card"><strong>Drop to open</strong><span>.sql, Prisma, DBML, Mermaid, PlantUML, or a saved project</span></div>';
+document.body.appendChild(dropEl);
+let dragDepth = 0;
+const hasFiles = (e) => !!e.dataTransfer && [...e.dataTransfer.types].includes('Files');
+if (!isEmbed) {
+  window.addEventListener('dragenter', (e) => { if (!hasFiles(e)) return; e.preventDefault(); dragDepth++; dropEl.hidden = false; });
+  window.addEventListener('dragover', (e) => { if (!hasFiles(e)) return; e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; });
+  window.addEventListener('dragleave', (e) => { if (!hasFiles(e)) return; dragDepth = Math.max(0, dragDepth - 1); if (!dragDepth) dropEl.hidden = true; });
+  window.addEventListener('drop', (e) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    dragDepth = 0; dropEl.hidden = true;
+    readFile(e.dataTransfer.files[0]);
+  });
+
+  // ---- paste a schema anywhere outside a text field ----
+  document.addEventListener('paste', async (e) => {
+    const el = document.activeElement;
+    if (el && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT' || el.isContentEditable)) return;
+    const text = e.clipboardData ? e.clipboardData.getData('text/plain') : '';
+    if (!text.trim()) return;
+    e.preventDefault();
+    try { await loadFormat(resolveFormat(text, 'auto')); } catch { return; }
+    if (!parseSchema(text, 'auto').tables.length) { toast('The clipboard doesn’t look like a schema', { tone: 'err' }); return; }
+    const n = loadSchemaText(text);
+    toast(`Pasted schema · ${n} table${n !== 1 ? 's' : ''}`, { action: { label: 'Undo', run: undo } });
+  });
+}
 
 // ---- splitter (resize editor pane) ----
 const splitter = $('splitter');
@@ -783,24 +1241,394 @@ window.addEventListener('mouseup', () => {
 
 window.addEventListener('resize', () => diagram.resize());
 
+// ---- My diagrams: several named diagrams + version history, all in this browser ----
+const store = createStore();
+const docBtn = $('doc-btn'), docName = $('doc-name'), docMenu = $('doc-menu'), docRename = $('doc-rename');
+const currentContent = () => ({ sql: sqlEl.value, format: formatChoice, dialect, layout: collectLayout() });
+
+let versionMark = { hash: '', at: Date.now(), any: false };   // last snapshot of the open diagram
+function markVersions() {
+  const v = store.versions()[0];
+  versionMark = { hash: v ? hashText(v.sql || '') : '', at: v ? v.t : Date.now(), any: !!v };
+}
+function versionOf(extra) {
+  // `kind` is the format the text was actually parsed as (the format choice may be 'auto')
+  return { ...currentContent(), tables: lastModel ? lastModel.tables.length : 0, kind: lastModel ? lastModel.format : 'sql', ...extra };
+}
+// called after every autosave: keep the diagram list fresh and take an
+// automatic snapshot now and then, so there is always something to go back to
+function afterSave() {
+  if (isEmbed || layoutPending) return;
+  const sql = sqlEl.value, hash = hashText(sql);
+  store.touch({ tables: lastModel ? lastModel.tables.length : 0, hash });
+  if (!sql.trim() || hash === versionMark.hash) return;
+  if (!versionMark.any || Date.now() - versionMark.at > 5 * 60 * 1000) {
+    store.addVersion(versionOf({ auto: true }));
+    markVersions();
+  }
+}
+
+function syncDocUI() {
+  docName.textContent = store.current.name;
+  document.title = store.current.name === 'Untitled diagram' ? BASE_TITLE : `${store.current.name} · SQL to ER Diagram`;
+}
+const BASE_TITLE = document.title;
+
+// load a diagram's content into the editor + canvas (null/empty = a blank diagram)
+function applyContent(c) {
+  diagram._cancelEdit();
+  clearTimeout(timer); timer = null;
+  if (c && c.dialect && DIALECTS[c.dialect]) { dialect = c.dialect; localStorage.setItem('dbdiga-dialect', dialect); syncDialect(); }
+  formatChoice = c && c.format && FORMATS[c.format] ? c.format : 'auto';
+  localStorage.setItem('dbdiga-format', formatChoice);
+  syncFormat();
+  sqlEl.value = (c && c.sql) || '';
+  history.clear();                       // undo history belongs to one diagram
+  rebuild({ restore: restoreOf((c && c.layout) || {}) });
+  saveLayout();
+  syncUndoButtons();
+}
+function switchDoc(id) {
+  if (id === store.currentId) return;
+  flushTyping();
+  const content = store.open(id, currentContent());
+  if (content === undefined) return;
+  applyContent(content);
+  markVersions();
+  syncDocUI();
+}
+function newDoc(name = 'Untitled diagram', content = { sql: '' }) {
+  const id = store.create(name, content);
+  if (!id) { toast('This browser’s storage is full — delete a diagram or some versions first', { tone: 'err' }); return false; }
+  switchDoc(id);
+  return true;
+}
+function deleteDoc(id) {
+  const d = store.get(id);
+  if (!d || !window.confirm(`Delete “${d.name}” and its version history? This can’t be undone.`)) return;
+  if (id === store.currentId) {
+    const other = store.list().find((x) => x.id !== id);
+    if (other) switchDoc(other.id);
+    else if (!newDoc()) return;
+  }
+  store.remove(id);
+  toast(`Deleted “${d.name}”`);
+}
+function startRename() {
+  docMenu.hidden = true;
+  docRename.value = store.current.name;
+  docRename.hidden = false; docBtn.hidden = true;
+  docRename.focus(); docRename.select();
+}
+function endRename(commit) {
+  if (docRename.hidden) return;
+  if (commit && docRename.value.trim()) { store.rename(store.currentId, docRename.value); syncDocUI(); }
+  docRename.hidden = true; docBtn.hidden = false;
+}
+docRename.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); endRename(true); docBtn.focus(); }
+  else if (e.key === 'Escape') { e.preventDefault(); endRename(false); docBtn.focus(); }
+  e.stopPropagation();
+});
+docRename.addEventListener('blur', () => endRename(true));
+
+function renderDocMenu() {
+  docMenu.innerHTML = '';
+  const label = document.createElement('div');
+  label.className = 'menu-label';
+  label.textContent = 'My diagrams · saved in this browser';
+  docMenu.appendChild(label);
+  const listEl = document.createElement('div');
+  listEl.className = 'doc-list';
+  for (const d of store.list()) {
+    const row = document.createElement('div');
+    row.className = 'doc-row' + (d.id === store.currentId ? ' active' : '');
+    const open = document.createElement('button');
+    open.className = 'doc-open';
+    const nm = document.createElement('span'); nm.className = 'doc-row-name'; nm.textContent = d.name;
+    const sub = document.createElement('span'); sub.className = 'doc-row-sub';
+    sub.textContent = `${d.tables || 0} table${d.tables === 1 ? '' : 's'}`;
+    open.append(nm, sub);
+    open.addEventListener('click', () => { docMenu.hidden = true; switchDoc(d.id); });
+    const del = document.createElement('button');
+    del.className = 'icon-btn doc-del'; del.textContent = '✕';
+    del.title = `Delete “${d.name}”`; del.setAttribute('aria-label', del.title);
+    del.addEventListener('click', (e) => { e.stopPropagation(); docMenu.hidden = true; deleteDoc(d.id); });
+    row.append(open, del);
+    listEl.appendChild(row);
+  }
+  docMenu.appendChild(listEl);
+  const sep = document.createElement('div'); sep.className = 'menu-sep'; docMenu.appendChild(sep);
+  const item = (text, run) => {
+    const b = document.createElement('button');
+    b.className = 'menu-item'; b.textContent = text;
+    b.addEventListener('click', () => { docMenu.hidden = true; run(); });
+    docMenu.appendChild(b);
+  };
+  item('New diagram', () => { if (newDoc()) sqlEl.focus(); });
+  item('Rename…', startRename);
+  item('Duplicate', () => { flushTyping(); newDoc(store.current.name + ' copy', currentContent()); });
+}
+docBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  docMenu.hidden = !docMenu.hidden;
+  if (!docMenu.hidden) renderDocMenu();
+});
+docBtn.addEventListener('dblclick', startRename);
+docMenu.addEventListener('click', (e) => e.stopPropagation());
+document.addEventListener('click', () => { docMenu.hidden = true; });
+$('btn-new').addEventListener('click', () => { fileMenu.hidden = true; if (newDoc()) sqlEl.focus(); });
+syncDocUI();
+markVersions();
+
+// ---- dialogs (import / versions / compare): loaded on first use ----
+function restoreVersion(v) {
+  if (v.dialect && DIALECTS[v.dialect]) { dialect = v.dialect; localStorage.setItem('dbdiga-dialect', dialect); syncDialect(); }
+  if (v.format && FORMATS[v.format] && v.format !== formatChoice) { formatChoice = v.format; localStorage.setItem('dbdiga-format', formatChoice); syncFormat(); }
+  sqlEl.value = v.sql || '';
+  rebuild({ restore: restoreOf(v.layout || {}) });
+  toast(`Restored ${v.label ? `“${v.label}”` : 'that version'}`, { action: { label: 'Undo', run: undo } });
+}
+async function openDialog(kind) {
+  flushTyping();
+  let dialogs;
+  try { dialogs = await import('./dialogs.js'); }
+  catch { toast('Could not load that dialog — check your connection', { tone: 'err' }); return; }
+  const ctx = {
+    dialect, docName: store.current.name, model: lastModel || { tables: [], relations: [], editable: true },
+    versions: () => store.versions(),
+    saveVersion: (label) => { store.addVersion(versionOf({ auto: false, label })); markVersions(); toast(label ? `Saved version “${label}”` : 'Version saved'); },
+    removeVersion: (t) => { store.removeVersion(t); markVersions(); },
+    restoreVersion,
+    download: (name, text) => downloadText(name, text, 'text/plain'),
+    onImport: (sql, srcDialect, n) => {
+      // never overwrite what's open: a non-empty diagram gets a new sibling
+      if (sqlEl.value.trim() && !newDoc('Imported database')) return;
+      if (DIALECTS[srcDialect]) { dialect = srcDialect; localStorage.setItem('dbdiga-dialect', dialect); syncDialect(); }
+      loadSchemaText(sql);
+      toast(`Imported ${n} table${n !== 1 ? 's' : ''}`);
+    },
+  };
+  if (kind === 'snapshot') {
+    if (!diagram.model.tables.length && !diagram.annotations.length) { toast('Nothing to snapshot yet'); return; }
+    dialogs.openSnapshotDialog({
+      diagram, docName: store.current.name === 'Untitled diagram' ? '' : store.current.name,
+      toast, downloadBlob, copyLink: shareLink,
+    });
+    return;
+  }
+  if (kind === 'import') dialogs.openImportDialog(ctx);
+  else if (kind === 'versions') dialogs.openVersionsDialog(ctx);
+  else dialogs.openCompareDialog(ctx);
+}
+$('btn-import-db').addEventListener('click', () => { fileMenu.hidden = true; openDialog('import'); });
+$('btn-snapshot').addEventListener('click', (e) => { e.stopPropagation(); exportMenu.hidden = true; openDialog('snapshot'); });
+$('btn-versions').addEventListener('click', () => { fileMenu.hidden = true; openDialog('versions'); });
+$('btn-compare').addEventListener('click', () => { fileMenu.hidden = true; openDialog('compare'); });
+$('btn-example').addEventListener('click', () => { fileMenu.hidden = true; });
+
+// ---- column / table tooltip: everything the compact card can't show ----
+const tipEl = document.createElement('div');
+tipEl.className = 'col-tip';
+tipEl.setAttribute('role', 'tooltip');
+tipEl.hidden = true;
+canvas.parentElement.appendChild(tipEl);
+let tipTimer = null;
+function tipContent(info) {
+  const { table, column: c } = info;
+  const frag = document.createDocumentFragment();
+  const add = (cls, text) => { const d = document.createElement('div'); d.className = cls; d.textContent = text; frag.appendChild(d); return d; };
+  if (!c) {
+    if (!table.comment) return null;                    // a header tip only earns its place with a comment
+    add('tip-name', table.name);
+    add('tip-comment', table.comment);
+    return frag;
+  }
+  add('tip-name', `${table.name}.${c.name}`);
+  if (c.typeRaw || c.type) add('tip-type', c.typeRaw || c.type);
+  const facts = [];
+  if (c.pk) facts.push('Primary key');
+  const rel = (lastModel ? lastModel.relations : []).find((r) => r.fromTable.toLowerCase() === table.key && r.fromCols.some((x) => x.toLowerCase() === c.name.toLowerCase()));
+  if (rel) facts.push(`References ${rel.toTable}${rel.toCols && rel.toCols.length ? '.' + rel.toCols.join(', ') : ''}`);
+  if (!c.pk && c.nn !== undefined) facts.push(c.nn ? 'NOT NULL' : 'Nullable');
+  if (c.unique && !c.pk) facts.push('Unique');
+  if (c.indexes && c.indexes.length) facts.push(`Indexed (${[...new Set(c.indexes)].join(', ')})`);
+  if (c.default) facts.push(`Default ${c.default}`);
+  if (facts.length) add('tip-facts', facts.join(' · '));
+  const enumKey = String(c.typeRaw || c.type || '').toLowerCase().split('.').pop();
+  const values = lastModel && lastModel.enums && lastModel.enums[enumKey];
+  if (values && values.length) add('tip-enum', 'One of: ' + values.slice(0, 12).join(', ') + (values.length > 12 ? ` … +${values.length - 12}` : ''));
+  if (c.comment) add('tip-comment', c.comment);
+  return frag;
+}
+diagram.onHoverInfo = (info) => {
+  clearTimeout(tipTimer);
+  tipEl.hidden = true;
+  if (!info) return;
+  tipTimer = setTimeout(() => {
+    const content = tipContent(info);
+    if (!content) return;
+    tipEl.innerHTML = '';
+    tipEl.appendChild(content);
+    tipEl.hidden = false;
+    const pane = canvas.parentElement.getBoundingClientRect();
+    const w = tipEl.offsetWidth, hh = tipEl.offsetHeight;
+    tipEl.style.left = Math.max(8, Math.min(info.sx + 14, pane.width - w - 8)) + 'px';
+    tipEl.style.top = (info.sy + 18 + hh > pane.height - 8 ? Math.max(8, info.sy - hh - 12) : info.sy + 18) + 'px';
+  }, 450);
+};
+
+// ---- first-run tips (shown once) ----
+if (!isEmbed && !localStorage.getItem('dbdiga-coach')) {
+  const coach = document.createElement('div');
+  coach.className = 'coach';
+  coach.setAttribute('role', 'note');
+  coach.innerHTML =
+    '<div class="coach-title">Three things worth knowing</div>' +
+    '<ol class="coach-steps">' +
+    '<li><strong>Bring a schema.</strong> Paste SQL on the left, drop a file anywhere, or import from a live database (File menu).</li>' +
+    `<li><strong>Find anything.</strong> <kbd>${isMac ? '⌘K' : 'Ctrl K'}</kbd> jumps to any table or column. Click a table to see only its relationships.</li>` +
+    '<li><strong>Share it.</strong> Share copies a link with the whole diagram inside it — nothing is uploaded.</li>' +
+    '</ol>' +
+    '<button class="btn primary coach-ok">Got it</button>';
+  canvas.parentElement.appendChild(coach);
+  coach.querySelector('.coach-ok').addEventListener('click', () => {
+    localStorage.setItem('dbdiga-coach', '1');
+    coach.remove();
+  });
+}
+
+// ---- minimap (bottom-left overview; M toggles it) ----
+const minimap = createMinimap(diagram, canvas.parentElement);
+minimap.setEnabled(localStorage.getItem('dbdiga-minimap') !== '0' && !isEmbed);
+diagram.onFrame = () => minimap.draw();
+function toggleMinimap() {
+  minimap.setEnabled(!minimap.enabled);
+  localStorage.setItem('dbdiga-minimap', minimap.enabled ? '1' : '0');
+}
+
+// ---- undo / redo buttons ----
+$('btn-undo').addEventListener('click', undo);
+$('btn-redo').addEventListener('click', redo);
+$('btn-undo').title = `Undo (${MOD}+Z)`;
+$('btn-redo').title = `Redo (${isMac ? '⇧⌘Z' : 'Ctrl+Y'})`;
+syncUndoButtons();
+
+// ---- command palette (Cmd/Ctrl+K) ----
+const K = (k) => [MOD, k];
+function paletteCommands() {
+  const cmds = [
+    { id: 'fit', label: 'Fit diagram to screen', keys: ['F'], run: () => diagram.fit(60, { animate: true }) },
+    { id: 'arrange', label: 'Auto-arrange tables', keys: K('↵'), run: () => rebuild({ arrange: true }) },
+    { id: 'undo', label: 'Undo', keys: K('Z'), run: undo },
+    { id: 'redo', label: 'Redo', keys: isMac ? ['⇧', '⌘', 'Z'] : ['Ctrl', 'Y'], run: redo },
+    { id: 'share', label: 'Copy share link', run: shareLink },
+    { id: 'snapshot', label: 'Snapshot — share-ready picture…', run: () => openDialog('snapshot') },
+    { id: 'copy-png', label: 'Copy diagram as PNG', run: () => exportImage('png-copy') },
+    { id: 'png', label: 'Export PNG', run: () => exportImage('png') },
+    { id: 'png-t', label: 'Export PNG (transparent background)', run: () => exportImage('png-transparent') },
+    { id: 'svg', label: 'Export SVG', run: () => exportImage('svg') },
+    { id: 'mermaid', label: 'Export as Mermaid', run: () => exportCode('mermaid') },
+    { id: 'dbml', label: 'Export as DBML', run: () => exportCode('dbml') },
+    { id: 'plantuml', label: 'Export as PlantUML', run: () => exportCode('plantuml') },
+    { id: 'open', label: 'Open file…', hint: '.sql or project', run: () => fileInput.click() },
+    { id: 'save', label: 'Save project', run: saveProject },
+    { id: 'infer', label: 'Infer links from column names', run: () => $('btn-infer').click() },
+    { id: 'new', label: 'New diagram', run: () => { if (newDoc()) sqlEl.focus(); } },
+    { id: 'rename', label: 'Rename this diagram', run: startRename },
+    { id: 'import', label: 'Import from a database…', hint: 'Postgres · MySQL · SQLite · SQL Server', run: () => openDialog('import') },
+    { id: 'versions', label: 'Version history…', run: () => openDialog('versions') },
+    { id: 'compare', label: 'Compare & migrate…', hint: 'schema diff', run: () => openDialog('compare') },
+    { id: 'save-version', label: 'Save a version now', run: () => { store.addVersion(versionOf({ auto: false })); markVersions(); toast('Version saved'); } },
+    ...['postgres', 'mysql', 'sqlite', 'sqlserver', 'snowflake'].map((d) => ({ id: 'sql-' + d, label: `Export SQL for ${DIALECTS[d].label}`, run: () => exportCode('sql-' + d) })),
+    { id: 'note', label: 'Add sticky note', run: () => diagram.addAnnotation('note') },
+    { id: 'group', label: 'Add group box', run: () => diagram.addAnnotation('group') },
+    { id: 'tables', label: 'Show tables panel', run: () => toggleTablesPanel(true) },
+    { id: 'sql', label: layoutEl.classList.contains('sql-hidden') ? 'Show SQL panel' : 'Hide SQL panel', run: () => setSqlHidden(!layoutEl.classList.contains('sql-hidden')) },
+    { id: 'minimap', label: minimap.enabled ? 'Hide minimap' : 'Show minimap', keys: ['M'], run: toggleMinimap },
+    ...THEME_LIST.filter((t) => t.id !== diagram.themeName).map((t) => ({ id: 'theme-' + t.id, label: `Theme: ${t.label}`, run: () => setTheme(t.id) })),
+    { id: 'example', label: 'Load example schema', run: loadExample },
+  ];
+  for (const d of store.list()) if (d.id !== store.currentId) cmds.push({ id: 'doc-' + d.id, label: `Open diagram: ${d.name}`, hint: `${d.tables || 0} tables`, run: () => switchDoc(d.id) });
+  if (diagram.hiddenCount() > 0) cmds.push({ id: 'show-hidden', label: `Show ${diagram.hiddenCount()} hidden table${diagram.hiddenCount() !== 1 ? 's' : ''}`, run: () => diagram.showAllHidden() });
+  return cmds;
+}
+const palette = createPalette({
+  getTables: () => diagram.model.tables,
+  getCommands: paletteCommands,
+  onJump: (key) => diagram.centerOn(key, { minScale: 0.8 }),
+});
+$('btn-palette').addEventListener('click', () => palette.open());
+$('btn-palette').title = `Search tables, columns and actions (${MOD}+K)`;
+$('palette-kbd').textContent = isMac ? '⌘K' : 'Ctrl K';
+
 // keyboard shortcuts
 window.addEventListener('keydown', (e) => {
-  const typing = document.activeElement &&
-    (document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'INPUT');
-  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+  const ae = document.activeElement;
+  const typing = ae && (ae.tagName === 'TEXTAREA' || ae.tagName === 'INPUT');
+  const mod = e.metaKey || e.ctrlKey;
+  const key = e.key.toLowerCase();
+  if (mod && key === 'k') {
+    if (isEmbed) return;
+    e.preventDefault();
+    palette.toggle();
+  } else if (mod && !e.altKey && (key === 'z' || key === 'y') && (!typing || ae === sqlEl)) {
+    // one history for the code editor and the canvas; other inputs keep native undo
+    e.preventDefault();
+    if (key === 'y' || e.shiftKey) redo(); else undo();
+  } else if (mod && e.key === 'Enter') {
     e.preventDefault();
     rebuild({ arrange: true });
-  } else if (!typing && (e.key === 'Delete' || e.key === 'Backspace') && diagram.selectedAnno) {
+  } else if (typing || mod || e.altKey) {
+    return;
+  } else if ((e.key === 'Delete' || e.key === 'Backspace') && diagram.selectedAnno) {
     e.preventDefault();
     diagram.deleteSelectedAnnotation();
-  } else if (!typing && (e.key === 'h' || e.key === 'H') && diagram.selected.size > 0) {
+  } else if (key === 'h' && diagram.selected.size > 0) {
     e.preventDefault();
     diagram.hideTable(null);   // hide the current selection
-  } else if (e.key === 'Escape' && !typing) {
+  } else if (key === 'f') {
+    e.preventDefault();
+    diagram.fit(60, { animate: true });
+  } else if (key === 'm' && !isEmbed) {
+    e.preventDefault();
+    toggleMinimap();
+  } else if (e.key === '/') {
+    if (isEmbed) return;
+    e.preventDefault();
+    palette.open();
+  } else if (e.key === '+' || e.key === '=') {
+    diagram.zoomBy(1.25);
+  } else if (e.key === '-') {
+    diagram.zoomBy(0.8);
+  } else if (e.key === 'Escape') {
     hideCtx();
     diagram.clearSelection();
   }
 });
+
+// keep the canvas sized to its pane however the pane changes (splitter, panel
+// toggle, window, device rotation)
+if (typeof ResizeObserver === 'function') {
+  new ResizeObserver(() => diagram.resize()).observe(canvas.parentElement);
+}
+
+// ---- offline support: cache the app shell so it opens without a connection ----
+if (import.meta.env.PROD && !isEmbed && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => { /* offline support is optional */ });
+    // Once the page is idle, pull in the on-demand chunks too so every feature
+    // (all formats, exports, visual mode) is in the offline cache.
+    const warm = () => {
+      loadAllFormats().catch(() => {});
+      import('./svg-export.js').catch(() => {});
+      import('./formats/serialize.js').catch(() => {});
+      ensureVisualEditor().catch(() => {});
+    };
+    if ('requestIdleCallback' in window) requestIdleCallback(warm, { timeout: 8000 });
+    else setTimeout(warm, 4000);
+  });
+}
 
 // ---- embed mode: read-only, chrome-free, with a click-through backlink ----
 if (isEmbed) {
@@ -819,12 +1647,36 @@ if (isEmbed) {
   document.querySelector('.canvas-pane').appendChild(brand);
 }
 
+// a share link pasted into an already-open tab only changes the fragment: load it
+window.addEventListener('hashchange', () => { if (location.hash.startsWith('#s=')) location.reload(); });
+
 // ---- boot: shared link > last session > example ----
 (async () => {
+  // Give the diagram typefaces a moment to arrive so the first paint is
+  // measured with them; if they're slow, paint now and re-measure when they land.
+  if (document.fonts && document.fonts.load) {
+    const fonts = Promise.all([
+      document.fonts.load('13px "JetBrains Mono Variable"'),
+      document.fonts.load('600 14px "Inter Variable"'),
+    ]).catch(() => {});
+    let late = false;
+    await Promise.race([fonts, new Promise((r) => setTimeout(() => { late = true; r(); }, 300))]);
+    if (late) fonts.then(() => diagram.refreshMetrics());
+  }
   // 1) shared link (#s=…) takes precedence
   if (location.hash.startsWith('#s=')) {
     try {
       const data = await decodeShare(location.hash.slice(3));
+      // A shared link must not overwrite the diagram you were working on: it
+      // opens as its own entry in My diagrams (reusing it on a repeat visit).
+      const working = localStorage.getItem('dbdiga-sql') || '';
+      const sharedHash = hashText(data.sql || '');
+      if (!isEmbed && working.trim() && hashText(working) !== sharedHash) {
+        const parked = { sql: working, format: formatChoice, dialect, layout: loadSavedLayout() };
+        const known = store.findByHash(sharedHash);
+        const id = known ? known.id : store.create('Shared diagram', null, { hash: sharedHash });
+        if (id) { store.open(id, parked); history.clear(); markVersions(); syncDocUI(); }
+      }
       sqlEl.value = data.sql || '';
       localStorage.setItem('dbdiga-sql', sqlEl.value);
       if (data.dialect && DIALECTS[data.dialect]) {
@@ -841,7 +1693,7 @@ if (isEmbed) {
       // a shared schema with no saved positions (e.g. gallery links) → auto-arrange
       const hasPositions = data.positions && Object.keys(data.positions).length > 0;
       if (hasPositions) {
-        rebuild({ restore: { positions: data.positions, camera: data.camera, annotations: data.annotations, hidden: data.hidden, manualLinks: data.manualLinks } });
+        rebuild({ restore: restoreOf(data) });
       } else {
         rebuild({ arrange: true });
       }

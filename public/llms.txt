@@ -1,0 +1,76 @@
+# SQL to ER Diagram
+
+> Free, open-source tool that converts a SQL schema (CREATE TABLE / DDL) into an interactive entity-relationship diagram (ERD), entirely in the browser. Nothing is uploaded; no signup.
+
+- Works with PostgreSQL, MySQL, MariaDB, SQLite, SQL Server, Oracle, Snowflake and BigQuery DDL.
+- Also reads Prisma, DBML, Mermaid, PlantUML, SQLAlchemy and Sequelize schemas.
+- Exports PNG, SVG, Mermaid, DBML and PlantUML, saves projects as files, and shares diagrams as links that encode the diagram in the URL.
+- MIT-licensed. No accounts, no paid plans. It never connects to a database itself (you paste schema text or the result of one read-only catalog query) and has no real-time multi-user editing.
+
+## Tool
+
+- [SQL to ER Diagram](https://sqltoerdiagram.com/): the editor. Paste a schema, get a diagram.
+- [Source code on GitHub](https://github.com/royalbhati/sqltoerdiagram): MIT-licensed
+- [Full text of every guide and FAQ](https://sqltoerdiagram.com/llms-full.txt): one plain-text file
+
+## Databases
+
+- [MySQL to ER Diagram](https://sqltoerdiagram.com/mysql/): Paste MySQL CREATE TABLE statements or a mysqldump and instantly generate an interactive ER diagram. Free, open source, runs in your browser — nothing uploaded.
+- [PostgreSQL to ER Diagram](https://sqltoerdiagram.com/postgresql/): Paste PostgreSQL CREATE TABLE statements or pg_dump output and instantly generate an interactive ER diagram. Free, open source, runs in your browser — nothing uploaded.
+- [SQLite to ER Diagram](https://sqltoerdiagram.com/sqlite/): Paste your SQLite schema (the .schema output) and instantly generate an interactive ER diagram. Free, open source, runs in your browser — nothing uploaded.
+- [SQL Server to ER Diagram](https://sqltoerdiagram.com/sql-server/): Paste SQL Server / T-SQL CREATE TABLE statements and instantly generate an interactive ER diagram. Free, open source, runs in your browser — nothing uploaded.
+- [Oracle to ER Diagram](https://sqltoerdiagram.com/oracle/): Paste Oracle SQL (CREATE TABLE / DDL) and instantly generate an interactive ER diagram. Free, open source, runs in your browser — nothing uploaded.
+- [MariaDB to ER Diagram](https://sqltoerdiagram.com/mariadb/): Paste MariaDB CREATE TABLE statements or a mysqldump and instantly generate an interactive ER diagram. Free, open source, runs in your browser — nothing uploaded.
+- [Snowflake to ER Diagram](https://sqltoerdiagram.com/snowflake/): Paste Snowflake SQL (CREATE TABLE / CREATE OR REPLACE TABLE) and instantly generate an interactive ER diagram. Free, open source, runs in your browser — nothing uploaded.
+- [BigQuery to ER Diagram](https://sqltoerdiagram.com/bigquery/): Paste a BigQuery WITH / CTE query or CREATE TABLE DDL and instantly render an interactive diagram. Free, open source, runs in your browser — nothing uploaded.
+
+## Formats & ORMs
+
+- [Prisma to ER Diagram](https://sqltoerdiagram.com/prisma/): Paste your schema.prisma and instantly generate a clean, interactive ER diagram. Visualize Prisma models, fields and relations online — free, open source, runs in your browser, nothing uploaded.
+- [DBML to ER Diagram](https://sqltoerdiagram.com/dbml/): Paste DBML (Database Markup Language) and instantly render an interactive ER diagram. Import DBML, export PNG/SVG. Free, open source, runs in your browser.
+- [Mermaid to ER Diagram](https://sqltoerdiagram.com/mermaid/): Paste a Mermaid erDiagram and render it as an interactive ER diagram you can drag, arrange and export. Free, open source, runs in your browser.
+- [SQLAlchemy to ER Diagram](https://sqltoerdiagram.com/sqlalchemy/): Paste your SQLAlchemy models and instantly generate an interactive ER diagram. Free, open source, runs in your browser — nothing uploaded.
+- [Sequelize to ER Diagram](https://sqltoerdiagram.com/sequelize/): Paste your Sequelize models and instantly generate an interactive ER diagram. Free, open source, runs in your browser — nothing uploaded.
+- [TypeORM to ER Diagram](https://sqltoerdiagram.com/typeorm/): Turn your TypeORM entities into an interactive ER diagram. Paste your entity classes (or the SQL TypeORM generates) to visualize tables and relations. Free, in your browser.
+- [Django Models to ER Diagram](https://sqltoerdiagram.com/django/): Turn your Django models into an interactive ER diagram. Paste models.py (or the SQL from sqlmigrate) to visualize tables and relations. Free, in your browser.
+
+## Converters
+
+- [SQL to Mermaid](https://sqltoerdiagram.com/sql-to-mermaid/): Paste SQL CREATE TABLE statements and export a Mermaid erDiagram. Free online SQL → Mermaid converter that also draws the live diagram. Runs in your browser.
+- [SQL to DBML Converter](https://sqltoerdiagram.com/sql-to-dbml/): Convert SQL to DBML free — paste your CREATE TABLE statements and export dbdiagram.io-ready DBML, with a live ER diagram to verify it. No signup, nothing uploaded, runs in your browser.
+- [SQL to PlantUML](https://sqltoerdiagram.com/sql-to-plantuml/): Paste SQL CREATE TABLE statements and export a PlantUML entity diagram. Free online SQL → PlantUML converter that also draws the live diagram. Runs in your browser.
+- [Prisma to DBML](https://sqltoerdiagram.com/prisma-to-dbml/): Paste your schema.prisma and export DBML. Free online Prisma → DBML converter that also renders the live ER diagram. Runs entirely in your browser.
+- [DBML to Mermaid](https://sqltoerdiagram.com/dbml-to-mermaid/): Paste DBML and export a Mermaid erDiagram. Free online DBML → Mermaid converter that also renders the live diagram. Runs entirely in your browser.
+- [DDL to ER Diagram](https://sqltoerdiagram.com/ddl-to-er-diagram/): Paste your SQL DDL (CREATE TABLE / ALTER TABLE) and instantly generate an interactive ER diagram. Free, open source, runs in your browser — nothing uploaded.
+- [ER Diagram Generator from SQL](https://sqltoerdiagram.com/er-diagram-generator/): A free online ER diagram generator — paste your SQL (CREATE TABLE / DDL) and instantly generate an interactive entity-relationship diagram. No signup, nothing uploaded.
+
+## Viewers & visualizers
+
+- [DBML to ER Diagram](https://sqltoerdiagram.com/dbml-to-er-diagram/): Paste DBML and render an interactive ER diagram instantly — a free dbdiagram-style DBML viewer that runs in your browser. Export PNG, SVG, Mermaid.
+- [DBML Viewer](https://sqltoerdiagram.com/dbml-viewer/): A free online DBML viewer — paste any DBML or .dbml file and instantly see an interactive ER diagram. No signup, nothing uploaded, runs in your browser. Export PNG, SVG, Mermaid.
+- [Mermaid to ERD](https://sqltoerdiagram.com/mermaid-to-erd/): Paste a Mermaid erDiagram and turn it into an interactive ERD you can drag, arrange and export. Free, open source, runs in your browser.
+- [Prisma Schema Visualizer](https://sqltoerdiagram.com/prisma-schema-visualizer/): A free online Prisma schema visualizer — paste your schema.prisma and instantly see an interactive ER diagram of your models and relations. No signup, nothing uploaded.
+- [PlantUML to ER Diagram](https://sqltoerdiagram.com/plantuml/): Paste a PlantUML entity/class diagram and render it as an interactive ER diagram you can drag, arrange and export. Free, open source, runs in your browser.
+- [PlantUML Viewer](https://sqltoerdiagram.com/plantuml-viewer/): A free online PlantUML viewer for entity & class diagrams — paste your @startuml block and render it instantly in the browser. No Java, no server, nothing uploaded.
+
+## Comparisons
+
+- [ER diagram tool alternatives](https://sqltoerdiagram.com/alternatives/): How SQL to ER Diagram compares with dbdiagram.io, DrawSQL, ChartDB and drawDB: what each tool is built for and when to pick which. Free, open source, runs in your browser.
+- [SQL to ER Diagram vs dbdiagram.io](https://sqltoerdiagram.com/vs/dbdiagram/): SQL to ER Diagram compared with dbdiagram.io: a free, open-source, no-signup tool that draws an ER diagram from the SQL, Prisma or DBML you already have, entirely in your browser.
+- [SQL to ER Diagram vs DrawSQL](https://sqltoerdiagram.com/vs/drawsql/): SQL to ER Diagram compared with DrawSQL: a free, open-source, no-signup tool that generates an ER diagram from existing SQL, Prisma or DBML, entirely in your browser.
+- [SQL to ER Diagram vs ChartDB](https://sqltoerdiagram.com/vs/chartdb/): SQL to ER Diagram compared with ChartDB: both are open source. SQL to ER Diagram draws the diagram from pasted SQL, Prisma or DBML with no signup, entirely in your browser.
+- [SQL to ER Diagram vs drawDB](https://sqltoerdiagram.com/vs/drawdb/): SQL to ER Diagram compared with drawDB: both are free and open source. SQL to ER Diagram starts from the SQL, Prisma or DBML you already have and draws the diagram in your browser.
+
+## Schema examples
+
+- [Database schema examples](https://sqltoerdiagram.com/examples/): Gallery of example database schemas, each with the full SQL and an interactive ER diagram.
+- [E-commerce database schema](https://sqltoerdiagram.com/examples/ecommerce/): A complete e-commerce database schema example — customers, products, orders, order items, payments and reviews — as an interactive ER diagram you can open and edit.
+- [Blog / CMS database schema](https://sqltoerdiagram.com/examples/blog/): A complete blog / CMS database schema example — users, posts, comments, categories and tags — with the full SQL to copy and an interactive ER diagram. Free, no signup.
+- [SaaS (multi-tenant) database schema](https://sqltoerdiagram.com/examples/saas/): A multi-tenant SaaS database schema example — organizations, users, memberships, projects, plans and subscriptions — as an interactive ER diagram you can open and edit.
+- [Social network database schema](https://sqltoerdiagram.com/examples/social-network/): A social network database schema example — users, followers, posts, likes, comments and DMs — with the full SQL to copy and an interactive ER diagram. Free, no signup.
+- [Project management database schema](https://sqltoerdiagram.com/examples/project-management/): A project management database schema example (Jira-style) — projects, tasks, assignees, labels and comments — as an interactive ER diagram you can open and edit.
+- [Inventory / warehouse database schema](https://sqltoerdiagram.com/examples/inventory/): An inventory / warehouse database schema example — suppliers, products, warehouses, stock levels and purchase orders — as an interactive ER diagram you can open and edit.
+- [CRM database schema](https://sqltoerdiagram.com/examples/crm/): A complete CRM database schema example — accounts, contacts, leads, opportunities, activities and deals — with the full SQL to copy and an interactive ER diagram. Free.
+- [ERP database schema](https://sqltoerdiagram.com/examples/erp/): A complete ERP database schema example — employees, departments, products, purchase and sales orders, invoices and general ledger — with full SQL and an interactive ER diagram.
+- [Hospital database schema](https://sqltoerdiagram.com/examples/hospital/): A hospital database schema example — patients, doctors, departments, appointments, admissions and prescriptions — as an interactive ER diagram you can open and edit for free.
+- [School / LMS database schema](https://sqltoerdiagram.com/examples/school/): A school / LMS database schema example — students, teachers, courses, enrollments, assignments and grades — with the full SQL to copy and an interactive ER diagram. Free.

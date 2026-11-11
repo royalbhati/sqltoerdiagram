@@ -8,17 +8,27 @@
   <meta name="keywords" content="sql to plantuml, convert sql to plantuml, sql to plantuml er diagram, generate plantuml from sql, create table to plantuml" />
   <link rel="canonical" href="https://sqltoerdiagram.com/sql-to-plantuml/" />
   <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="SQL to ER Diagram" />
   <meta property="og:url" content="https://sqltoerdiagram.com/sql-to-plantuml/" />
   <meta property="og:title" content="SQL to PlantUML — Convert SQL to a PlantUML ER Diagram" />
   <meta property="og:description" content="Paste SQL CREATE TABLE statements and export a PlantUML entity diagram. Free online SQL → PlantUML converter that also draws the live diagram. Runs in your browser." />
-  <meta property="og:image" content="https://sqltoerdiagram.com/og.png" />
+  <meta property="og:image" content="https://sqltoerdiagram.com/og/sql-to-plantuml.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="ER diagram of the SQL to PlantUML example schema: teams and players (2 tables, 1 relationship)" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="SQL to PlantUML — Convert SQL to a PlantUML ER Diagram" />
-  <meta name="twitter:image" content="https://sqltoerdiagram.com/og.png" />
+  <meta name="twitter:description" content="Paste SQL CREATE TABLE statements and export a PlantUML entity diagram. Free online SQL → PlantUML converter that also draws the live diagram. Runs in your browser." />
+  <meta name="twitter:image" content="https://sqltoerdiagram.com/og/sql-to-plantuml.png" />
+  <meta name="twitter:image:alt" content="ER diagram of the SQL to PlantUML example schema: teams and players (2 tables, 1 relationship)" />
   <link rel="icon" href="/favicon.ico" sizes="any" />
   <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <script defer src="https://cloud.umami.is/script.js" data-website-id="27b5b4ba-93ad-4ef3-aaa0-af516881d308" data-exclude-hash="true"></script>
   <script type="application/ld+json">
-  {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"How do I convert SQL to PlantUML?","acceptedAnswer":{"@type":"Answer","text":"Paste your CREATE TABLE statements, then click Export → PlantUML and copy the <code>@startuml</code> block. Foreign keys become relationship connectors."}},{"@type":"Question","name":"Is my schema uploaded anywhere?","acceptedAnswer":{"@type":"Answer","text":"No. Everything runs locally in your browser — your schema is never uploaded to or stored on any server."}},{"@type":"Question","name":"Is it free?","acceptedAnswer":{"@type":"Answer","text":"Yes. It is completely free and open source, with no account or sign-up required."}}]}
+  {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"How do I convert SQL to PlantUML?","acceptedAnswer":{"@type":"Answer","text":"Paste your CREATE TABLE statements, then click Export → PlantUML and copy the @startuml block. Foreign keys become relationship connectors."}},{"@type":"Question","name":"Is my schema uploaded anywhere?","acceptedAnswer":{"@type":"Answer","text":"No. Everything runs locally in your browser — your schema is never uploaded to or stored on any server."}},{"@type":"Question","name":"Is it free?","acceptedAnswer":{"@type":"Answer","text":"Yes. It is completely free and open source, with no account or sign-up required."}}]}
+  </script>
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@type":"HowTo","name":"How to use SQL to PlantUML","description":"Paste SQL CREATE TABLE statements and export a PlantUML entity diagram. Free online SQL → PlantUML converter that also draws the live diagram. Runs in your browser.","image":"https://sqltoerdiagram.com/og/sql-to-plantuml.png","tool":[{"@type":"HowToTool","name":"SQL to ER Diagram (web browser)"}],"step":[{"@type":"HowToStep","position":1,"name":"Paste your SQL schema into the editor (PostgreSQL, MySQL, SQLite, SQL…","text":"Paste your SQL schema into the editor (PostgreSQL, MySQL, SQLite, SQL Server, Oracle…).","url":"https://sqltoerdiagram.com/sql-to-plantuml/#how-it-works"},{"@type":"HowToStep","position":2,"name":"The diagram renders instantly so you can verify it","text":"The diagram renders instantly so you can verify it.","url":"https://sqltoerdiagram.com/sql-to-plantuml/#how-it-works"},{"@type":"HowToStep","position":3,"name":"Click Export → PlantUML and copy the @startuml block","text":"Click Export → PlantUML and copy the @startuml block.","url":"https://sqltoerdiagram.com/sql-to-plantuml/#how-it-works"},{"@type":"HowToStep","position":4,"name":"Paste it into any PlantUML renderer, Confluence, or your docs","text":"Paste it into any PlantUML renderer, Confluence, or your docs.","url":"https://sqltoerdiagram.com/sql-to-plantuml/#how-it-works"}]}
   </script>
   <script type="application/ld+json">
   {"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"SQL to ER Diagram","item":"https://sqltoerdiagram.com/"},{"@type":"ListItem","position":2,"name":"SQL to PlantUML","item":"https://sqltoerdiagram.com/sql-to-plantuml/"}]}
@@ -58,11 +68,29 @@
     .badges { display:flex; flex-wrap:wrap; gap:8px; margin:18px 0 0; }
     .badge { font-size:13px; color:#cdd6e0; background:var(--panel); border:1px solid var(--border); border-radius:999px; padding:6px 12px; }
     .related { display:flex; flex-wrap:wrap; gap:8px 18px; }
+    .cols { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:4px 22px; width:100%; }
+    .cols .col h4 { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:14px 0 6px; }
+    .cols .col a { display:block; font-size:14px; padding:2px 0; }
+    .chips { display:flex; flex-wrap:wrap; gap:8px; }
+    .chip { font-size:13px; color:#cdd6e0; background:var(--panel); border:1px solid var(--border); border-radius:999px; padding:4px 12px; font-family:ui-monospace,Menlo,Consolas,monospace; }
     .cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:14px; padding:0; list-style:none; }
     .card { display:block; padding:16px; background:var(--panel); border:1px solid var(--border); border-radius:12px; }
     .card:hover { border-color:var(--accent); text-decoration:none; }
     .card .t { font-weight:600; color:var(--text); margin-bottom:4px; }
     .card .d { font-size:13px; color:var(--muted); }
+    figure.diagram { margin:28px 0 0; }
+    figure.diagram img { display:block; max-width:100%; height:auto; border:1px solid var(--border); border-radius:12px; background:#0e1116; }
+    figcaption { font-size:13px; color:var(--muted); margin-top:8px; }
+    .glance dl { display:grid; grid-template-columns:max-content 1fr; gap:10px 20px; margin:0; }
+    .glance dt { color:var(--muted); font-weight:600; }
+    .glance dd { margin:0; color:#c4ccd6; }
+    @media (max-width:560px) { .glance dl { grid-template-columns:1fr; gap:2px; } .glance dd { margin-bottom:10px; } }
+    .card img { display:block; width:100%; height:130px; object-fit:contain; background:#0e1116; border:1px solid var(--border); border-radius:8px; margin-bottom:12px; }
+    .tablewrap { overflow-x:auto; }
+    table.cmp { border-collapse:collapse; width:100%; font-size:15px; }
+    table.cmp th, table.cmp td { text-align:left; vertical-align:top; padding:10px 12px; border-bottom:1px solid var(--border); color:#c4ccd6; }
+    table.cmp th { color:var(--muted); font-size:13px; text-transform:uppercase; letter-spacing:.06em; }
+    .fine { font-size:13px; color:var(--muted); }
     footer { border-top:1px solid var(--border); padding:26px 0 50px; color:var(--muted); font-size:14px; }
     footer .wrap { display:flex; gap:18px; flex-wrap:wrap; }
   </style>
@@ -84,10 +112,24 @@
     <div class="hero">
       <h1>SQL to <span class="a">PlantUML</span></h1>
       <p class="lead">Paste your SQL <code>CREATE TABLE</code> statements and get a <strong>PlantUML</strong> entity diagram you can drop into your docs or wiki — plus a live, interactive diagram to check it first.</p>
-      <a class="cta" href="/#s=zhc8xC8IwEAXgv3Lc1EIW1zjVckKwFk1TsFCQaGIJtGltqov43yU4Obneg--9e6GeJuRoLsZ1Ghk-7Rzc6JGvGIZ7jxxzSZkiUNmmIHgEOwdIWg_gDFQkRVbAQYp9JhvYUcNiYgftelB0UlCX4lhT69N163-gaQzLXyi2nZ0BUSqQtCVJZU7Vd0TiTBpdZGic7u11QY5R7WYbkOFtnAcdb_GL9wc">Open the diagram tool →</a>
+      <a class="cta" href="/#s=zfY9BC4IwGIb_ysd3UtjBoEPYackiySyWBYIQyy0Z6TQnQUT_PYZdvHR9X3ie932j6DoMUV6lrgQSfKre6tZgOCNoHzWGGHFGMwYZXSUMBiUaC15hALSEOM3gwOMd5TlsWU5cbESj4Ex5tKHcWwQ-pPsM0lOSFMZfFmZC62rxUv1_njNefh1na8ZZGrHjOMTT0h-lurxPxPPAdz4kKLWoVTlgiF1rh6pXFgne2r4RLnMXP18">Open the diagram tool →</a>
       <div class="note">No signup · nothing uploaded · export PNG / SVG / Mermaid / DBML · shareable link</div>
+      <figure class="diagram">
+        <img src="/og/sql-to-plantuml.svg" width="553" height="192" alt="ER diagram of the SQL to PlantUML example schema: teams and players (2 tables, 1 relationship)" fetchpriority="high" decoding="async" />
+        <figcaption>The SQL to PlantUML example below, drawn by the tool: teams and players (2 tables, 1 relationship).</figcaption>
+      </figure>
     </div>
-    <section><h2>How it works</h2><ol>
+    <section class="glance" id="at-a-glance"><h2>At a glance</h2>
+      <dl>
+        <dt>What it is</dt><dd>SQL to ER Diagram is a free, open-source browser tool that turns SQL <code>CREATE TABLE</code> statements into a PlantUML entity diagram.</dd>
+        <dt>Input</dt><dd>SQL <code>CREATE TABLE</code> statements for PostgreSQL, MySQL, MariaDB, SQLite, SQL Server, Oracle or Snowflake.</dd>
+        <dt>Output</dt><dd>PlantUML entity-diagram code to copy, alongside a live interactive diagram.</dd>
+        <dt>Cost</dt><dd>Free. MIT-licensed open source. No account or signup.</dd>
+        <dt>Privacy</dt><dd>Runs entirely in your browser. The schema is never uploaded, and share links carry the diagram in the URL fragment, which is not sent to a server.</dd>
+        <dt>Limits</dt><dd>It never connects to your database itself: you paste schema text, or run one read-only catalog query in your own client and paste the result. There are no accounts, so there is no real-time multi-user editing; diagrams are kept in your browser, as a saved file, or as a share link. Layout stays smooth at around 300 tables.</dd>
+      </dl>
+    </section>
+    <section id="how-it-works"><h2>How it works</h2><ol>
         <li>Paste your SQL schema into the editor (PostgreSQL, MySQL, SQLite, SQL Server, Oracle…).</li>
         <li>The diagram renders instantly so you can verify it.</li>
         <li>Click <strong>Export → PlantUML</strong> and copy the <code>@startuml</code> block.</li>
@@ -95,29 +137,47 @@
     </ol></section>
     <section><h2>Example</h2>
       <p>This SQL:</p>
-      <pre>CREATE TABLE users (
-  id SERIAL PRIMARY KEY,
-  email TEXT UNIQUE
+      <pre>CREATE TABLE teams (
+  id INT PRIMARY KEY,
+  name VARCHAR(80) NOT NULL
 );
-CREATE TABLE posts (
-  id SERIAL PRIMARY KEY,
-  user_id INT REFERENCES users(id)
+CREATE TABLE players (
+  id INT PRIMARY KEY,
+  team_id INT REFERENCES teams(id),
+  nickname VARCHAR(40)
 );</pre>
       <p>…exports as this PlantUML:</p>
       <pre>@startuml
-entity users {
-  * id : serial
+hide circle
+skinparam linetype ortho
+
+entity "teams" as teams {
+  * id : int &lt;&lt;PK&gt;&gt;
   --
-  email : text
+  name : varchar(80)
 }
-entity posts {
-  * id : serial
+
+entity "players" as players {
+  * id : int &lt;&lt;PK&gt;&gt;
   --
-  user_id : int
+  team_id : int &lt;&lt;FK&gt;&gt;
+  nickname : varchar(40)
 }
-users ||--o{ posts
+
+teams ||--o{ players
 @enduml</pre>
       <p>Copy it from <strong>Export → PlantUML</strong>. <a href="/">Try it with your own &rarr;</a></p>
+    </section>
+    <section><h2>Guide</h2>
+
+      <p>The export produces a classic PlantUML entity diagram: each table becomes an <code>entity</code> block with a <code>*</code>-marked primary key and typed fields, and each foreign key becomes a crow's-foot connector (<code>users ||--o{ posts</code>). It's the notation your Confluence, XWiki, AsciiDoc or Doxygen setup already renders — no new toolchain to adopt.</p>
+      <p>Where people take the output:</p>
+      <ul>
+        <li>Confluence pages with the PlantUML macro — paste, save, done.</li>
+        <li>READMEs rendered through <code>plantuml</code> GitHub Actions or pre-commit renderers.</li>
+        <li>VS Code with any PlantUML preview extension for a local render loop.</li>
+      </ul>
+      <p>The difference from generating PlantUML by hand or with a script: the live diagram here verifies the relationships before you commit the artifact. A wrong join shows up as a wrong crow's-foot immediately. And if PlantUML turns out to be the wrong target — your docs move to Markdown, say — the same parse exports Mermaid and DBML too. One paste, three notations, all client-side.</p>
     </section>
     <section><h2>Why use it</h2><ul>
         <li><strong>Private:</strong> everything runs in your browser — nothing is uploaded or stored on a server.</li>
@@ -137,11 +197,58 @@ users ||--o{ posts
   </main>
   <footer>
     <div class="wrap">
-      <a href="/">SQL to ER Diagram</a>
-      <a href="/examples/">Schema examples</a>
-      <a href="https://github.com/royalbhati/sqltoerdiagram" target="_blank" rel="noopener">Open source on GitHub</a>
-      <a href="https://yourbrowsercandoit.com/" target="_blank" rel="noopener">Part of yourbrowsercandoit.com ↗</a>
-      <span>Free · runs in your browser</span>
+      <div class="cols">
+      <div class="col"><h4>Databases</h4>
+        <a href="/mysql/">MySQL</a>
+        <a href="/postgresql/">PostgreSQL</a>
+        <a href="/sqlite/">SQLite</a>
+        <a href="/sql-server/">SQL Server</a>
+        <a href="/oracle/">Oracle</a>
+        <a href="/mariadb/">MariaDB</a>
+        <a href="/snowflake/">Snowflake</a>
+        <a href="/bigquery/">BigQuery</a>
+      </div>
+      <div class="col"><h4>Formats & ORMs</h4>
+        <a href="/prisma/">Prisma</a>
+        <a href="/dbml/">DBML</a>
+        <a href="/mermaid/">Mermaid</a>
+        <a href="/sqlalchemy/">SQLAlchemy</a>
+        <a href="/sequelize/">Sequelize</a>
+        <a href="/typeorm/">TypeORM</a>
+        <a href="/django/">Django</a>
+      </div>
+      <div class="col"><h4>Converters</h4>
+        <a href="/sql-to-mermaid/">SQL to Mermaid</a>
+        <a href="/sql-to-dbml/">SQL to DBML</a>
+        <a href="/sql-to-plantuml/">SQL to PlantUML</a>
+        <a href="/prisma-to-dbml/">Prisma to DBML</a>
+        <a href="/dbml-to-mermaid/">DBML to Mermaid</a>
+        <a href="/ddl-to-er-diagram/">DDL to ER Diagram</a>
+        <a href="/er-diagram-generator/">ER Diagram Generator</a>
+      </div>
+      <div class="col"><h4>Viewers & visualizers</h4>
+        <a href="/dbml-to-er-diagram/">DBML to ER Diagram</a>
+        <a href="/dbml-viewer/">DBML Viewer</a>
+        <a href="/mermaid-to-erd/">Mermaid to ERD</a>
+        <a href="/prisma-schema-visualizer/">Prisma Schema Visualizer</a>
+        <a href="/plantuml/">PlantUML</a>
+        <a href="/plantuml-viewer/">PlantUML Viewer</a>
+      </div>
+      <div class="col"><h4>Compare</h4>
+        <a href="/alternatives/">All alternatives</a>
+        <a href="/vs/dbdiagram/">vs dbdiagram.io</a>
+        <a href="/vs/drawsql/">vs DrawSQL</a>
+        <a href="/vs/chartdb/">vs ChartDB</a>
+        <a href="/vs/drawdb/">vs drawDB</a>
+      </div>
+      </div>
+      <div style="display:flex; gap:18px; flex-wrap:wrap; margin-top:18px;">
+        <a href="/">SQL to ER Diagram</a>
+        <a href="/examples/">Schema examples</a>
+        <a href="https://github.com/royalbhati/sqltoerdiagram" target="_blank" rel="noopener">Open source on GitHub</a>
+        <a href="https://yourbrowsercandoit.com/" target="_blank" rel="noopener">Part of yourbrowsercandoit.com ↗</a>
+        <span>Free · runs in your browser</span>
+      </div>
     </div>
   </footer>
 </body>

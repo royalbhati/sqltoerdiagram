@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>dbdiagram.io Alternative — Free, Open-Source SQL to ER Diagram</title>
+  <meta name="description" content="SQL to ER Diagram compared with dbdiagram.io: a free, open-source, no-signup tool that draws an ER diagram from the SQL, Prisma or DBML you already have, entirely in your browser." />
+  <meta name="keywords" content="dbdiagram alternative, dbdiagram.io alternative, free dbdiagram alternative, open source dbdiagram alternative, dbml diagram tool" />
+  <link rel="canonical" href="https://sqltoerdiagram.com/vs/dbdiagram/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="SQL to ER Diagram" />
+  <meta property="og:url" content="https://sqltoerdiagram.com/vs/dbdiagram/" />
+  <meta property="og:title" content="dbdiagram.io Alternative — Free, Open-Source SQL to ER Diagram" />
+  <meta property="og:description" content="SQL to ER Diagram compared with dbdiagram.io: a free, open-source, no-signup tool that draws an ER diagram from the SQL, Prisma or DBML you already have, entirely in your browser." />
+  <meta property="og:image" content="https://sqltoerdiagram.com/og/vs-dbdiagram.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="ER diagram drawn by SQL to ER Diagram from the Blog / CMS example schema: users, categories, posts, comments, tags and post_tags (6 tables, 8 relationships)" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="dbdiagram.io Alternative — Free, Open-Source SQL to ER Diagram" />
+  <meta name="twitter:description" content="SQL to ER Diagram compared with dbdiagram.io: a free, open-source, no-signup tool that draws an ER diagram from the SQL, Prisma or DBML you already have, entirely in your browser." />
+  <meta name="twitter:image" content="https://sqltoerdiagram.com/og/vs-dbdiagram.png" />
+  <meta name="twitter:image:alt" content="ER diagram drawn by SQL to ER Diagram from the Blog / CMS example schema: users, categories, posts, comments, tags and post_tags (6 tables, 8 relationships)" />
+  <link rel="icon" href="/favicon.ico" sizes="any" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <script defer src="https://cloud.umami.is/script.js" data-website-id="27b5b4ba-93ad-4ef3-aaa0-af516881d308" data-exclude-hash="true"></script>
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Can I move a diagram between dbdiagram.io and SQL to ER Diagram?","acceptedAnswer":{"@type":"Answer","text":"Yes, through DBML. SQL to ER Diagram reads DBML, so you can paste DBML text into it, and it exports any schema as DBML that other DBML tools can read."}},{"@type":"Question","name":"Do I need to learn DBML to use SQL to ER Diagram?","acceptedAnswer":{"@type":"Answer","text":"No. Paste the SQL DDL, Prisma schema or ORM models you already have and the diagram is drawn from that. DBML is one of the supported inputs and outputs, not a requirement."}},{"@type":"Question","name":"Does SQL to ER Diagram support team collaboration?","acceptedAnswer":{"@type":"Answer","text":"Not in real time. There are no accounts or shared workspaces; you share a diagram by sending a link or a saved file. If your team needs to edit the same saved diagram together, a hosted tool with accounts is the better fit."}},{"@type":"Question","name":"Which ER diagram tool does not upload my schema?","acceptedAnswer":{"@type":"Answer","text":"SQL to ER Diagram parses and draws the schema entirely in your browser. Nothing is uploaded, and share links carry the diagram in the URL fragment, which is not sent to a server."}}]}
+  </script>
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"SQL to ER Diagram","item":"https://sqltoerdiagram.com/"},{"@type":"ListItem","position":2,"name":"Alternatives","item":"https://sqltoerdiagram.com/alternatives/"},{"@type":"ListItem","position":3,"name":"vs dbdiagram.io","item":"https://sqltoerdiagram.com/vs/dbdiagram/"}]}
+  </script>
+  <style>
+    :root { --bg:#0e1116; --panel:#161b22; --border:#262d38; --text:#e8edf4; --muted:#9aa4b2; --accent:#5aa7ff; }
+    * { box-sizing:border-box; }
+    html,body { margin:0; }
+    body { background:var(--bg); color:var(--text); font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; line-height:1.6; -webkit-font-smoothing:antialiased; }
+    a { color:var(--accent); text-decoration:none; }
+    a:hover { text-decoration:underline; }
+    .wrap { max-width:820px; margin:0 auto; padding:0 22px; }
+    header { border-bottom:1px solid var(--border); }
+    header .wrap { display:flex; align-items:center; gap:10px; height:58px; }
+    header svg { width:22px; height:22px; color:var(--accent); }
+    header .brand { font-weight:700; color:var(--text); }
+    header nav { margin-left:auto; display:flex; gap:20px; font-size:14px; }
+    .crumb { font-size:13px; color:var(--muted); padding:16px 0 0; }
+    .hero { padding:26px 0 36px; }
+    h1 { font-size:42px; line-height:1.1; letter-spacing:-.02em; margin:0 0 16px; }
+    h1 .a { color:var(--accent); }
+    .lead { font-size:19px; color:var(--muted); max-width:660px; margin:0 0 28px; }
+    .cta { display:inline-block; background:var(--accent); color:#fff; font-weight:600; font-size:16px; padding:13px 24px; border-radius:10px; }
+    .cta:hover { filter:brightness(1.08); text-decoration:none; }
+    .cta.alt { background:transparent; color:var(--accent); border:1px solid var(--border); margin-left:8px; }
+    .note { margin-top:14px; font-size:13px; color:var(--muted); }
+    section { padding:30px 0; border-top:1px solid var(--border); }
+    h2 { font-size:24px; letter-spacing:-.01em; margin:0 0 14px; }
+    h3 { font-size:17px; margin:22px 0 4px; }
+    p { color:#c4ccd6; }
+    ol,ul { color:#c4ccd6; padding-left:22px; }
+    li { margin:6px 0; }
+    code { background:var(--panel); border:1px solid var(--border); border-radius:5px; padding:1px 5px; font-size:.92em; }
+    pre { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:16px; overflow:auto; font-size:13px; line-height:1.5; color:#cdd6e0; font-family:ui-monospace,Menlo,Consolas,monospace; }
+    pre code { background:none; border:0; padding:0; }
+    .frame { width:100%; height:480px; border:1px solid var(--border); border-radius:12px; background:var(--panel); }
+    .badges { display:flex; flex-wrap:wrap; gap:8px; margin:18px 0 0; }
+    .badge { font-size:13px; color:#cdd6e0; background:var(--panel); border:1px solid var(--border); border-radius:999px; padding:6px 12px; }
+    .related { display:flex; flex-wrap:wrap; gap:8px 18px; }
+    .cols { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:4px 22px; width:100%; }
+    .cols .col h4 { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:14px 0 6px; }
+    .cols .col a { display:block; font-size:14px; padding:2px 0; }
+    .chips { display:flex; flex-wrap:wrap; gap:8px; }
+    .chip { font-size:13px; color:#cdd6e0; background:var(--panel); border:1px solid var(--border); border-radius:999px; padding:4px 12px; font-family:ui-monospace,Menlo,Consolas,monospace; }
+    .cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:14px; padding:0; list-style:none; }
+    .card { display:block; padding:16px; background:var(--panel); border:1px solid var(--border); border-radius:12px; }
+    .card:hover { border-color:var(--accent); text-decoration:none; }
+    .card .t { font-weight:600; color:var(--text); margin-bottom:4px; }
+    .card .d { font-size:13px; color:var(--muted); }
+    figure.diagram { margin:28px 0 0; }
+    figure.diagram img { display:block; max-width:100%; height:auto; border:1px solid var(--border); border-radius:12px; background:#0e1116; }
+    figcaption { font-size:13px; color:var(--muted); margin-top:8px; }
+    .glance dl { display:grid; grid-template-columns:max-content 1fr; gap:10px 20px; margin:0; }
+    .glance dt { color:var(--muted); font-weight:600; }
+    .glance dd { margin:0; color:#c4ccd6; }
+    @media (max-width:560px) { .glance dl { grid-template-columns:1fr; gap:2px; } .glance dd { margin-bottom:10px; } }
+    .card img { display:block; width:100%; height:130px; object-fit:contain; background:#0e1116; border:1px solid var(--border); border-radius:8px; margin-bottom:12px; }
+    .tablewrap { overflow-x:auto; }
+    table.cmp { border-collapse:collapse; width:100%; font-size:15px; }
+    table.cmp th, table.cmp td { text-align:left; vertical-align:top; padding:10px 12px; border-bottom:1px solid var(--border); color:#c4ccd6; }
+    table.cmp th { color:var(--muted); font-size:13px; text-transform:uppercase; letter-spacing:.06em; }
+    .fine { font-size:13px; color:var(--muted); }
+    footer { border-top:1px solid var(--border); padding:26px 0 50px; color:var(--muted); font-size:14px; }
+    footer .wrap { display:flex; gap:18px; flex-wrap:wrap; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>
+      <a class="brand" href="/">SQL to ER Diagram</a>
+      <nav>
+        <a href="/">Open tool</a>
+        <a href="/examples/">Examples</a>
+        <a href="https://github.com/royalbhati/sqltoerdiagram" target="_blank" rel="noopener">GitHub</a>
+      </nav>
+    </div>
+  </header>
+  <main class="wrap">
+    <div class="crumb"><a href="/">Home</a> › <a href="/alternatives/">Alternatives</a> › vs dbdiagram.io</div>
+    <div class="hero">
+      <h1>SQL to ER Diagram vs <span class="a">dbdiagram.io</span></h1>
+      <p class="lead">Both tools turn text into an ER diagram. dbdiagram.io is an editor built around the DBML language; SQL to ER Diagram is a free, open-source page that reads the schema you already have and never uploads it.</p>
+      <a class="cta" href="/">Open SQL to ER Diagram →</a>
+      <div class="note">No signup · nothing uploaded · free and open source (MIT)</div>
+      <figure class="diagram">
+        <img src="/og/examples-blog.svg" width="1125" height="496" alt="ER diagram drawn by SQL to ER Diagram from the Blog / CMS example schema: users, categories, posts, comments, tags and post_tags (6 tables, 8 relationships)" fetchpriority="high" decoding="async" />
+        <figcaption>Output of SQL to ER Diagram for the <a href="/examples/blog/">Blog / CMS example schema</a>: users, categories, posts, comments, tags and post_tags (6 tables, 8 relationships).</figcaption>
+      </figure>
+    </div>
+    <section class="glance" id="at-a-glance"><h2>At a glance</h2>
+      <dl>
+        <dt>What it is</dt><dd>SQL to ER Diagram is a free, open-source browser tool that turns a schema you already have into an interactive entity-relationship (ER) diagram.</dd>
+        <dt>Input</dt><dd>SQL DDL for PostgreSQL, MySQL, MariaDB, SQLite, SQL Server, Oracle, Snowflake and BigQuery, plus Prisma, DBML, Mermaid, PlantUML, SQLAlchemy and Sequelize schemas.</dd>
+        <dt>Output</dt><dd>An interactive ER diagram you can rearrange, then export as PNG, SVG, Mermaid, DBML or PlantUML, or share as a link.</dd>
+        <dt>Cost</dt><dd>Free. MIT-licensed open source. No account or signup.</dd>
+        <dt>Privacy</dt><dd>Runs entirely in your browser. The schema is never uploaded, and share links carry the diagram in the URL fragment, which is not sent to a server.</dd>
+        <dt>Limits</dt><dd>It never connects to your database itself: you paste schema text, or run one read-only catalog query in your own client and paste the result. There are no accounts, so there is no real-time multi-user editing; diagrams are kept in your browser, as a saved file, or as a share link. Layout stays smooth at around 300 tables.</dd>
+      </dl>
+    </section>
+    <section><h2>What dbdiagram.io is</h2>
+      <p>dbdiagram.io is a database diagram editor made by Holistics. You describe the schema as DBML code in its editor and the diagram is drawn from that code as you type. DBML, the language it is built around, is open source. It can also generate a diagram from a database or a SQL dump file, and generate the SQL to create the tables. Diagrams can be shared online, and a team can be invited to collaborate on them.</p>
+      <p class="fine">See <a href="https://dbdiagram.io/" target="_blank" rel="noopener nofollow">dbdiagram.io</a> for its current features and pricing.</p>
+    </section>
+    <section><h2>What SQL to ER Diagram is</h2>
+      <ul>
+        <li><strong>Free and open source</strong> under the MIT license. There are no paid plans.</li>
+        <li><strong>No signup.</strong> There are no accounts; you open the page and paste a schema.</li>
+        <li><strong>Runs entirely in your browser.</strong> The schema is parsed and drawn locally and is never uploaded to a server.</li>
+        <li><strong>Reads the schema you already have:</strong> SQL DDL for PostgreSQL, MySQL, MariaDB, SQLite, SQL Server, Oracle, Snowflake and BigQuery, plus Prisma, DBML, Mermaid, PlantUML, SQLAlchemy, Sequelize, TypeORM entities and Django models.</li>
+        <li><strong>Imports from a live database</strong> without connecting to it: you run one read-only catalog query in your own client and paste the result.</li>
+        <li><strong>Converts and migrates:</strong> exports the schema as DDL for another SQL dialect, and compares two versions to produce migration SQL.</li>
+        <li><strong>Exports</strong> PNG, SVG, Mermaid, DBML and PlantUML, copies the diagram to the clipboard, and makes share-ready snapshot images.</li>
+        <li><strong>Share by URL:</strong> a share link encodes the whole diagram in the URL fragment, which browsers do not send to a server.</li>
+        <li><strong>Editor features:</strong> undo/redo, a ⌘K command palette that jumps to any table or column, a minimap, and a clickable list of parse problems.</li>
+        <li><strong>Works offline</strong> after the first visit, and stays smooth at around 300 tables because layout runs in a Web Worker.</li>
+        <li><strong>Headless CLI</strong> that turns a schema file into an SVG, for docs and CI.</li>
+      </ul>
+    </section>
+    <section><h2>When to choose which</h2>
+      <h3>Choose SQL to ER Diagram when</h3>
+      <ul>
+        <li>You already have SQL, a database dump, or a Prisma, SQLAlchemy or Sequelize schema and want the diagram without rewriting it as DBML.</li>
+        <li>The schema must not leave your machine: nothing is uploaded and there is no account.</li>
+        <li>You want a free, MIT-licensed tool you can self-host or run from a CLI.</li>
+      </ul>
+      <h3>Choose dbdiagram.io when</h3>
+      <ul>
+        <li>You want DBML to be the source you write and keep.</li>
+        <li>Your team wants to collaborate on the same diagrams online.</li>
+      </ul>
+      <h3>What SQL to ER Diagram does not do</h3>
+      <ul>
+        <li>It has no accounts and no server, so there is no real-time multi-user editing and no cloud workspace. Diagrams and their version history live in your browser, in a file you save, or in a link you share.</li>
+        <li>It never connects to your database itself: you paste schema text, or run one read-only catalog query in your own client and paste its result.</li>
+      </ul>
+    </section>
+    <section><h2>FAQ</h2>
+      <h3>Can I move a diagram between dbdiagram.io and SQL to ER Diagram?</h3>
+      <p>Yes, through DBML. SQL to ER Diagram reads DBML, so you can paste DBML text into it, and it exports any schema as DBML that other DBML tools can read.</p>
+      <h3>Do I need to learn DBML to use SQL to ER Diagram?</h3>
+      <p>No. Paste the SQL DDL, Prisma schema or ORM models you already have and the diagram is drawn from that. DBML is one of the supported inputs and outputs, not a requirement.</p>
+      <h3>Does SQL to ER Diagram support team collaboration?</h3>
+      <p>Not in real time. There are no accounts or shared workspaces; you share a diagram by sending a link or a saved file. If your team needs to edit the same saved diagram together, a hosted tool with accounts is the better fit.</p>
+      <h3>Which ER diagram tool does not upload my schema?</h3>
+      <p>SQL to ER Diagram parses and draws the schema entirely in your browser. Nothing is uploaded, and share links carry the diagram in the URL fragment, which is not sent to a server.</p>
+    </section>
+    <section><h2>Related</h2><div class="related"><a href="/alternatives/">All alternatives</a><a href="/vs/drawsql/">SQL to ER Diagram vs DrawSQL</a><a href="/vs/chartdb/">SQL to ER Diagram vs ChartDB</a><a href="/vs/drawdb/">SQL to ER Diagram vs drawDB</a><a href="/er-diagram-generator/">ER diagram generator from SQL</a><a href="/examples/">Schema examples</a></div>
+      <p class="fine">This comparison is written by the maintainers of SQL to ER Diagram. It describes other products only in general terms and lists no prices or plan limits, because those change. Check each product’s own site for its current features and pricing. Product names are trademarks of their respective owners.</p>
+    </section>
+  </main>
+  <footer>
+    <div class="wrap">
+      <div class="cols">
+      <div class="col"><h4>Databases</h4>
+        <a href="/mysql/">MySQL</a>
+        <a href="/postgresql/">PostgreSQL</a>
+        <a href="/sqlite/">SQLite</a>
+        <a href="/sql-server/">SQL Server</a>
+        <a href="/oracle/">Oracle</a>
+        <a href="/mariadb/">MariaDB</a>
+        <a href="/snowflake/">Snowflake</a>
+        <a href="/bigquery/">BigQuery</a>
+      </div>
+      <div class="col"><h4>Formats & ORMs</h4>
+        <a href="/prisma/">Prisma</a>
+        <a href="/dbml/">DBML</a>
+        <a href="/mermaid/">Mermaid</a>
+        <a href="/sqlalchemy/">SQLAlchemy</a>
+        <a href="/sequelize/">Sequelize</a>
+        <a href="/typeorm/">TypeORM</a>
+        <a href="/django/">Django</a>
+      </div>
+      <div class="col"><h4>Converters</h4>
+        <a href="/sql-to-mermaid/">SQL to Mermaid</a>
+        <a href="/sql-to-dbml/">SQL to DBML</a>
+        <a href="/sql-to-plantuml/">SQL to PlantUML</a>
+        <a href="/prisma-to-dbml/">Prisma to DBML</a>
+        <a href="/dbml-to-mermaid/">DBML to Mermaid</a>
+        <a href="/ddl-to-er-diagram/">DDL to ER Diagram</a>
+        <a href="/er-diagram-generator/">ER Diagram Generator</a>
+      </div>
+      <div class="col"><h4>Viewers & visualizers</h4>
+        <a href="/dbml-to-er-diagram/">DBML to ER Diagram</a>
+        <a href="/dbml-viewer/">DBML Viewer</a>
+        <a href="/mermaid-to-erd/">Mermaid to ERD</a>
+        <a href="/prisma-schema-visualizer/">Prisma Schema Visualizer</a>
+        <a href="/plantuml/">PlantUML</a>
+        <a href="/plantuml-viewer/">PlantUML Viewer</a>
+      </div>
+      <div class="col"><h4>Compare</h4>
+        <a href="/alternatives/">All alternatives</a>
+        <a href="/vs/dbdiagram/">vs dbdiagram.io</a>
+        <a href="/vs/drawsql/">vs DrawSQL</a>
+        <a href="/vs/chartdb/">vs ChartDB</a>
+        <a href="/vs/drawdb/">vs drawDB</a>
+      </div>
+      </div>
+      <div style="display:flex; gap:18px; flex-wrap:wrap; margin-top:18px;">
+        <a href="/">SQL to ER Diagram</a>
+        <a href="/examples/">Schema examples</a>
+        <a href="https://github.com/royalbhati/sqltoerdiagram" target="_blank" rel="noopener">Open source on GitHub</a>
+        <a href="https://yourbrowsercandoit.com/" target="_blank" rel="noopener">Part of yourbrowsercandoit.com ↗</a>
+        <span>Free · runs in your browser</span>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

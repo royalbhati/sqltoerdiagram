@@ -1,0 +1,28 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+enum Role {
+  USER
+  ADMIN
+}
+model User {
+  id      Int      @id @default(autoincrement())
+  email   String   @unique
+  role    Role     @default(USER)
+  posts   Post[]
+  profile Profile?
+}
+model Profile {
+  id     Int    @id @default(autoincrement())
+  bio    String?
+  user   User   @relation(fields: [userId], references: [id])
+  userId Int    @unique
+}
+model Post {
+  id       Int     @id @default(autoincrement())
+  title    String  @db.VarChar(255)
+  author   User    @relation(fields: [authorId], references: [id])
+  authorId Int
+  @@index([authorId])
+}

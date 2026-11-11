@@ -12,12 +12,15 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node test/edit.test.mjs"
+    "test": "node test/edit.test.mjs && node test/unit.test.mjs && node test/parse.test.mjs"
   },
   "dependencies": {
-    "@dagrejs/dagre": "^1.1.4"
+    "@dagrejs/dagre": "^1.1.4",
+    "@fontsource-variable/inter": "^5.3.0",
+    "@fontsource-variable/jetbrains-mono": "^5.3.0"
   },
   "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "vite": "^5.4.0"
   }
 }

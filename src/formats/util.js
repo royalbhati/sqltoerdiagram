@@ -32,7 +32,9 @@ export function finalize(tables, rels) {
   for (const r of rels) {
     const from = byKey.get((r.fromTable || '').toLowerCase());
     if (!from) continue;
-    const to = byKey.get((r.toTable || '').toLowerCase());
+    // ORMs often name the target by its table (Teams) while the model is Team, or vice versa
+    const tk = (r.toTable || '').toLowerCase();
+    const to = byKey.get(tk) || byKey.get(tk.replace(/s$/, '')) || byKey.get(tk + 's');
     for (const c of r.fromCols || []) {
       const col = from.colIndex.get((c || '').toLowerCase());
       if (col) col.fk = true;

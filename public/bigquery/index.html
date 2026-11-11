@@ -8,17 +8,27 @@
   <meta name="keywords" content="bigquery to er diagram, bigquery erd, bigquery cte diagram, visualize bigquery query, bigquery schema diagram, bigquery lineage" />
   <link rel="canonical" href="https://sqltoerdiagram.com/bigquery/" />
   <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="SQL to ER Diagram" />
   <meta property="og:url" content="https://sqltoerdiagram.com/bigquery/" />
   <meta property="og:title" content="BigQuery to ER Diagram — Visualize CTEs &amp; Schemas, Free" />
   <meta property="og:description" content="Paste a BigQuery WITH / CTE query or CREATE TABLE DDL and instantly render an interactive diagram. Free, open source, runs in your browser — nothing uploaded." />
-  <meta property="og:image" content="https://sqltoerdiagram.com/og.png" />
+  <meta property="og:image" content="https://sqltoerdiagram.com/og/bigquery.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="ER diagram of the BigQuery example schema: customers, orders, customers_raw and orders_raw (4 tables, 3 relationships)" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="BigQuery to ER Diagram — Visualize CTEs &amp; Schemas, Free" />
-  <meta name="twitter:image" content="https://sqltoerdiagram.com/og.png" />
+  <meta name="twitter:description" content="Paste a BigQuery WITH / CTE query or CREATE TABLE DDL and instantly render an interactive diagram. Free, open source, runs in your browser — nothing uploaded." />
+  <meta name="twitter:image" content="https://sqltoerdiagram.com/og/bigquery.png" />
+  <meta name="twitter:image:alt" content="ER diagram of the BigQuery example schema: customers, orders, customers_raw and orders_raw (4 tables, 3 relationships)" />
   <link rel="icon" href="/favicon.ico" sizes="any" />
   <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <script defer src="https://cloud.umami.is/script.js" data-website-id="27b5b4ba-93ad-4ef3-aaa0-af516881d308" data-exclude-hash="true"></script>
   <script type="application/ld+json">
-  {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"How do I visualize a BigQuery CTE query?","acceptedAnswer":{"@type":"Answer","text":"Paste your <code>WITH … AS (…)</code> query. Each CTE becomes a node, columns come from its SELECT list, and references to other CTEs or backtick-quoted <code>project.dataset.table</code> tables are drawn as edges."}},{"@type":"Question","name":"Does it work with BigQuery CREATE TABLE DDL too?","acceptedAnswer":{"@type":"Answer","text":"Yes — paste standard CREATE TABLE statements and it draws a classic ER diagram with foreign-key relations."}},{"@type":"Question","name":"Is my schema uploaded anywhere?","acceptedAnswer":{"@type":"Answer","text":"No. Everything runs locally in your browser — your schema is never uploaded to or stored on any server."}},{"@type":"Question","name":"Is it free?","acceptedAnswer":{"@type":"Answer","text":"Yes. It is completely free and open source, with no account or sign-up required."}}]}
+  {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"How do I visualize a BigQuery CTE query?","acceptedAnswer":{"@type":"Answer","text":"Paste your WITH … AS (…) query. Each CTE becomes a node, columns come from its SELECT list, and references to other CTEs or backtick-quoted project.dataset.table tables are drawn as edges."}},{"@type":"Question","name":"Does it work with BigQuery CREATE TABLE DDL too?","acceptedAnswer":{"@type":"Answer","text":"Yes — paste standard CREATE TABLE statements and it draws a classic ER diagram with foreign-key relations."}},{"@type":"Question","name":"Is my schema uploaded anywhere?","acceptedAnswer":{"@type":"Answer","text":"No. Everything runs locally in your browser — your schema is never uploaded to or stored on any server."}},{"@type":"Question","name":"Is it free?","acceptedAnswer":{"@type":"Answer","text":"Yes. It is completely free and open source, with no account or sign-up required."}}]}
+  </script>
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@type":"HowTo","name":"How to use BigQuery to ER Diagram","description":"Paste a BigQuery WITH / CTE query or CREATE TABLE DDL and instantly render an interactive diagram. Free, open source, runs in your browser — nothing uploaded.","image":"https://sqltoerdiagram.com/og/bigquery.png","tool":[{"@type":"HowToTool","name":"SQL to ER Diagram (web browser)"}],"step":[{"@type":"HowToStep","position":1,"name":"Copy a BigQuery WITH / CTE query, or your CREATE TABLE DDL","text":"Copy a BigQuery WITH / CTE query, or your CREATE TABLE DDL.","url":"https://sqltoerdiagram.com/bigquery/#how-it-works"},{"@type":"HowToStep","position":2,"name":"Paste it into the editor","text":"Paste it into the editor — BigQuery CTE queries are auto-detected.","url":"https://sqltoerdiagram.com/bigquery/#how-it-works"},{"@type":"HowToStep","position":3,"name":"Each CTE becomes a node","text":"Each CTE becomes a node; columns come from its SELECT list, and FROM/JOIN references (including backtick project.dataset.table) are drawn as edges.","url":"https://sqltoerdiagram.com/bigquery/#how-it-works"},{"@type":"HowToStep","position":4,"name":"Arrange, hide nodes, then export PNG/SVG or convert to Mermaid/DBML","text":"Arrange, hide nodes, then export PNG/SVG or convert to Mermaid/DBML.","url":"https://sqltoerdiagram.com/bigquery/#how-it-works"}]}
   </script>
   <script type="application/ld+json">
   {"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"SQL to ER Diagram","item":"https://sqltoerdiagram.com/"},{"@type":"ListItem","position":2,"name":"BigQuery","item":"https://sqltoerdiagram.com/bigquery/"}]}
@@ -58,11 +68,29 @@
     .badges { display:flex; flex-wrap:wrap; gap:8px; margin:18px 0 0; }
     .badge { font-size:13px; color:#cdd6e0; background:var(--panel); border:1px solid var(--border); border-radius:999px; padding:6px 12px; }
     .related { display:flex; flex-wrap:wrap; gap:8px 18px; }
+    .cols { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:4px 22px; width:100%; }
+    .cols .col h4 { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:14px 0 6px; }
+    .cols .col a { display:block; font-size:14px; padding:2px 0; }
+    .chips { display:flex; flex-wrap:wrap; gap:8px; }
+    .chip { font-size:13px; color:#cdd6e0; background:var(--panel); border:1px solid var(--border); border-radius:999px; padding:4px 12px; font-family:ui-monospace,Menlo,Consolas,monospace; }
     .cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:14px; padding:0; list-style:none; }
     .card { display:block; padding:16px; background:var(--panel); border:1px solid var(--border); border-radius:12px; }
     .card:hover { border-color:var(--accent); text-decoration:none; }
     .card .t { font-weight:600; color:var(--text); margin-bottom:4px; }
     .card .d { font-size:13px; color:var(--muted); }
+    figure.diagram { margin:28px 0 0; }
+    figure.diagram img { display:block; max-width:100%; height:auto; border:1px solid var(--border); border-radius:12px; background:#0e1116; }
+    figcaption { font-size:13px; color:var(--muted); margin-top:8px; }
+    .glance dl { display:grid; grid-template-columns:max-content 1fr; gap:10px 20px; margin:0; }
+    .glance dt { color:var(--muted); font-weight:600; }
+    .glance dd { margin:0; color:#c4ccd6; }
+    @media (max-width:560px) { .glance dl { grid-template-columns:1fr; gap:2px; } .glance dd { margin-bottom:10px; } }
+    .card img { display:block; width:100%; height:130px; object-fit:contain; background:#0e1116; border:1px solid var(--border); border-radius:8px; margin-bottom:12px; }
+    .tablewrap { overflow-x:auto; }
+    table.cmp { border-collapse:collapse; width:100%; font-size:15px; }
+    table.cmp th, table.cmp td { text-align:left; vertical-align:top; padding:10px 12px; border-bottom:1px solid var(--border); color:#c4ccd6; }
+    table.cmp th { color:var(--muted); font-size:13px; text-transform:uppercase; letter-spacing:.06em; }
+    .fine { font-size:13px; color:var(--muted); }
     footer { border-top:1px solid var(--border); padding:26px 0 50px; color:var(--muted); font-size:14px; }
     footer .wrap { display:flex; gap:18px; flex-wrap:wrap; }
   </style>
@@ -86,8 +114,22 @@
       <p class="lead">Turn a <strong>BigQuery</strong> query into a diagram. Paste a <code>WITH … AS (…)</code> CTE query and each CTE becomes a node, with edges inferred from the <code>FROM</code> / <code>JOIN</code> tables it reads — or paste plain <code>CREATE TABLE</code> DDL for a classic ER diagram.</p>
       <a class="cta" href="/#s=zbYzBCoJAFEV_5fFWGYPQ1l2EUVAEKbQZ0NGZbELnjTNaRPTvYYaLaHvPPeeJwlqMUBZSVwIZ3pTzmgxGC4a-rTHC0zbdQNn7jhrlPCwTmHEDkMS7eJWClgxUI3QN6-NhD7l1dA39hWw4KZkT95ybgHFDTv5pUDhUaDIyLQf6GxzlTw2Im4Cbrz8fryNHhlKLWpUdRmjJd5VTw3gm14hhK3TV9so98PUG">Open the diagram tool →</a>
       <div class="note">No signup · nothing uploaded · export PNG / SVG / Mermaid / DBML · shareable link</div>
+      <figure class="diagram">
+        <img src="/og/bigquery.svg" width="701" height="230" alt="ER diagram of the BigQuery example schema: customers, orders, customers_raw and orders_raw (4 tables, 3 relationships)" fetchpriority="high" decoding="async" />
+        <figcaption>The BigQuery example below, drawn by the tool: customers, orders, customers_raw and orders_raw (4 tables, 3 relationships).</figcaption>
+      </figure>
     </div>
-    <section><h2>How it works</h2><ol>
+    <section class="glance" id="at-a-glance"><h2>At a glance</h2>
+      <dl>
+        <dt>What it is</dt><dd>SQL to ER Diagram is a free, open-source browser tool that turns a BigQuery CTE query or BigQuery DDL into an interactive diagram.</dd>
+        <dt>Input</dt><dd>A BigQuery <code>WITH … AS (…)</code> CTE query, or BigQuery <code>CREATE TABLE</code> DDL.</dd>
+        <dt>Output</dt><dd>An interactive diagram with one node per CTE or table and an edge for each table it reads, exportable as PNG or SVG.</dd>
+        <dt>Cost</dt><dd>Free. MIT-licensed open source. No account or signup.</dd>
+        <dt>Privacy</dt><dd>Runs entirely in your browser. The schema is never uploaded, and share links carry the diagram in the URL fragment, which is not sent to a server.</dd>
+        <dt>Limits</dt><dd>It never connects to your database itself: you paste schema text, or run one read-only catalog query in your own client and paste the result. There are no accounts, so there is no real-time multi-user editing; diagrams are kept in your browser, as a saved file, or as a share link. Layout stays smooth at around 300 tables.</dd>
+      </dl>
+    </section>
+    <section id="how-it-works"><h2>How it works</h2><ol>
         <li>Copy a BigQuery <code>WITH</code> / CTE query, or your <code>CREATE TABLE</code> DDL.</li>
         <li>Paste it into the editor — BigQuery CTE queries are auto-detected.</li>
         <li>Each CTE becomes a node; columns come from its <code>SELECT</code> list, and <code>FROM</code>/<code>JOIN</code> references (including backtick <code>project.dataset.table</code>) are drawn as edges.</li>
@@ -104,6 +146,15 @@ orders AS (
 )
 SELECT * FROM orders</pre>
       <p>…renders <code>customers</code> and <code>orders</code> as nodes, linked to the base tables they read from. <a href="/">Try it with your own &rarr;</a></p>
+    </section>
+    <section><h2>Guide</h2>
+
+      <p>This page does something the others don't: it diagrams <em>queries</em>, not just schemas. Paste a BigQuery <code>WITH … AS (…)</code> statement and each CTE becomes a node on the canvas — its columns inferred from the <code>SELECT</code> list — with edges drawn to every table or CTE it reads from, including backtick-quoted <code>project.dataset.table</code> references. It's a dependency graph of your query, laid out and exportable.</p>
+      <p>For schema diagrams, grab real DDL from <code>INFORMATION_SCHEMA</code>:</p>
+      <pre>SELECT ddl FROM `mydataset.INFORMATION_SCHEMA.TABLES` t
+JOIN `mydataset.INFORMATION_SCHEMA.TABLES_DDL_QUERY` …</pre>
+      <p>— or simply <code>bq show --schema --format=prettyjson</code> per table and paste the <code>CREATE TABLE</code> form. Standard types (<code>STRING</code>, <code>INT64</code>, <code>NUMERIC</code>, <code>STRUCT</code>, <code>ARRAY&lt;STRUCT&lt;…&gt;&gt;</code>) render on the nodes.</p>
+      <p>Note that BigQuery doesn't enforce foreign keys — so a pure DDL paste gives you tables without edges. That's honest: use <strong>Infer links</strong> to draw the <code>_id</code> conventions, or diagram the CTE query that joins them to see the real relationships in use.</p>
     </section>
     <section><h2>Why use it</h2><ul>
         <li><strong>Private:</strong> everything runs in your browser — nothing is uploaded or stored on a server.</li>
@@ -126,11 +177,58 @@ SELECT * FROM orders</pre>
   </main>
   <footer>
     <div class="wrap">
-      <a href="/">SQL to ER Diagram</a>
-      <a href="/examples/">Schema examples</a>
-      <a href="https://github.com/royalbhati/sqltoerdiagram" target="_blank" rel="noopener">Open source on GitHub</a>
-      <a href="https://yourbrowsercandoit.com/" target="_blank" rel="noopener">Part of yourbrowsercandoit.com ↗</a>
-      <span>Free · runs in your browser</span>
+      <div class="cols">
+      <div class="col"><h4>Databases</h4>
+        <a href="/mysql/">MySQL</a>
+        <a href="/postgresql/">PostgreSQL</a>
+        <a href="/sqlite/">SQLite</a>
+        <a href="/sql-server/">SQL Server</a>
+        <a href="/oracle/">Oracle</a>
+        <a href="/mariadb/">MariaDB</a>
+        <a href="/snowflake/">Snowflake</a>
+        <a href="/bigquery/">BigQuery</a>
+      </div>
+      <div class="col"><h4>Formats & ORMs</h4>
+        <a href="/prisma/">Prisma</a>
+        <a href="/dbml/">DBML</a>
+        <a href="/mermaid/">Mermaid</a>
+        <a href="/sqlalchemy/">SQLAlchemy</a>
+        <a href="/sequelize/">Sequelize</a>
+        <a href="/typeorm/">TypeORM</a>
+        <a href="/django/">Django</a>
+      </div>
+      <div class="col"><h4>Converters</h4>
+        <a href="/sql-to-mermaid/">SQL to Mermaid</a>
+        <a href="/sql-to-dbml/">SQL to DBML</a>
+        <a href="/sql-to-plantuml/">SQL to PlantUML</a>
+        <a href="/prisma-to-dbml/">Prisma to DBML</a>
+        <a href="/dbml-to-mermaid/">DBML to Mermaid</a>
+        <a href="/ddl-to-er-diagram/">DDL to ER Diagram</a>
+        <a href="/er-diagram-generator/">ER Diagram Generator</a>
+      </div>
+      <div class="col"><h4>Viewers & visualizers</h4>
+        <a href="/dbml-to-er-diagram/">DBML to ER Diagram</a>
+        <a href="/dbml-viewer/">DBML Viewer</a>
+        <a href="/mermaid-to-erd/">Mermaid to ERD</a>
+        <a href="/prisma-schema-visualizer/">Prisma Schema Visualizer</a>
+        <a href="/plantuml/">PlantUML</a>
+        <a href="/plantuml-viewer/">PlantUML Viewer</a>
+      </div>
+      <div class="col"><h4>Compare</h4>
+        <a href="/alternatives/">All alternatives</a>
+        <a href="/vs/dbdiagram/">vs dbdiagram.io</a>
+        <a href="/vs/drawsql/">vs DrawSQL</a>
+        <a href="/vs/chartdb/">vs ChartDB</a>
+        <a href="/vs/drawdb/">vs drawDB</a>
+      </div>
+      </div>
+      <div style="display:flex; gap:18px; flex-wrap:wrap; margin-top:18px;">
+        <a href="/">SQL to ER Diagram</a>
+        <a href="/examples/">Schema examples</a>
+        <a href="https://github.com/royalbhati/sqltoerdiagram" target="_blank" rel="noopener">Open source on GitHub</a>
+        <a href="https://yourbrowsercandoit.com/" target="_blank" rel="noopener">Part of yourbrowsercandoit.com ↗</a>
+        <span>Free · runs in your browser</span>
+      </div>
     </div>
   </footer>
 </body>
