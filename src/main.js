@@ -1098,7 +1098,7 @@ async function shareLink() {
   try { payload = await encodeShare(project); }
   catch (err) { console.error(err); flashButton(btn, 'Failed'); return; }
   const hash = '#s=' + payload;
-  history.replaceState(null, '', hash);                 // put it in the address bar too
+  window.history.replaceState(null, '', hash);          // put it in the address bar too
   const url = location.origin + location.pathname + hash;
   try { await navigator.clipboard.writeText(url); flashButton(btn, 'Link copied ✓'); }
   catch { flashButton(btn, 'Link in URL ↑'); }          // clipboard blocked → it's in the URL
@@ -1620,10 +1620,10 @@ if (import.meta.env.PROD && !isEmbed && 'serviceWorker' in navigator) {
     // Once the page is idle, pull in the on-demand chunks too so every feature
     // (all formats, exports, visual mode) is in the offline cache.
     const warm = () => {
-      loadAllFormats().catch(() => {});
-      import('./svg-export.js').catch(() => {});
-      import('./formats/serialize.js').catch(() => {});
-      ensureVisualEditor().catch(() => {});
+      loadAllFormats().catch(() => { });
+      import('./svg-export.js').catch(() => { });
+      import('./formats/serialize.js').catch(() => { });
+      ensureVisualEditor().catch(() => { });
     };
     if ('requestIdleCallback' in window) requestIdleCallback(warm, { timeout: 8000 });
     else setTimeout(warm, 4000);
@@ -1658,7 +1658,7 @@ window.addEventListener('hashchange', () => { if (location.hash.startsWith('#s='
     const fonts = Promise.all([
       document.fonts.load('13px "JetBrains Mono Variable"'),
       document.fonts.load('600 14px "Inter Variable"'),
-    ]).catch(() => {});
+    ]).catch(() => { });
     let late = false;
     await Promise.race([fonts, new Promise((r) => setTimeout(() => { late = true; r(); }, 300))]);
     if (late) fonts.then(() => diagram.refreshMetrics());

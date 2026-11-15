@@ -9,6 +9,8 @@ import { createStore, hashText } from '../src/store.js';
 import { compareSchemas, describeDiff, migrationSQL } from '../src/diff.js';
 import { toSQL, convertType } from '../src/formats/sql-out.js';
 import { importToSQL, DB_SOURCES } from '../src/db-import.js';
+import { encodeShare, decodeShare } from '../src/share.js';
+import { readFileSync } from 'node:fs';
 
 let pass = 0, fail = 0;
 const ok = (cond, msg) => { if (cond) pass++; else { fail++; console.error('  âœ— ' + msg); } };
@@ -148,7 +150,7 @@ const ok = (cond, msg) => { if (cond) pass++; else { fail++; console.error('  âœ
 {
   const json = JSON.stringify({
     columns: [{ schema: 'public', table: 'users', name: 'id', type: 'integer', nullable: false }, { schema: 'public', table: 'users', name: 'email', type: 'text', nullable: true },
-      { schema: 'public', table: 'orders', name: 'id', type: 'bigint', nullable: false }, { schema: 'public', table: 'orders', name: 'user_id', type: 'integer', nullable: false }],
+    { schema: 'public', table: 'orders', name: 'id', type: 'bigint', nullable: false }, { schema: 'public', table: 'orders', name: 'user_id', type: 'integer', nullable: false }],
     keys: [{ schema: 'public', table: 'users', constraint: 'users_pkey', type: 'PRIMARY KEY', column: 'id' }],
     fks: [{ schema: 'public', table: 'orders', constraint: 'o_fk', column: 'user_id', ref_schema: 'public', ref_table: 'users', ref_column: 'id' }],
   });
@@ -161,6 +163,24 @@ const ok = (cond, msg) => { if (cond) pass++; else { fail++; console.error('  âœ
   ok(/look like/.test(msg), 'a bad paste gets a helpful error');
   ok(importToSQL('CREATE TABLE a(id integer);\nCREATE TABLE b(id integer);', 'sqlite').tables === 2, 'sqlite DDL output is accepted as-is');
   ok(Object.values(DB_SOURCES).every((s) => /SELECT/i.test(s.query) && !/\b(insert|update|delete|drop|alter|create)\b/i.test(s.query.replace(/--.*$/gm, '').replace(/'[^']*'/g, ''))), 'every import query is read-only');
+}
+
+{
+  const project = {
+    app: 'dbdiga', version: 1, dialect: 'postgres',
+    sql: 'CREATE TABLE users (\n  id INTEGER PRIMARY KEY,\n  name VARCHAR(100) NOT NULL\n);\n\n'
+      + 'CREATE TABLE posts (\n  id INTEGER PRIMARY KEY,\n  user_id INTEGER REFERENCES users(id),\n  title VARCHAR(255) NOT NULL\n);',
+    positions: { users: { x: 10, y: 20 }, posts: { x: 300, y: 40 } },
+  };
+  const payload = await encodeShare(project);
+  ok(/^[zr]/.test(payload), 'share payload starts with its encoding flag');
+  ok(/^[A-Za-z0-9_-]+$/.test(payload), 'share payload is URL-safe');
+  ok(JSON.stringify(await decodeShare(payload)) === JSON.stringify(project), 'share link round-trips the project');
+
+  // main.js has a module-level `history` (the undo stack) that shadows
+  // window.history â€” a bare history.replaceState there throws on Share.
+  const main = readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
+  ok(!/(?<![.\w])history\.(replace|push)State\b/.test(main), 'main.js calls window.history for URL state, not the undo stack');
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);
