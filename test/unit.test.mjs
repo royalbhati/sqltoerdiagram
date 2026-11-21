@@ -200,5 +200,19 @@ const ok = (cond, msg) => { if (cond) pass++; else { fail++; console.error('  âœ
   ok(/\(user_id, team_id\) \[pk\]/.test(out) && back.warnings.length === 0, 'a composite key is exported as an index and reads back cleanly');
 }
 
+// ---- the app must not shadow browser globals it also needs (issue #15) ----
+{
+  // `const history = createHistory()` at module level once hid window.history,
+  // so Share's history.replaceState() threw. Catch that whole class of mistake.
+  const main = readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
+  const GLOBALS = ['history', 'location', 'navigator', 'document', 'window', 'localStorage', 'sessionStorage', 'screen',
+    'performance', 'caches', 'fetch', 'name', 'status', 'top', 'parent', 'self', 'origin', 'event', 'crypto', 'indexedDB'];
+  const declared = new Set([...main.matchAll(/^(?:const|let|var|function|async function|class)\s+([A-Za-z_$][\w$]*)/gm)].map((m) => m[1]));
+  for (const m of main.matchAll(/^import\s+\{([^}]*)\}/gm)) for (const n of m[1].split(',')) declared.add(n.trim().split(/\s+as\s+/).pop());
+  const shadowed = GLOBALS.filter((g) => declared.has(g));
+  ok(shadowed.length === 0, 'main.js declares a top-level name that shadows a browser global: ' + shadowed.join(', '));
+  ok(/window\.history\.replaceState\(/.test(main), 'the share link is written with the real History API');
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

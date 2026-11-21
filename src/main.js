@@ -122,7 +122,9 @@ function placeNewTables(model) {
 }
 
 // ---- undo / redo: whole-diagram snapshots ----
-const history = createHistory();
+// Named `undoStack`, not `history`: a module-level `history` shadows the browser's
+// History API, which is what broke the Share button (issue #15).
+const undoStack = createHistory();
 let restoring = false;       // applying a snapshot — don't record it as a new step
 let layoutPending = false;   // an async auto-layout is in flight — state is mid-change
 let historyHold = 0;         // >0 while a multi-step change is being applied (commit once, at the end)
@@ -137,13 +139,13 @@ function snapshot() {
 function historyCommit(kind) {
   if (restoring || layoutPending || historyHold) return;
   const snap = snapshot();
-  history.commit(snap, JSON.stringify(snap), kind);
+  undoStack.commit(snap, JSON.stringify(snap), kind);
   syncUndoButtons();
 }
 function syncUndoButtons() {
   const u = $('btn-undo'), r = $('btn-redo');
-  if (u) u.disabled = !history.canUndo;
-  if (r) r.disabled = !history.canRedo;
+  if (u) u.disabled = !undoStack.canUndo;
+  if (r) r.disabled = !undoStack.canRedo;
 }
 function applySnapshot(snap) {
   const before = sqlEl.value;
@@ -181,12 +183,12 @@ function flushTyping() {
 }
 function undo() {
   flushTyping();
-  const snap = history.undo();
+  const snap = undoStack.undo();
   if (snap) applySnapshot(snap);
 }
 function redo() {
   flushTyping();
-  const snap = history.redo();
+  const snap = undoStack.redo();
   if (snap) applySnapshot(snap);
 }
 
@@ -1098,7 +1100,7 @@ async function shareLink() {
   try { payload = await encodeShare(project); }
   catch (err) { console.error(err); flashButton(btn, 'Failed'); return; }
   const hash = '#s=' + payload;
-  history.replaceState(null, '', hash);                 // put it in the address bar too
+  window.history.replaceState(null, '', hash);          // put it in the address bar too
   const url = location.origin + location.pathname + hash;
   try { await navigator.clipboard.writeText(url); flashButton(btn, 'Link copied ✓'); }
   catch { flashButton(btn, 'Link in URL ↑'); }          // clipboard blocked → it's in the URL
@@ -1283,7 +1285,7 @@ function applyContent(c) {
   localStorage.setItem('dbdiga-format', formatChoice);
   syncFormat();
   sqlEl.value = (c && c.sql) || '';
-  history.clear();                       // undo history belongs to one diagram
+  undoStack.clear();                       // undo history belongs to one diagram
   rebuild({ restore: restoreOf((c && c.layout) || {}) });
   saveLayout();
   syncUndoButtons();
@@ -1675,7 +1677,7 @@ window.addEventListener('hashchange', () => { if (location.hash.startsWith('#s='
         const parked = { sql: working, format: formatChoice, dialect, layout: loadSavedLayout() };
         const known = store.findByHash(sharedHash);
         const id = known ? known.id : store.create('Shared diagram', null, { hash: sharedHash });
-        if (id) { store.open(id, parked); history.clear(); markVersions(); syncDocUI(); }
+        if (id) { store.open(id, parked); undoStack.clear(); markVersions(); syncDocUI(); }
       }
       sqlEl.value = data.sql || '';
       localStorage.setItem('dbdiga-sql', sqlEl.value);
