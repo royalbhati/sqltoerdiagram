@@ -70,7 +70,7 @@ export class Diagram {
       t.w = dims.w; t.h = dims.h; t.rowH = dims.rowH; t.headerH = dims.headerH;
       const old = prev.get(t.key);
       if (old && Number.isFinite(old.x)) { t.x = old.x; t.y = old.y; }
-      t.color = this.tableColors[t.key] || null;
+      t.color = this.tableColors[t.key] || t.defaultColor || null;   // defaultColor: set by the schema itself (DBML)
     }
     this.model = model;
     this.bitmaps.clear();
@@ -1287,7 +1287,7 @@ export class Diagram {
   // ---- table colours ----
   setTableColors(map) {
     this.tableColors = map && typeof map === 'object' ? { ...map } : {};
-    for (const t of this.model.tables) t.color = this.tableColors[t.key] || null;
+    for (const t of this.model.tables) t.color = this.tableColors[t.key] || t.defaultColor || null;
     this.bitmaps.clear();
     this.markDirty();
   }
@@ -1297,7 +1297,7 @@ export class Diagram {
     const targets = this.selected.has(t) && this.selected.size > 1 ? [...this.selected] : [t];
     for (const x of targets) {
       if (color) this.tableColors[x.key] = color; else delete this.tableColors[x.key];
-      x.color = color || null;
+      x.color = color || x.defaultColor || null;
       this.bitmaps.delete(x.key);
     }
     this.markDirty();

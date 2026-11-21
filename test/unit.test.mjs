@@ -9,6 +9,9 @@ import { createStore, hashText } from '../src/store.js';
 import { compareSchemas, describeDiff, migrationSQL } from '../src/diff.js';
 import { toSQL, convertType } from '../src/formats/sql-out.js';
 import { importToSQL, DB_SOURCES } from '../src/db-import.js';
+import { parseDBML } from '../src/formats/dbml.js';
+import { toDBML } from '../src/formats/serialize.js';
+import { readFileSync } from 'node:fs';
 
 let pass = 0, fail = 0;
 const ok = (cond, msg) => { if (cond) pass++; else { fail++; console.error('  ✗ ' + msg); } };
@@ -161,6 +164,40 @@ const ok = (cond, msg) => { if (cond) pass++; else { fail++; console.error('  �
   ok(/look like/.test(msg), 'a bad paste gets a helpful error');
   ok(importToSQL('CREATE TABLE a(id integer);\nCREATE TABLE b(id integer);', 'sqlite').tables === 2, 'sqlite DDL output is accepted as-is');
   ok(Object.values(DB_SOURCES).every((s) => /SELECT/i.test(s.query) && !/\b(insert|update|delete|drop|alter|create)\b/i.test(s.query.replace(/--.*$/gm, '').replace(/'[^']*'/g, ''))), 'every import query is read-only');
+}
+
+// ---- DBML: the real language, not just names and types ----
+{
+  const src = readFileSync(new URL('./fixtures/dbdiagram.dbml', import.meta.url), 'utf8');
+  const m = parseDBML(src);
+  const T = (n) => m.tables.find((t) => t.name === n);
+  const C = (t, c) => T(t).columns.find((x) => x.name === c);
+  ok(m.tables.length === 7 && m.warnings.length === 0, 'every table is read and nothing is reported');
+  ok(T('users') && C('users', 'full name') && C('users', 'tags').type === 'text[]', 'schema-qualified, aliased tables; quoted names; array types');
+  ok(C('users', 'created_at') && C('users', 'created_at').default === 'now()', 'TablePartial columns are injected, with their defaults');
+  ok(C('users', 'email').comment === 'login email, lowercased' && /Soft-deleted/.test(T('users').comment), 'column and multi-line table notes');
+  ok(JSON.stringify(m.enums.order_status) === '["pending","paid","shipped"]', 'enums and their values');
+  ok(C('merchants', 'id').pk && C('merchants', 'country_code').pk, 'a composite primary key from the indexes block');
+  ok(C('users', 'email').indexes && C('users', 'id').indexes.includes('idx_users_created'), 'named and multi-column indexes');
+  ok(C('order_items', 'quantity').nn && C('order_items', 'quantity').default === '1', 'settings that span lines');
+  const rel = (s) => m.relations.some((r) => `${r.fromTable}(${r.fromCols})>${r.toTable}(${r.toCols})` === s && !r.toMissing);
+  ok(rel('orders(user_id)>users(id)') && rel('order_items(order_id)>orders(id)'), 'inline refs, through a schema-qualified name');
+  ok(rel('orders(merchant_id,country_code)>merchants(id,country_code)'), 'a named, composite Ref');
+  ok(rel('reviews(product_id)>products(id)'), 'a long-form Ref block, and the < direction');
+  ok(m.relations.some((r) => r.toTable === 'profiles' || r.fromTable === 'profiles'), 'a Ref through a table alias');
+  ok(T('users').defaultColor === 'blue' && T('orders').defaultColor === T('order_items').defaultColor && T('orders').defaultColor, 'headercolor and TableGroup become table colours');
+  const bad = parseDBML('Table a {\n  id int [pk]\n}\nRef: a.id > nope.id\nRef: a.zzz > a.id\nTable b {\n  ~missing\n}');
+  ok(bad.warnings.length >= 3 && bad.warnings.every((w) => w.end > w.start), 'bad refs and unknown partials are reported with a position');
+
+  // SQL -> DBML -> back: nothing DBML can express is lost
+  const sql = parseSchema("CREATE TYPE mood AS ENUM ('sad', 'ok');\nCREATE TABLE users (id serial primary key, email varchar(255) not null unique, m mood default 'ok', n int default 0, at timestamp default now());\nCOMMENT ON TABLE users IS 'people';\nCOMMENT ON COLUMN users.email IS 'it''s the login';\nCREATE INDEX idx_at ON users(at);\nCREATE TABLE memberships (user_id int not null references users(id), team_id int not null, role text, primary key (user_id, team_id));");
+  const out = toDBML(sql);
+  const back = parseDBML(out);
+  const shape = (x) => JSON.stringify(x.tables.map((t) => [t.name, t.comment || '', t.columns.map((c) => [c.name, !!c.pk, !!c.unique, !!(c.nn || c.pk), c.comment || '', (c.indexes || []).join()])]));
+  ok(shape(back) === shape(sql), 'tables, keys, notes and indexes survive SQL → DBML → DBML parser');
+  ok(JSON.stringify(back.enums) === JSON.stringify(sql.enums) && back.relations.length === sql.relations.length, 'enums and relations survive too');
+  ok(/default: 'ok'/.test(out) && /default: 0\b/.test(out) && /default: `now\(\)`/.test(out), 'defaults are written as string, number and expression');
+  ok(/\(user_id, team_id\) \[pk\]/.test(out) && back.warnings.length === 0, 'a composite key is exported as an index and reads back cleanly');
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

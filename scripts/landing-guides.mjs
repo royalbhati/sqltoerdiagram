@@ -56,7 +56,7 @@ export const GUIDES = {
         <li>Multi-column relations: <code>Ref: t.(a,b) &gt; u.(a,b)</code>.</li>
         <li><code>Enum</code> definitions attached to the columns that use them.</li>
       </ul>
-      <p>Styling directives like <code>headercolor</code> and <code>TableGroup</code> blocks are safely skipped. If you're migrating off dbdiagram.io (pricing change, offline need, or you just want the data to stay local), paste your project here — the whole diagram renders client-side, and you can export back to SQL, Mermaid, PlantUML, PNG or SVG.</p>`,
+      <p>Schema-qualified names (<code>Table billing.invoices</code>), aliases (<code>as I</code>), table and column notes, <code>indexes</code> blocks (including composite primary keys) and <code>TablePartial</code>s are read too. A <code>TableGroup</code> gives its tables a shared header colour, and <code>headercolor</code> is matched to the nearest colour in the palette. Anything that can't be read is underlined in the editor and listed with its line number, rather than silently left out. If you're migrating off dbdiagram.io (pricing change, offline need, or you just want the data to stay local), paste your project here — the whole diagram renders client-side, and you can export back to SQL, Mermaid, PlantUML, PNG or SVG.</p>`,
   mermaid: `
       <p>Mermaid <code>erDiagram</code> blocks are everywhere — GitHub READMEs, GitLab wikis, Notion pages, Obsidian notes — but the default renderer gives you a static picture you can't touch. Paste the same block here and you get a live canvas: every entity becomes a draggable table, every relationship keeps its crow's-foot cardinality, and you can export the result as an image or convert it to DBML or PlantUML.</p>
       <h3>Cardinality notation reference</h3>
@@ -181,6 +181,119 @@ JOIN \`mydataset.INFORMATION_SCHEMA.TABLES_DDL_QUERY\` …</pre>
       <p>This conversion maps DBML's relational model onto Mermaid's <code>erDiagram</code> grammar: each <code>Table</code> becomes an entity block, <code>[pk]</code>/<code>[unique]</code>/<code>[ref:</code> settings become <code>PK</code>/<code>UK</code>/<code>FK</code> attribute markers, and each <code>Ref:</code> line becomes a relationship with matching cardinality — a one-to-many <code>&gt;</code> ref becomes <code>||--o{</code>, a one-to-one <code>-</code> ref becomes <code>||--||</code>.</p>
       <p>The destination matters: Mermaid renders natively in GitHub, GitLab, Notion, Obsidian and most static-site generators. Converting DBML → Mermaid is how you take a schema that lives in a DBML toolchain (dbdiagram, dbdocs) and put it in a README that must render without JavaScript or images — Mermaid blocks are text, so they diff, review and survive repo moves.</p>
       <p>As with every export on this site, the live diagram is the proof: what you see on the canvas before copying is exactly what the Mermaid encodes, because both come from the same parse. If a <code>Ref</code> is missing from the render, it was missing from the DBML — fix it once, export again.</p>`,
+  'dbml-cheat-sheet': `
+      <h3>Tables and columns</h3>
+      <p>A table is a name and a list of <code>column type</code> lines. Quote a name that has spaces. A schema prefix and an alias are optional.</p>
+      <pre>Table users {
+  id integer
+  "full name" varchar(120)
+  tags text[]
+}
+
+Table billing.invoices as I {
+  id integer
+}</pre>
+      <h3>Column settings</h3>
+      <p>Settings go in square brackets after the type, separated by commas.</p>
+      <pre>Table users {
+  id integer [pk, increment]
+  email varchar [unique, not null]
+  role varchar [default: 'member']
+  credits integer [default: 0]
+  created_at timestamp [default: \`now()\`]
+  bio text [note: 'Shown on the profile page']
+}</pre>
+      <h3>Relationships</h3>
+      <p><code>&gt;</code> many-to-one, <code>&lt;</code> one-to-many, <code>-</code> one-to-one, <code>&lt;&gt;</code> many-to-many. Write them inline on a column, as a <code>Ref</code> line, or as a <code>Ref</code> block.</p>
+      <pre>Table posts {
+  id integer [pk]
+  user_id integer [ref: &gt; users.id]   // inline
+}
+
+Ref: comments.post_id &gt; posts.id      // short form
+
+Ref post_author {                     // long form, named
+  posts.user_id &gt; users.id
+}</pre>
+      <h3>Multi-column relationships</h3>
+      <p>List the columns in parentheses on both sides.</p>
+      <pre>Ref: orders.(merchant_id, country) &gt; merchants.(id, country)</pre>
+      <h3>Enums</h3>
+      <p>Declare the values once and use the enum name as a column type.</p>
+      <pre>Enum order_status {
+  pending
+  paid
+  shipped [note: 'Left the warehouse']
+}
+
+Table orders {
+  id integer [pk]
+  status order_status [default: 'pending']
+}</pre>
+      <h3>Indexes and composite keys</h3>
+      <p>The <code>indexes</code> block holds single-column, multi-column and expression indexes, and is where a composite primary key goes.</p>
+      <pre>Table order_items {
+  order_id integer
+  product_id integer
+  created_at timestamp
+
+  indexes {
+    (order_id, product_id) [pk]
+    created_at [name: 'idx_items_created']
+    (product_id, created_at) [unique]
+  }
+}</pre>
+      <h3>Notes</h3>
+      <p>A note documents a table or a column. Use triple quotes for more than one line.</p>
+      <pre>Table users {
+  id integer [pk]
+  email varchar [note: 'Lowercased before saving']
+
+  Note: '''
+    One row per person.
+    Deleted users are kept with deleted_at set.
+  '''
+}</pre>
+      <h3>Table groups</h3>
+      <p>A <code>TableGroup</code> clusters related tables. In this viewer each group’s tables share a header colour.</p>
+      <pre>TableGroup billing {
+  invoices
+  payments
+}</pre>
+      <h3>Shared columns with TablePartial</h3>
+      <p>Define columns once and pull them into a table with <code>~name</code>.</p>
+      <pre>TablePartial timestamps {
+  created_at timestamp [default: \`now()\`]
+  updated_at timestamp
+}
+
+Table users {
+  id integer [pk]
+  ~timestamps
+}</pre>
+      <h3>Comments</h3>
+      <p>Single-line and block comments are ignored by the parser.</p>
+      <pre>// a single-line comment
+/* a block
+   comment */</pre>`,
+  'dbml-to-sql': `
+      <p>DBML is a good place to design a schema and a poor thing to hand a database: sooner or later you need real <code>CREATE TABLE</code> statements. This page gives you both views of the same DBML — the diagram, so you can see what you are about to create, and the SQL for the database you actually run.</p>
+      <h3>How types are translated</h3>
+      <p>DBML does not fix a type system: <code>varchar</code>, <code>jsonb</code> and <code>my_custom_type</code> are all just text to it. The converter recognises the common families and writes the target database's spelling:</p>
+      <ul>
+        <li><strong>Integers and auto-increment</strong> — <code>integer</code>, <code>bigint</code>, <code>serial</code> become <code>int AUTO_INCREMENT</code> on MySQL and <code>int IDENTITY(1,1)</code> on SQL Server.</li>
+        <li><strong>Booleans</strong> — <code>boolean</code> becomes <code>tinyint(1)</code> on MySQL and <code>bit</code> on SQL Server.</li>
+        <li><strong>Text</strong> — <code>varchar(n)</code> stays sized; unsized text becomes <code>text</code>, <code>nvarchar(max)</code> or <code>VARCHAR</code> as appropriate.</li>
+        <li><strong>JSON, UUID, timestamps</strong> — <code>jsonb</code> becomes <code>json</code> on MySQL; <code>uuid</code> becomes <code>char(36)</code> or <code>uniqueidentifier</code>; <code>timestamptz</code> becomes <code>datetimeoffset</code> on SQL Server.</li>
+      </ul>
+      <p>A type it does not recognise — a PostGIS <code>geometry</code>, an array, your own enum — is written exactly as you typed it, so nothing is silently changed into something wrong.</p>
+      <h3>What to check before you run it</h3>
+      <ul>
+        <li>Enums are written the way each database supports them: a real type on PostgreSQL, <code>enum(…)</code> on MySQL, a <code>CHECK</code> constraint on SQLite and SQL Server, and plain text on Snowflake, which does not enforce <code>CHECK</code>.</li>
+        <li>A default of <code>now()</code> is written as <code>CURRENT_TIMESTAMP</code>, which all five databases accept. Other expression defaults are passed through as written, so check any that use database-specific functions.</li>
+        <li>SQLite gets every type as one of its five storage classes, and its foreign keys inside <code>CREATE TABLE</code>.</li>
+        <li>A foreign key that points at a table missing from the DBML is left out, and the missing table is listed under the editor.</li>
+      </ul>`,
   'dbml-viewer': `
       <p>A viewer, not an editor: paste DBML — from dbdiagram.io's export dialog, a <code>.dbml</code> file in your repo, or a snippet someone sent you — and see it as a diagram in about a second. No project to create, no schema to upload, no account.</p>
       <h3>Opening a .dbml file</h3>

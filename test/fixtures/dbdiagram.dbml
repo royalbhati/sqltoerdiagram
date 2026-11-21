@@ -1,0 +1,83 @@
+// A schema written the way dbdiagram.io users write them
+Project shop {
+  database_type: 'PostgreSQL'
+  Note: 'Shop schema'
+}
+
+Enum order_status {
+  pending
+  paid [note: 'money received']
+  shipped
+}
+
+TablePartial timestamps {
+  created_at timestamp [default: `now()`]
+  updated_at timestamp
+}
+
+Table ecommerce.users as U [headercolor: #3498db] {
+  id integer [pk, increment]
+  "full name" varchar(120) [not null]
+  email varchar [unique, not null, note: 'login email, lowercased']
+  status order_status [default: 'pending']
+  tags text[]
+  ~timestamps
+
+  Note: '''
+    All registered users.
+    Soft-deleted rows are kept.
+  '''
+
+  indexes {
+    email [unique]
+    (id, created_at) [name: 'idx_users_created']
+    `lower(email)` [name: 'idx_lower_email']
+  }
+}
+
+Table orders {
+  id integer [pk]
+  user_id integer [ref: > ecommerce.users.id, not null] // inline ref
+  merchant_id integer
+  country_code varchar /* block comment */
+}
+
+Table merchants {
+  id integer
+  country_code varchar
+  Indexes { (id, country_code) [pk] }
+}
+
+Table order_items {
+  order_id integer [ref: > orders.id]
+  product_id integer
+  quantity int [
+    not null,
+    default: 1
+  ]
+}
+
+Table products { id integer [pk]
+  name varchar }
+
+Table profiles {
+  user_id integer [pk]
+  bio text
+}
+
+Ref: order_items.product_id > products.id [delete: cascade]
+Ref fk_merchant: orders.(merchant_id, country_code) > merchants.(id, country_code)
+Ref: U.id - profiles.user_id
+Ref {
+  products.id < reviews.product_id
+}
+
+Table reviews {
+  id integer [pk]
+  product_id integer
+}
+
+TableGroup commerce [color: #e67e22] {
+  orders
+  order_items
+}

@@ -97,7 +97,7 @@ export function migrationSQL(d, dialect = 'postgres') {
     L.push(`-- Dropped foreign key ${r.fromTable}(${r.fromCols.join(', ')}) -> ${r.toTable}: look up its constraint name, then:`);
     L.push(dialect === 'mysql' ? `-- ALTER TABLE ${q(r.fromTable)} DROP FOREIGN KEY <constraint_name>;` : `-- ALTER TABLE ${q(r.fromTable)} DROP CONSTRAINT <constraint_name>;`);
   }
-  for (const t of d.addedTables) L.push(createTableSQL(t, dialect), '');
+  for (const t of d.addedTables) L.push(createTableSQL(t, dialect, [], { enums: d._enums }), '');
 
   for (const ch of d.changedTables) {
     const T = q(ch.table.name);
@@ -144,5 +144,6 @@ export function migrationSQL(d, dialect = 'postgres') {
 export function compareSchemas(oldM, newM) {
   const d = diffModels(oldM, newM);
   d._newModelRelations = newM.relations;
+  d._enums = newM.enums || {};
   return d;
 }
