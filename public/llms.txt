@@ -38,6 +38,7 @@
 
 - [SQL to Mermaid](https://sqltoerdiagram.com/sql-to-mermaid/): Paste SQL CREATE TABLE statements and export a Mermaid erDiagram. Free online SQL → Mermaid converter that also draws the live diagram. Runs in your browser.
 - [SQL to DBML Converter](https://sqltoerdiagram.com/sql-to-dbml/): Convert SQL to DBML free — paste your CREATE TABLE statements and export dbdiagram.io-ready DBML, with a live ER diagram to verify it. No signup, nothing uploaded, runs in your browser.
+- [DBML to SQL Converter](https://sqltoerdiagram.com/dbml-to-sql/): Convert DBML to SQL CREATE TABLE statements for PostgreSQL, MySQL, SQLite, SQL Server or Snowflake. Free online DBML to SQL converter that runs in your browser — nothing uploaded.
 - [SQL to PlantUML](https://sqltoerdiagram.com/sql-to-plantuml/): Paste SQL CREATE TABLE statements and export a PlantUML entity diagram. Free online SQL → PlantUML converter that also draws the live diagram. Runs in your browser.
 - [Prisma to DBML](https://sqltoerdiagram.com/prisma-to-dbml/): Paste your schema.prisma and export DBML. Free online Prisma → DBML converter that also renders the live ER diagram. Runs entirely in your browser.
 - [DBML to Mermaid](https://sqltoerdiagram.com/dbml-to-mermaid/): Paste DBML and export a Mermaid erDiagram. Free online DBML → Mermaid converter that also renders the live diagram. Runs entirely in your browser.
@@ -46,8 +47,8 @@
 
 ## Viewers & visualizers
 
-- [DBML to ER Diagram](https://sqltoerdiagram.com/dbml-to-er-diagram/): Paste DBML and render an interactive ER diagram instantly — a free dbdiagram-style DBML viewer that runs in your browser. Export PNG, SVG, Mermaid.
 - [DBML Viewer](https://sqltoerdiagram.com/dbml-viewer/): A free online DBML viewer — paste any DBML or .dbml file and instantly see an interactive ER diagram. No signup, nothing uploaded, runs in your browser. Export PNG, SVG, Mermaid.
+- [DBML Cheat Sheet](https://sqltoerdiagram.com/dbml-cheat-sheet/): A one-page DBML cheat sheet: tables, column settings, refs, enums, indexes, notes, table groups and partials, each with a copy-paste example you can render instantly.
 - [Mermaid to ERD](https://sqltoerdiagram.com/mermaid-to-erd/): Paste a Mermaid erDiagram and turn it into an interactive ERD you can drag, arrange and export. Free, open source, runs in your browser.
 - [Prisma Schema Visualizer](https://sqltoerdiagram.com/prisma-schema-visualizer/): A free online Prisma schema visualizer — paste your schema.prisma and instantly see an interactive ER diagram of your models and relations. No signup, nothing uploaded.
 - [PlantUML to ER Diagram](https://sqltoerdiagram.com/plantuml/): Paste a PlantUML entity/class diagram and render it as an interactive ER diagram you can drag, arrange and export. Free, open source, runs in your browser.

@@ -1,4 +1,75 @@
 {
+  "dbdiagram.dbml": {
+    "format": "dbml",
+    "tables": [
+      {
+        "name": "merchants",
+        "columns": [
+          "id | integer | pk notnull",
+          "country_code | varchar | pk notnull"
+        ]
+      },
+      {
+        "name": "order_items",
+        "columns": [
+          "order_id | integer | fk",
+          "product_id | integer | fk",
+          "quantity | int | notnull"
+        ]
+      },
+      {
+        "name": "orders",
+        "columns": [
+          "id | integer | pk notnull",
+          "user_id | integer | fk notnull",
+          "merchant_id | integer | fk",
+          "country_code | varchar | fk"
+        ]
+      },
+      {
+        "name": "products",
+        "columns": [
+          "id | integer | pk notnull",
+          "name | varchar"
+        ]
+      },
+      {
+        "name": "profiles",
+        "columns": [
+          "user_id | integer | pk notnull",
+          "bio | text"
+        ]
+      },
+      {
+        "name": "reviews",
+        "columns": [
+          "id | integer | pk notnull",
+          "product_id | integer | fk"
+        ]
+      },
+      {
+        "name": "users",
+        "columns": [
+          "id | integer | pk fk notnull",
+          "full name | varchar(120) | notnull",
+          "email | varchar | unique notnull",
+          "status | order_status",
+          "tags | text[]",
+          "created_at | timestamp",
+          "updated_at | timestamp"
+        ]
+      }
+    ],
+    "relations": [
+      "order_items(order_id) -> orders(id)",
+      "order_items(product_id) -> products(id)",
+      "orders(merchant_id,country_code) -> merchants(id,country_code)",
+      "orders(user_id) -> users(id)",
+      "reviews(product_id) -> products(id)",
+      "users(id) -> profiles(user_id)"
+    ],
+    "warnings": []
+  },
   "diagram.mmd": {
     "format": "mermaid",
     "tables": [
@@ -361,14 +432,14 @@
       {
         "name": "order_items",
         "columns": [
-          "order_id | integer | fk",
-          "product_id | integer"
+          "order_id | integer | pk fk notnull",
+          "product_id | integer | pk notnull"
         ]
       },
       {
         "name": "orders",
         "columns": [
-          "id | integer | pk",
+          "id | integer | pk notnull",
           "user_id | integer | fk",
           "status | varchar"
         ]
@@ -376,7 +447,7 @@
       {
         "name": "users",
         "columns": [
-          "id | integer | pk",
+          "id | integer | pk notnull",
           "email | varchar(255) | unique notnull",
           "created_at | timestamp"
         ]

@@ -98,7 +98,7 @@ export function exportSVG(model, themeName, annotations = [], hidden = null, opt
     g.push(`<rect x="0" y="0" width="${t.w}" height="${t.h}" rx="10" fill="${theme.tableBg}" stroke="${theme.tableBorder}"/>`);
     // header
     g.push(`<path d="M0 ${HEADER_H} V10 a10 10 0 0 1 10 -10 H${t.w - 10} a10 10 0 0 1 10 10 V${HEADER_H} Z" fill="${theme.header}"/>`);
-    const accent = TABLE_COLORS[t.color];
+    const accent = TABLE_COLORS[t.color || t.defaultColor];
     if (accent) {
       g.push(`<path d="M0 ${HEADER_H} V10 a10 10 0 0 1 10 -10 H${t.w - 10} a10 10 0 0 1 10 10 V${HEADER_H} Z" fill="${hexA(accent, 0.2)}"/>`);
       g.push(`<path d="M0.6 3 V10 a10 10 0 0 1 10 -10 H${t.w - 10.6} a10 10 0 0 1 10 10 V3 Z" fill="${accent}"/>`);

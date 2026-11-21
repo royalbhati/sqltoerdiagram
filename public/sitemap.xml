@@ -2,13 +2,13 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
   <url>
     <loc>https://sqltoerdiagram.com/</loc>
-    <lastmod>2026-11-10</lastmod>
+    <lastmod>2026-11-21</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
     <loc>https://sqltoerdiagram.com/prisma/</loc>
-    <lastmod>2026-11-10</lastmod>
+    <lastmod>2026-11-21</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
     <image:image><image:loc>https://sqltoerdiagram.com/og/prisma.svg</image:loc></image:image>
@@ -43,10 +43,24 @@
   </url>
   <url>
     <loc>https://sqltoerdiagram.com/dbml/</loc>
-    <lastmod>2026-11-10</lastmod>
+    <lastmod>2026-11-21</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
     <image:image><image:loc>https://sqltoerdiagram.com/og/dbml.svg</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://sqltoerdiagram.com/dbml-to-sql/</loc>
+    <lastmod>2026-11-21</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <image:image><image:loc>https://sqltoerdiagram.com/og/dbml-to-sql.svg</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://sqltoerdiagram.com/dbml-cheat-sheet/</loc>
+    <lastmod>2026-11-21</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <image:image><image:loc>https://sqltoerdiagram.com/og/dbml-cheat-sheet.svg</image:loc></image:image>
   </url>
   <url>
     <loc>https://sqltoerdiagram.com/mermaid/</loc>
@@ -92,21 +106,14 @@
   </url>
   <url>
     <loc>https://sqltoerdiagram.com/prisma-to-dbml/</loc>
-    <lastmod>2026-11-10</lastmod>
+    <lastmod>2026-11-21</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
     <image:image><image:loc>https://sqltoerdiagram.com/og/prisma-to-dbml.svg</image:loc></image:image>
   </url>
   <url>
-    <loc>https://sqltoerdiagram.com/dbml-to-er-diagram/</loc>
-    <lastmod>2026-11-10</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-    <image:image><image:loc>https://sqltoerdiagram.com/og/dbml-to-er-diagram.svg</image:loc></image:image>
-  </url>
-  <url>
     <loc>https://sqltoerdiagram.com/mermaid-to-erd/</loc>
-    <lastmod>2026-11-10</lastmod>
+    <lastmod>2026-11-21</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
     <image:image><image:loc>https://sqltoerdiagram.com/og/mermaid-to-erd.svg</image:loc></image:image>
@@ -155,7 +162,7 @@
   </url>
   <url>
     <loc>https://sqltoerdiagram.com/sql-to-dbml/</loc>
-    <lastmod>2026-11-10</lastmod>
+    <lastmod>2026-11-21</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
     <image:image><image:loc>https://sqltoerdiagram.com/og/sql-to-dbml.svg</image:loc></image:image>
@@ -169,21 +176,21 @@
   </url>
   <url>
     <loc>https://sqltoerdiagram.com/dbml-to-mermaid/</loc>
-    <lastmod>2026-11-10</lastmod>
+    <lastmod>2026-11-21</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
     <image:image><image:loc>https://sqltoerdiagram.com/og/dbml-to-mermaid.svg</image:loc></image:image>
   </url>
   <url>
     <loc>https://sqltoerdiagram.com/dbml-viewer/</loc>
-    <lastmod>2026-11-10</lastmod>
+    <lastmod>2026-11-21</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
     <image:image><image:loc>https://sqltoerdiagram.com/og/dbml-viewer.svg</image:loc></image:image>
   </url>
   <url>
     <loc>https://sqltoerdiagram.com/prisma-schema-visualizer/</loc>
-    <lastmod>2026-11-10</lastmod>
+    <lastmod>2026-11-21</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
     <image:image><image:loc>https://sqltoerdiagram.com/og/prisma-schema-visualizer.svg</image:loc></image:image>

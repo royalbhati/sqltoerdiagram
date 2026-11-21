@@ -25,7 +25,7 @@
   <link rel="icon" type="image/svg+xml" href="/icon.svg" />
   <script defer src="https://cloud.umami.is/script.js" data-website-id="27b5b4ba-93ad-4ef3-aaa0-af516881d308" data-exclude-hash="true"></script>
   <script type="application/ld+json">
-  {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"What is DBML?","acceptedAnswer":{"@type":"Answer","text":"DBML (Database Markup Language) is a simple, readable DSL for defining database schemas, popularized by dbdiagram.io. Paste it here to visualize it instantly."}},{"@type":"Question","name":"Can I convert DBML to SQL or Mermaid?","acceptedAnswer":{"@type":"Answer","text":"Paste your DBML, then use Export to get Mermaid or PlantUML, or a PNG/SVG image of the diagram."}},{"@type":"Question","name":"Is my schema uploaded anywhere?","acceptedAnswer":{"@type":"Answer","text":"No. Everything runs locally in your browser — your schema is never uploaded to or stored on any server."}},{"@type":"Question","name":"Is it free?","acceptedAnswer":{"@type":"Answer","text":"Yes. It is completely free and open source, with no account or sign-up required."}}]}
+  {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"What is DBML?","acceptedAnswer":{"@type":"Answer","text":"DBML (Database Markup Language) is a simple, readable DSL for defining database schemas, popularized by dbdiagram.io. Paste it here to visualize it instantly."}},{"@type":"Question","name":"Can I convert DBML to SQL or Mermaid?","acceptedAnswer":{"@type":"Answer","text":"Yes. Paste your DBML, then use Export to get CREATE TABLE SQL for PostgreSQL, MySQL, SQLite, SQL Server or Snowflake, or Mermaid, PlantUML, PNG or SVG. See DBML to SQL."}},{"@type":"Question","name":"Which DBML features are supported?","acceptedAnswer":{"@type":"Answer","text":"Tables with schema names and aliases, column settings (pk, increment, unique, not null, default, note, inline ref), Ref lines in short and long form including multi-column refs, Enum, table notes, indexes blocks, TableGroup and TablePartial. The DBML cheat sheet shows each one."}},{"@type":"Question","name":"Is my schema uploaded anywhere?","acceptedAnswer":{"@type":"Answer","text":"No. Everything runs locally in your browser — your schema is never uploaded to or stored on any server."}},{"@type":"Question","name":"Is it free?","acceptedAnswer":{"@type":"Answer","text":"Yes. It is completely free and open source, with no account or sign-up required."}}]}
   </script>
   <script type="application/ld+json">
   {"@context":"https://schema.org","@type":"HowTo","name":"How to use DBML to ER Diagram","description":"Paste DBML (Database Markup Language) and instantly render an interactive ER diagram. Import DBML, export PNG/SVG. Free, open source, runs in your browser.","image":"https://sqltoerdiagram.com/og/dbml.png","tool":[{"@type":"HowToTool","name":"SQL to ER Diagram (web browser)"}],"step":[{"@type":"HowToStep","position":1,"name":"Copy your .dbml file or DBML snippet","text":"Copy your .dbml file or DBML snippet.","url":"https://sqltoerdiagram.com/dbml/#how-it-works"},{"@type":"HowToStep","position":2,"name":"Paste it into the editor","text":"Paste it into the editor — DBML is auto-detected.","url":"https://sqltoerdiagram.com/dbml/#how-it-works"},{"@type":"HowToStep","position":3,"name":"Each Table renders with its columns","text":"Each Table renders with its columns; Ref: and inline [ref: > …] become relations.","url":"https://sqltoerdiagram.com/dbml/#how-it-works"},{"@type":"HowToStep","position":4,"name":"Arrange, hide tables, then export PNG/SVG or convert to…","text":"Arrange, hide tables, then export PNG/SVG or convert to Mermaid/PlantUML.","url":"https://sqltoerdiagram.com/dbml/#how-it-works"}]}
@@ -40,6 +40,7 @@
     body { background:var(--bg); color:var(--text); font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; line-height:1.6; -webkit-font-smoothing:antialiased; }
     a { color:var(--accent); text-decoration:none; }
     a:hover { text-decoration:underline; }
+    main p a, main li a, main figcaption a { text-decoration:underline; text-underline-offset:2px; }
     .wrap { max-width:820px; margin:0 auto; padding:0 22px; }
     header { border-bottom:1px solid var(--border); }
     header .wrap { display:flex; align-items:center; gap:10px; height:58px; }
@@ -51,7 +52,7 @@
     h1 { font-size:42px; line-height:1.1; letter-spacing:-.02em; margin:0 0 16px; }
     h1 .a { color:var(--accent); }
     .lead { font-size:19px; color:var(--muted); max-width:660px; margin:0 0 28px; }
-    .cta { display:inline-block; background:var(--accent); color:#fff; font-weight:600; font-size:16px; padding:13px 24px; border-radius:10px; }
+    .cta { display:inline-block; background:var(--accent); color:#0b1220; font-weight:600; font-size:16px; padding:13px 24px; border-radius:10px; }
     .cta:hover { filter:brightness(1.08); text-decoration:none; }
     .cta.alt { background:transparent; color:var(--accent); border:1px solid var(--border); margin-left:8px; }
     .note { margin-top:14px; font-size:13px; color:var(--muted); }
@@ -69,7 +70,7 @@
     .badge { font-size:13px; color:#cdd6e0; background:var(--panel); border:1px solid var(--border); border-radius:999px; padding:6px 12px; }
     .related { display:flex; flex-wrap:wrap; gap:8px 18px; }
     .cols { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:4px 22px; width:100%; }
-    .cols .col h4 { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:14px 0 6px; }
+    .cols .col .col-h { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:14px 0 6px; }
     .cols .col a { display:block; font-size:14px; padding:2px 0; }
     .chips { display:flex; flex-wrap:wrap; gap:8px; }
     .chip { font-size:13px; color:#cdd6e0; background:var(--panel); border:1px solid var(--border); border-radius:999px; padding:4px 12px; font-family:ui-monospace,Menlo,Consolas,monospace; }
@@ -112,17 +113,17 @@
     <div class="hero">
       <h1>DBML to <span class="a">ER Diagram</span></h1>
       <p class="lead">Paste <strong>DBML</strong> (Database Markup Language) and get an interactive ER diagram instantly. A free, in-browser DBML visualizer — import DBML, export PNG, SVG, Mermaid or PlantUML.</p>
-      <a class="cta" href="/#s=zdc8xDoMwEETRq6ymtiKldZFTpAMUmXghqxhj1oYGcffIoUmT9hdvNDtcSrDwvZfRwWBjzTJH2KtBXgIs7q4PTGtmzbS3kUg8SSw8slKT3l1NPDkJtDl9vpxSs0ZZVu7aeLSxjSeQ5lz-A5V__HblwdLtnL2IrxYMvLjAzwKLyo3KGQbDrJMr3xNTwPEB">Open the diagram tool →</a>
+      <a class="cta" href="/#s=zbZAxbsMwDEWvQnDJIhToqiGXaDc7KGiLtonSlCNR6RDk7oUdFO3Qlf_j_QfekbYNI6YhyUwY8MalSjaMrwHrVTHiOw3K0CqXCvfeACSBmPPMBbrtM4DYWHhl88ue8kqicKMyLlSgaybXxgEsO1hTvfT26K23J3XL1f-lHqh98-Pv_QcSoPAU4fy0epF01F1c-XfZsnOE09uSvwzEwBeGiTmdjvLWBpW6cIIhZ2Uy6BJP1NQjTKSVd1EMmISUR8eIu-tcuGLAKZeV_Hjbqvj4Bg">Open the diagram tool →</a>
       <div class="note">No signup · nothing uploaded · export PNG / SVG / Mermaid / DBML · shareable link</div>
       <figure class="diagram">
-        <img src="/og/dbml.svg" width="495" height="166" alt="ER diagram of the DBML example schema: users and posts (2 tables, 1 relationship)" fetchpriority="high" decoding="async" />
+        <img src="/og/dbml.svg" width="511" height="218" alt="ER diagram of the DBML example schema: users and posts (2 tables, 1 relationship)" fetchpriority="high" decoding="async" />
         <figcaption>The DBML example below, drawn by the tool: users and posts (2 tables, 1 relationship).</figcaption>
       </figure>
     </div>
     <section class="glance" id="at-a-glance"><h2>At a glance</h2>
       <dl>
         <dt>What it is</dt><dd>SQL to ER Diagram is a free, open-source browser tool that turns DBML into an interactive entity-relationship (ER) diagram.</dd>
-        <dt>Input</dt><dd>DBML (Database Markup Language) text.</dd>
+        <dt>Input</dt><dd>DBML (Database Markup Language) text, including enums, notes, indexes, multi-column refs and table groups.</dd>
         <dt>Output</dt><dd>An interactive ER diagram you can rearrange, then export as PNG, SVG, Mermaid, DBML or PlantUML, or share as a link.</dd>
         <dt>Cost</dt><dd>Free. MIT-licensed open source. No account or signup.</dd>
         <dt>Privacy</dt><dd>Runs entirely in your browser. The schema is never uploaded, and share links carry the diagram in the URL fragment, which is not sent to a server.</dd>
@@ -138,13 +139,15 @@
     <section><h2>Example</h2>
       <p>DBML like this:</p>
       <pre>Table users {
-  id integer [pk]
-  email varchar [unique]
+  id integer [pk, increment]
+  email varchar [unique, not null]
 }
 
 Table posts {
   id integer [pk]
-  user_id integer [ref: &gt; users.id]
+  user_id integer [not null, ref: &gt; users.id]
+  title varchar [note: 'Shown in the feed']
+  published boolean [default: false]
 }</pre>
       <p>…renders two tables with a relation from <code>posts.user_id</code> → <code>users.id</code>. <a href="/">Try it with your own &rarr;</a></p>
     </section>
@@ -158,7 +161,7 @@ Table posts {
         <li>Multi-column relations: <code>Ref: t.(a,b) &gt; u.(a,b)</code>.</li>
         <li><code>Enum</code> definitions attached to the columns that use them.</li>
       </ul>
-      <p>Styling directives like <code>headercolor</code> and <code>TableGroup</code> blocks are safely skipped. If you're migrating off dbdiagram.io (pricing change, offline need, or you just want the data to stay local), paste your project here — the whole diagram renders client-side, and you can export back to SQL, Mermaid, PlantUML, PNG or SVG.</p>
+      <p>Schema-qualified names (<code>Table billing.invoices</code>), aliases (<code>as I</code>), table and column notes, <code>indexes</code> blocks (including composite primary keys) and <code>TablePartial</code>s are read too. A <code>TableGroup</code> gives its tables a shared header colour, and <code>headercolor</code> is matched to the nearest colour in the palette. Anything that can't be read is underlined in the editor and listed with its line number, rather than silently left out. If you're migrating off dbdiagram.io (pricing change, offline need, or you just want the data to stay local), paste your project here — the whole diagram renders client-side, and you can export back to SQL, Mermaid, PlantUML, PNG or SVG.</p>
     </section>
     <section><h2>Why use it</h2><ul>
         <li><strong>Private:</strong> everything runs in your browser — nothing is uploaded or stored on a server.</li>
@@ -170,18 +173,20 @@ Table posts {
       <h3>What is DBML?</h3>
       <p>DBML (Database Markup Language) is a simple, readable DSL for defining database schemas, popularized by dbdiagram.io. Paste it here to visualize it instantly.</p>
       <h3>Can I convert DBML to SQL or Mermaid?</h3>
-      <p>Paste your DBML, then use Export to get Mermaid or PlantUML, or a PNG/SVG image of the diagram.</p>
+      <p>Yes. Paste your DBML, then use Export to get <code>CREATE TABLE</code> SQL for PostgreSQL, MySQL, SQLite, SQL Server or Snowflake, or Mermaid, PlantUML, PNG or SVG. See <a href="/dbml-to-sql/">DBML to SQL</a>.</p>
+      <h3>Which DBML features are supported?</h3>
+      <p>Tables with schema names and aliases, column settings (<code>pk</code>, <code>increment</code>, <code>unique</code>, <code>not null</code>, <code>default</code>, <code>note</code>, inline <code>ref</code>), <code>Ref</code> lines in short and long form including multi-column refs, <code>Enum</code>, table notes, <code>indexes</code> blocks, <code>TableGroup</code> and <code>TablePartial</code>. The <a href="/dbml-cheat-sheet/">DBML cheat sheet</a> shows each one.</p>
       <h3>Is my schema uploaded anywhere?</h3>
       <p>No. Everything runs locally in your browser — your schema is never uploaded to or stored on any server.</p>
       <h3>Is it free?</h3>
       <p>Yes. It is completely free and open source, with no account or sign-up required.</p>
     </section>
-    <section><h2>Related</h2><div class="related"><a href="/dbml-viewer/">DBML viewer</a><a href="/mermaid/">Mermaid to ER diagram</a><a href="/dbml-to-mermaid/">DBML to Mermaid</a><a href="/prisma-to-dbml/">Prisma to DBML</a><a href="/dbml-to-er-diagram/">DBML to ER diagram</a><a href="/">SQL to ER Diagram (home)</a></div></section>
+    <section><h2>Related</h2><div class="related"><a href="/dbml-viewer/">DBML viewer</a><a href="/dbml-to-sql/">DBML to SQL</a><a href="/dbml-cheat-sheet/">DBML cheat sheet</a><a href="/dbml-to-mermaid/">DBML to Mermaid</a><a href="/prisma-to-dbml/">Prisma to DBML</a><a href="/">SQL to ER Diagram (home)</a></div></section>
   </main>
   <footer>
     <div class="wrap">
       <div class="cols">
-      <div class="col"><h4>Databases</h4>
+      <div class="col"><p class="col-h">Databases</p>
         <a href="/mysql/">MySQL</a>
         <a href="/postgresql/">PostgreSQL</a>
         <a href="/sqlite/">SQLite</a>
@@ -191,7 +196,7 @@ Table posts {
         <a href="/snowflake/">Snowflake</a>
         <a href="/bigquery/">BigQuery</a>
       </div>
-      <div class="col"><h4>Formats & ORMs</h4>
+      <div class="col"><p class="col-h">Formats & ORMs</p>
         <a href="/prisma/">Prisma</a>
         <a href="/dbml/">DBML</a>
         <a href="/mermaid/">Mermaid</a>
@@ -200,24 +205,25 @@ Table posts {
         <a href="/typeorm/">TypeORM</a>
         <a href="/django/">Django</a>
       </div>
-      <div class="col"><h4>Converters</h4>
+      <div class="col"><p class="col-h">Converters</p>
         <a href="/sql-to-mermaid/">SQL to Mermaid</a>
         <a href="/sql-to-dbml/">SQL to DBML</a>
+        <a href="/dbml-to-sql/">DBML to SQL</a>
         <a href="/sql-to-plantuml/">SQL to PlantUML</a>
         <a href="/prisma-to-dbml/">Prisma to DBML</a>
         <a href="/dbml-to-mermaid/">DBML to Mermaid</a>
         <a href="/ddl-to-er-diagram/">DDL to ER Diagram</a>
         <a href="/er-diagram-generator/">ER Diagram Generator</a>
       </div>
-      <div class="col"><h4>Viewers & visualizers</h4>
-        <a href="/dbml-to-er-diagram/">DBML to ER Diagram</a>
+      <div class="col"><p class="col-h">Viewers & visualizers</p>
         <a href="/dbml-viewer/">DBML Viewer</a>
+        <a href="/dbml-cheat-sheet/">DBML Cheat Sheet</a>
         <a href="/mermaid-to-erd/">Mermaid to ERD</a>
         <a href="/prisma-schema-visualizer/">Prisma Schema Visualizer</a>
         <a href="/plantuml/">PlantUML</a>
         <a href="/plantuml-viewer/">PlantUML Viewer</a>
       </div>
-      <div class="col"><h4>Compare</h4>
+      <div class="col"><p class="col-h">Compare</p>
         <a href="/alternatives/">All alternatives</a>
         <a href="/vs/dbdiagram/">vs dbdiagram.io</a>
         <a href="/vs/drawsql/">vs DrawSQL</a>

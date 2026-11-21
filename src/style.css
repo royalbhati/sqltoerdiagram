@@ -62,6 +62,8 @@
 }
 /* primary buttons need dark ink on the pale accents of some themes */
 :root[data-theme="nord"] .btn.primary, :root[data-theme="dracula"] .btn.primary { color: #1b1e27; }
+/* white on the light-blue accent is only 2.5:1; dark ink is 7.6:1 */
+:root:not([data-theme]) .btn.primary, :root[data-theme="dark"] .btn.primary, :root[data-theme="tokyo"] .btn.primary { color: #0b1220; }
 
 * { box-sizing: border-box; }
 

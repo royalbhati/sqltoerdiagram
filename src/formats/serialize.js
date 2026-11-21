@@ -41,35 +41,79 @@ export function toMermaid(model) {
 }
 
 // ---- DBML (dbdiagram.io) ----
-function dq(s) { return '"' + String(s).replace(/"/g, '') + '"'; }
+// Names are written bare when DBML allows it and quoted otherwise.
+const dbName = (s) => (/^[A-Za-z_]\w*$/.test(String(s)) ? String(s) : '"' + String(s).replace(/"/g, '') + '"');
+const dbStr = (s) => "'" + String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n') + "'";
 function dbmlType(t) {
   if (!t) return 'unknown';
   const s = t.trim();
-  // bare single-token types stay unquoted; anything with spaces gets quoted
-  return /^[\w()]+$/.test(s) ? s : dq(s);
+  // single-token types stay unquoted; anything with spaces gets quoted
+  return /^[\w()[\],.]+$/.test(s) ? s : '"' + s.replace(/"/g, '') + '"';
 }
+// a column default as DBML: numbers / true / false / null bare, 'strings' kept, expressions in backticks
+function dbmlDefault(d) {
+  const v = String(d).trim();
+  if (/^-?\d+(\.\d+)?$/.test(v) || /^(true|false|null)$/i.test(v)) return v.toLowerCase();
+  const q = /^'((?:[^']|'')*)'(?:::[\w. "]+)?$/.exec(v);            // 'x' or 'x'::type
+  if (q) return dbStr(q[1].replace(/''/g, "'"));
+  return '`' + v.replace(/`/g, '') + '`';
+}
+// Keeps what DBML can express: enums, notes, defaults, composite keys,
+// indexes and multi-column refs — not just names and types.
 export function toDBML(model) {
   const L = [];
+  for (const [name, values] of Object.entries(model.enums || {})) {
+    L.push('Enum ' + dbName(name) + ' {');
+    for (const v of values) L.push('  ' + dbName(v));
+    L.push('}', '');
+  }
   for (const t of model.tables) {
-    L.push('Table ' + dq(t.name) + ' {');
+    const pks = t.columns.filter((c) => c.pk);
+    const compositePk = pks.length > 1;
+    L.push('Table ' + dbName(t.name) + ' {');
     for (const c of t.columns) {
       const set = [];
-      if (c.pk) set.push('pk');
+      if (c.pk && !compositePk) set.push('pk');
+      if (c.increment) set.push('increment');
       if (c.unique && !c.pk) set.push('unique');
-      if (c.nn && !c.pk) set.push('not null');
-      L.push('  ' + dq(c.name) + ' ' + dbmlType(c.type) + (set.length ? ' [' + set.join(', ') + ']' : ''));
+      if (c.nn && !(c.pk && !compositePk)) set.push('not null');
+      if (c.default !== undefined && c.default !== '') set.push('default: ' + dbmlDefault(c.default));
+      if (c.comment) set.push('note: ' + dbStr(c.comment));
+      L.push('  ' + dbName(c.name) + ' ' + dbmlType(c.typeRaw || c.type) + (set.length ? ' [' + set.join(', ') + ']' : ''));
     }
-    L.push('}');
-    L.push('');
+    // indexes: the composite primary key, then named indexes grouped across their columns
+    const idx = [];
+    if (compositePk) idx.push('(' + pks.map((c) => dbName(c.name)).join(', ') + ') [pk]');
+    const named = new Map();
+    for (const c of t.columns) {
+      for (const n of new Set(c.indexes || [])) {
+        if (n === 'index' || n === 'unique index') idx.push(dbName(c.name) + (n === 'unique index' ? ' [unique]' : ''));
+        else { if (!named.has(n)) named.set(n, []); named.get(n).push(c); }
+      }
+    }
+    for (const [n, cols] of named) {
+      const unique = cols.length === 1 && cols[0].unique;
+      const target = cols.length > 1 ? '(' + cols.map((c) => dbName(c.name)).join(', ') + ')' : dbName(cols[0].name);
+      idx.push(`${target} [${unique ? 'unique, ' : ''}name: ${dbStr(n)}]`);
+    }
+    if (idx.length) { L.push('', '  indexes {'); for (const i of idx) L.push('    ' + i); L.push('  }'); }
+    if (t.comment) L.push('', '  Note: ' + dbStr(t.comment));
+    L.push('}', '');
   }
   for (const r of model.relations) {
     if (r.toMissing) continue;
-    const fc = r.fromCols && r.fromCols[0];
-    const tc = r.toCols && r.toCols[0];
-    if (!fc || !tc) continue;
-    L.push('Ref: ' + dq(r.fromTable) + '.' + dq(fc) + ' > ' + dq(r.toTable) + '.' + dq(tc));
+    const from = (r.fromCols || []).filter(Boolean), to = (r.toCols || []).filter(Boolean);
+    if (!from.length || from.length !== to.length) continue;
+    const side = (table, cols) => dbName(table) + '.' + (cols.length > 1 ? '(' + cols.map(dbName).join(', ') + ')' : dbName(cols[0]));
+    L.push('Ref: ' + side(r.fromTable, from) + ' > ' + side(r.toTable, to));
   }
-  return L.join('\n').trim() + '\n';
+  for (const g of model.groups || []) {
+    if (!g.tables || !g.tables.length) continue;
+    L.push('', 'TableGroup ' + dbName(g.name) + ' {');
+    for (const n of g.tables) L.push('  ' + dbName(n));
+    L.push('}');
+  }
+  return L.join('\n').replace(/\n{3,}/g, '\n\n').trim() + '\n';
 }
 
 // ---- PlantUML (entity / IE notation) ----

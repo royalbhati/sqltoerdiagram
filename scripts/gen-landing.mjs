@@ -76,6 +76,7 @@ const STYLE = `<style>
     body { background:var(--bg); color:var(--text); font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; line-height:1.6; -webkit-font-smoothing:antialiased; }
     a { color:var(--accent); text-decoration:none; }
     a:hover { text-decoration:underline; }
+    main p a, main li a, main figcaption a { text-decoration:underline; text-underline-offset:2px; }
     .wrap { max-width:820px; margin:0 auto; padding:0 22px; }
     header { border-bottom:1px solid var(--border); }
     header .wrap { display:flex; align-items:center; gap:10px; height:58px; }
@@ -87,7 +88,7 @@ const STYLE = `<style>
     h1 { font-size:42px; line-height:1.1; letter-spacing:-.02em; margin:0 0 16px; }
     h1 .a { color:var(--accent); }
     .lead { font-size:19px; color:var(--muted); max-width:660px; margin:0 0 28px; }
-    .cta { display:inline-block; background:var(--accent); color:#fff; font-weight:600; font-size:16px; padding:13px 24px; border-radius:10px; }
+    .cta { display:inline-block; background:var(--accent); color:#0b1220; font-weight:600; font-size:16px; padding:13px 24px; border-radius:10px; }
     .cta:hover { filter:brightness(1.08); text-decoration:none; }
     .cta.alt { background:transparent; color:var(--accent); border:1px solid var(--border); margin-left:8px; }
     .note { margin-top:14px; font-size:13px; color:var(--muted); }
@@ -105,7 +106,7 @@ const STYLE = `<style>
     .badge { font-size:13px; color:#cdd6e0; background:var(--panel); border:1px solid var(--border); border-radius:999px; padding:6px 12px; }
     .related { display:flex; flex-wrap:wrap; gap:8px 18px; }
     .cols { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:4px 22px; width:100%; }
-    .cols .col h4 { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:14px 0 6px; }
+    .cols .col .col-h { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:14px 0 6px; }
     .cols .col a { display:block; font-size:14px; padding:2px 0; }
     .chips { display:flex; flex-wrap:wrap; gap:8px; }
     .chip { font-size:13px; color:#cdd6e0; background:var(--panel); border:1px solid var(--border); border-radius:999px; padding:4px 12px; font-family:ui-monospace,Menlo,Consolas,monospace; }
@@ -153,8 +154,8 @@ const HEADER = `<header>
 const GROUPS = [
   { label: 'Databases', slugs: ['mysql', 'postgresql', 'sqlite', 'sql-server', 'oracle', 'mariadb', 'snowflake', 'bigquery'] },
   { label: 'Formats & ORMs', slugs: ['prisma', 'dbml', 'mermaid', 'sqlalchemy', 'sequelize', 'typeorm', 'django'] },
-  { label: 'Converters', slugs: ['sql-to-mermaid', 'sql-to-dbml', 'sql-to-plantuml', 'prisma-to-dbml', 'dbml-to-mermaid', 'ddl-to-er-diagram', 'er-diagram-generator'] },
-  { label: 'Viewers & visualizers', slugs: ['dbml-to-er-diagram', 'dbml-viewer', 'mermaid-to-erd', 'prisma-schema-visualizer', 'plantuml', 'plantuml-viewer'] },
+  { label: 'Converters', slugs: ['sql-to-mermaid', 'sql-to-dbml', 'dbml-to-sql', 'sql-to-plantuml', 'prisma-to-dbml', 'dbml-to-mermaid', 'ddl-to-er-diagram', 'er-diagram-generator'] },
+  { label: 'Viewers & visualizers', slugs: ['dbml-viewer', 'dbml-cheat-sheet', 'mermaid-to-erd', 'prisma-schema-visualizer', 'plantuml', 'plantuml-viewer'] },
 ];
 const COMPARE_LINKS = [
   { href: `/${HUB.slug}/`, label: 'All alternatives' },
@@ -167,7 +168,7 @@ const bySlug = Object.fromEntries(PAGES.map((p) => [p.slug, p]));
   if (missing.length) throw new Error('landing pages missing from GROUPS (footer + llms.txt): ' + missing.join(', '));
 }
 function footerHtml() {
-  const col = (label, links) => `      <div class="col"><h4>${label}</h4>\n${links.map((l) => `        <a href="${l.href}">${esc(l.label)}</a>`).join('\n')}\n      </div>`;
+  const col = (label, links) => `      <div class="col"><p class="col-h">${label}</p>\n${links.map((l) => `        <a href="${l.href}">${esc(l.label)}</a>`).join('\n')}\n      </div>`;
   const cols = [
     ...GROUPS.map((g) => col(g.label, g.slugs.filter((s) => bySlug[s]).map((s) => ({ href: `/${s}/`, label: bySlug[s].crumb })))),
     col('Compare', COMPARE_LINKS),
@@ -680,6 +681,29 @@ add('examples/', '0.7', galleryIndex());
 for (const g of GALLERY) add(`examples/${g.slug}/`, '0.6', galleryPage(g), DIAGRAMS.get(`examples-${g.slug}`));
 add(`${HUB.slug}/`, '0.7', alternativesHub());
 for (const c of COMPETITORS) add(`vs/${c.slug}/`, '0.6', vsPage(c));
+
+// A real "not found" page. Without a 404.html, Cloudflare Pages treats the site
+// as a single-page app and answers every unknown URL with the home page and a
+// 200 — a soft 404 that wastes crawl budget and can get junk URLs indexed.
+{
+  const links = [...GROUPS[0].slugs.slice(0, 4), 'prisma', 'dbml-viewer'].map((slug) => {
+    const p = PAGES.find((x) => x.slug === slug);
+    return p ? `<a href="/${slug}/">${esc(p.crumb)}</a>` : '';
+  }).join('');
+  const body = `<main class="wrap">
+    <div class="hero">
+      <h1>Page <span class="a">not found</span></h1>
+      <p class="lead">There is nothing at this address. The diagram tool and the guides are all still here.</p>
+      <a class="cta" href="/">Open the diagram tool →</a>
+    </div>
+    <section><h2>Popular pages</h2><div class="related">${links}<a href="/examples/">Schema examples</a></div></section>
+  </main>`;
+  const html = doc({
+    title: 'Page not found — SQL to ER Diagram', description: 'This page does not exist. Open the SQL to ER Diagram tool or browse the guides.',
+    keywords: '', url: `${ORIGIN}/`, jsonld: [], body,
+  }).html.replace('<link rel="canonical" href="' + ORIGIN + '/" />', '<meta name="robots" content="noindex" />');
+  writeFileSync(join(ROOT, 'public', '404.html'), html);
+}
 
 // lastmod: only moves when the page's own content hash changes (scripts/lastmod.json is checked in).
 const MANIFEST = join(ROOT, 'scripts', 'lastmod.json');

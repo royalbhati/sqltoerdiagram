@@ -40,6 +40,7 @@
     body { background:var(--bg); color:var(--text); font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; line-height:1.6; -webkit-font-smoothing:antialiased; }
     a { color:var(--accent); text-decoration:none; }
     a:hover { text-decoration:underline; }
+    main p a, main li a, main figcaption a { text-decoration:underline; text-underline-offset:2px; }
     .wrap { max-width:820px; margin:0 auto; padding:0 22px; }
     header { border-bottom:1px solid var(--border); }
     header .wrap { display:flex; align-items:center; gap:10px; height:58px; }
@@ -51,7 +52,7 @@
     h1 { font-size:42px; line-height:1.1; letter-spacing:-.02em; margin:0 0 16px; }
     h1 .a { color:var(--accent); }
     .lead { font-size:19px; color:var(--muted); max-width:660px; margin:0 0 28px; }
-    .cta { display:inline-block; background:var(--accent); color:#fff; font-weight:600; font-size:16px; padding:13px 24px; border-radius:10px; }
+    .cta { display:inline-block; background:var(--accent); color:#0b1220; font-weight:600; font-size:16px; padding:13px 24px; border-radius:10px; }
     .cta:hover { filter:brightness(1.08); text-decoration:none; }
     .cta.alt { background:transparent; color:var(--accent); border:1px solid var(--border); margin-left:8px; }
     .note { margin-top:14px; font-size:13px; color:var(--muted); }
@@ -69,7 +70,7 @@
     .badge { font-size:13px; color:#cdd6e0; background:var(--panel); border:1px solid var(--border); border-radius:999px; padding:6px 12px; }
     .related { display:flex; flex-wrap:wrap; gap:8px 18px; }
     .cols { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:4px 22px; width:100%; }
-    .cols .col h4 { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:14px 0 6px; }
+    .cols .col .col-h { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:14px 0 6px; }
     .cols .col a { display:block; font-size:14px; padding:2px 0; }
     .chips { display:flex; flex-wrap:wrap; gap:8px; }
     .chip { font-size:13px; color:#cdd6e0; background:var(--panel); border:1px solid var(--border); border-radius:999px; padding:4px 12px; font-family:ui-monospace,Menlo,Consolas,monospace; }
@@ -112,10 +113,10 @@
     <div class="hero">
       <h1>SQL to <span class="a">DBML</span></h1>
       <p class="lead">Paste your SQL <code>CREATE TABLE</code> statements and export them as <strong>DBML</strong> — ready for dbdiagram.io and other DBML tools — while you preview the live ER diagram.</p>
-      <a class="cta" href="/#s=zhZDBisIwEIZfZZhTCzlYj_UUy-gWa5RYF4SCZJsogTapTdbL4rsvXRDZk9f55__mY35QDQPmqL-0vSpkeDdjsN5hnjEMtw5zLCTxmqDmy4qg_Q7R92YMkDQOwGpYlutS1LCX5ZbLE2zoxKbEqd7AJ5fFB5dJNp-lIHY1iGNVNS5dNO4f1bq7t615C31eP79WnlSQtCJJoqDDSzKxOv0rRh9VB-K4JVkWSTZj83TSQIbaqs60EXMcfIjX0QRkePFjr6bZ9IHHLw">Open the diagram tool →</a>
+      <a class="cta" href="/#s=zhZFNa8JAEIb_yjCXJLAH9RhPMa5taLLKmhSFQNhmoyzE3TS7SqH0v5dYg6UeehqYj3eeeecTRddhiPJNqqNAgpemt8poDKcE7XuLIcacRjmFfL-hoPTFqLqprBPubCHaAmVFBr4ne3FwHgHPNvoaO6GkF8xLXepRIFqkFOqzdebU9Bb8UgMoCYvkKWE5bHiSRXwPL3RPhooWpwZeIx4_R9yfziYBsHUOrEjTUg-68TrLKMthzR6Uky14C9W2Sh-hNtqJ2lnvEeV2zL8ko3B1bxlRgNMV5ZTFdHvf7ysZXAdvLv0xbUlXUZHmMHo2dDrjRAusyChPYn86IbPgduUPcMKWdAdKflQjdDWuGwwYk_4v1GCOBKUSbVM7DLEz1h37xiLBg-lPYsgN__36Bg">Open the diagram tool →</a>
       <div class="note">No signup · nothing uploaded · export PNG / SVG / Mermaid / DBML · shareable link</div>
       <figure class="diagram">
-        <img src="/og/sql-to-dbml.svg" width="551" height="192" alt="ER diagram of the SQL to DBML example schema: customers and invoices (2 tables, 1 relationship)" fetchpriority="high" decoding="async" />
+        <img src="/og/sql-to-dbml.svg" width="566" height="218" alt="ER diagram of the SQL to DBML example schema: customers and invoices (2 tables, 1 relationship)" fetchpriority="high" decoding="async" />
         <figcaption>The SQL to DBML example below, drawn by the tool: customers and invoices (2 tables, 1 relationship).</figcaption>
       </figure>
     </div>
@@ -137,28 +138,47 @@
     </ol></section>
     <section><h2>Example</h2>
       <p>This SQL:</p>
-      <pre>CREATE TABLE customers (
+      <pre>CREATE TYPE invoice_status AS ENUM ('draft', 'sent', 'paid');
+
+CREATE TABLE customers (
   id BIGINT PRIMARY KEY,
   name VARCHAR(120) NOT NULL
 );
+COMMENT ON TABLE customers IS 'Billing contacts';
+
 CREATE TABLE invoices (
   id BIGINT PRIMARY KEY,
   customer_id BIGINT NOT NULL REFERENCES customers(id),
+  status invoice_status DEFAULT 'draft',
   total NUMERIC(10,2)
-);</pre>
+);
+CREATE INDEX idx_invoices_customer ON invoices(customer_id);</pre>
       <p>…exports as this DBML:</p>
-      <pre>Table "customers" {
-  "id" bigint [pk]
-  "name" varchar(120) [not null]
+      <pre>Enum invoice_status {
+  draft
+  sent
+  paid
 }
 
-Table "invoices" {
-  "id" bigint [pk]
-  "customer_id" bigint [not null]
-  "total" "numeric(10,2)"
+Table customers {
+  id BIGINT [pk]
+  name VARCHAR(120) [not null]
+
+  Note: 'Billing contacts'
 }
 
-Ref: "invoices"."customer_id" &gt; "customers"."id"</pre>
+Table invoices {
+  id BIGINT [pk]
+  customer_id BIGINT [not null]
+  status invoice_status [default: 'draft']
+  total NUMERIC(10,2)
+
+  indexes {
+    customer_id [name: 'idx_invoices_customer']
+  }
+}
+
+Ref: invoices.customer_id &gt; customers.id</pre>
       <p>Copy it from <strong>Export → DBML</strong>. <a href="/">Try it with your own &rarr;</a></p>
     </section>
     <section><h2>Guide</h2>
@@ -188,12 +208,12 @@ Ref: "invoices"."customer_id" &gt; "customers"."id"</pre>
       <h3>Is it free?</h3>
       <p>Yes. It is completely free and open source, with no account or sign-up required.</p>
     </section>
-    <section><h2>Related</h2><div class="related"><a href="/dbml/">DBML to ER diagram</a><a href="/sql-to-mermaid/">SQL to Mermaid</a><a href="/sql-to-plantuml/">SQL to PlantUML</a><a href="/dbml-to-er-diagram/">DBML to ER diagram</a><a href="/">SQL to ER Diagram (home)</a></div></section>
+    <section><h2>Related</h2><div class="related"><a href="/dbml/">DBML to ER diagram</a><a href="/sql-to-mermaid/">SQL to Mermaid</a><a href="/sql-to-plantuml/">SQL to PlantUML</a><a href="/dbml-to-sql/">DBML to SQL</a><a href="/">SQL to ER Diagram (home)</a></div></section>
   </main>
   <footer>
     <div class="wrap">
       <div class="cols">
-      <div class="col"><h4>Databases</h4>
+      <div class="col"><p class="col-h">Databases</p>
         <a href="/mysql/">MySQL</a>
         <a href="/postgresql/">PostgreSQL</a>
         <a href="/sqlite/">SQLite</a>
@@ -203,7 +223,7 @@ Ref: "invoices"."customer_id" &gt; "customers"."id"</pre>
         <a href="/snowflake/">Snowflake</a>
         <a href="/bigquery/">BigQuery</a>
       </div>
-      <div class="col"><h4>Formats & ORMs</h4>
+      <div class="col"><p class="col-h">Formats & ORMs</p>
         <a href="/prisma/">Prisma</a>
         <a href="/dbml/">DBML</a>
         <a href="/mermaid/">Mermaid</a>
@@ -212,24 +232,25 @@ Ref: "invoices"."customer_id" &gt; "customers"."id"</pre>
         <a href="/typeorm/">TypeORM</a>
         <a href="/django/">Django</a>
       </div>
-      <div class="col"><h4>Converters</h4>
+      <div class="col"><p class="col-h">Converters</p>
         <a href="/sql-to-mermaid/">SQL to Mermaid</a>
         <a href="/sql-to-dbml/">SQL to DBML</a>
+        <a href="/dbml-to-sql/">DBML to SQL</a>
         <a href="/sql-to-plantuml/">SQL to PlantUML</a>
         <a href="/prisma-to-dbml/">Prisma to DBML</a>
         <a href="/dbml-to-mermaid/">DBML to Mermaid</a>
         <a href="/ddl-to-er-diagram/">DDL to ER Diagram</a>
         <a href="/er-diagram-generator/">ER Diagram Generator</a>
       </div>
-      <div class="col"><h4>Viewers & visualizers</h4>
-        <a href="/dbml-to-er-diagram/">DBML to ER Diagram</a>
+      <div class="col"><p class="col-h">Viewers & visualizers</p>
         <a href="/dbml-viewer/">DBML Viewer</a>
+        <a href="/dbml-cheat-sheet/">DBML Cheat Sheet</a>
         <a href="/mermaid-to-erd/">Mermaid to ERD</a>
         <a href="/prisma-schema-visualizer/">Prisma Schema Visualizer</a>
         <a href="/plantuml/">PlantUML</a>
         <a href="/plantuml-viewer/">PlantUML Viewer</a>
       </div>
-      <div class="col"><h4>Compare</h4>
+      <div class="col"><p class="col-h">Compare</p>
         <a href="/alternatives/">All alternatives</a>
         <a href="/vs/dbdiagram/">vs dbdiagram.io</a>
         <a href="/vs/drawsql/">vs DrawSQL</a>

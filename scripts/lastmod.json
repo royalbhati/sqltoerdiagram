@@ -1,11 +1,11 @@
 {
   "https://sqltoerdiagram.com/": {
-    "hash": "a73feafed9b60d1e",
-    "lastmod": "2026-11-10"
+    "hash": "3a1a4acb6bf7ab8c",
+    "lastmod": "2026-11-21"
   },
   "https://sqltoerdiagram.com/prisma/": {
-    "hash": "744f9701644fc4fb",
-    "lastmod": "2026-11-10"
+    "hash": "ac0caa38b520574f",
+    "lastmod": "2026-11-21"
   },
   "https://sqltoerdiagram.com/mysql/": {
     "hash": "946ac8088a2d9988",
@@ -24,8 +24,16 @@
     "lastmod": "2026-11-10"
   },
   "https://sqltoerdiagram.com/dbml/": {
-    "hash": "439d4525d91ec443",
-    "lastmod": "2026-11-10"
+    "hash": "d96600706e52eff9",
+    "lastmod": "2026-11-21"
+  },
+  "https://sqltoerdiagram.com/dbml-to-sql/": {
+    "hash": "22e9427c4b7729f5",
+    "lastmod": "2026-11-21"
+  },
+  "https://sqltoerdiagram.com/dbml-cheat-sheet/": {
+    "hash": "dc9ef2a6b38fcb95",
+    "lastmod": "2026-11-21"
   },
   "https://sqltoerdiagram.com/mermaid/": {
     "hash": "1bafedd5e4415bd8",
@@ -52,16 +60,12 @@
     "lastmod": "2026-11-10"
   },
   "https://sqltoerdiagram.com/prisma-to-dbml/": {
-    "hash": "266e8e9c4453c50b",
-    "lastmod": "2026-11-10"
-  },
-  "https://sqltoerdiagram.com/dbml-to-er-diagram/": {
-    "hash": "c2a1fc25fd2482aa",
-    "lastmod": "2026-11-10"
+    "hash": "c5d835972e2250f2",
+    "lastmod": "2026-11-21"
   },
   "https://sqltoerdiagram.com/mermaid-to-erd/": {
-    "hash": "43ccfb8f4bf6b889",
-    "lastmod": "2026-11-10"
+    "hash": "26b6e5c371e3efee",
+    "lastmod": "2026-11-21"
   },
   "https://sqltoerdiagram.com/oracle/": {
     "hash": "137fd9dbdec719d5",
@@ -88,24 +92,24 @@
     "lastmod": "2026-11-10"
   },
   "https://sqltoerdiagram.com/sql-to-dbml/": {
-    "hash": "a00c808dafb688d1",
-    "lastmod": "2026-11-10"
+    "hash": "36890f61f5488157",
+    "lastmod": "2026-11-21"
   },
   "https://sqltoerdiagram.com/sql-to-plantuml/": {
     "hash": "055e8e7abde9b932",
     "lastmod": "2026-11-10"
   },
   "https://sqltoerdiagram.com/dbml-to-mermaid/": {
-    "hash": "ad34bffffcbfbc13",
-    "lastmod": "2026-11-10"
+    "hash": "005ace7a33be7d99",
+    "lastmod": "2026-11-21"
   },
   "https://sqltoerdiagram.com/dbml-viewer/": {
-    "hash": "f57ea4afd77fadb7",
-    "lastmod": "2026-11-10"
+    "hash": "3e5d31555599fa62",
+    "lastmod": "2026-11-21"
   },
   "https://sqltoerdiagram.com/prisma-schema-visualizer/": {
-    "hash": "bd1083436180d284",
-    "lastmod": "2026-11-10"
+    "hash": "63121bbbd860b5c4",
+    "lastmod": "2026-11-21"
   },
   "https://sqltoerdiagram.com/plantuml-viewer/": {
     "hash": "6991e67dc362cef3",

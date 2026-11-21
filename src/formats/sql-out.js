@@ -39,7 +39,8 @@ export function classify(raw) {
     case 'real': case 'float4': return { kind: 'float', size: 4 };
     case 'float': case 'double': case 'double precision': case 'float8': return { kind: 'float', size: 8 };
     case 'varchar': case 'character varying': case 'nvarchar': case 'varchar2': case 'nvarchar2': case 'string':
-      return args[0] && args[0] !== 'max' ? { kind: 'varchar', n: args[0].replace(/\s*(byte|char)$/, '') } : { kind: 'text' };
+      // an unsized varchar is still a varchar: it must stay indexable (MySQL can't put UNIQUE on TEXT)
+      return args[0] && args[0] !== 'max' ? { kind: 'varchar', n: args[0].replace(/\s*(byte|char)$/, '') } : { kind: 'text', varchar: args[0] !== 'max' };
     case 'char': case 'character': case 'nchar': case 'bpchar':
       return { kind: 'char', n: (args[0] || '1').replace(/\s*(byte|char)$/, '') };
     case 'text': case 'tinytext': case 'mediumtext': case 'longtext': case 'ntext': case 'clob': case 'citext': return { kind: 'text' };
@@ -62,13 +63,13 @@ const TYPES = {
   postgres: (c) => ({
     int: c.auto ? { 2: 'smallserial', 4: 'serial', 8: 'bigserial' }[c.size] : { 2: 'smallint', 4: 'integer', 8: 'bigint' }[c.size],
     bool: 'boolean', decimal: dec('numeric', c), float: c.size === 4 ? 'real' : 'double precision',
-    varchar: `varchar(${c.n})`, char: `char(${c.n})`, text: 'text', uuid: 'uuid', date: 'date', time: 'time',
+    varchar: `varchar(${c.n})`, char: `char(${c.n})`, text: c.varchar ? 'varchar' : 'text', uuid: 'uuid', date: 'date', time: 'time',
     timestamp: c.tz ? 'timestamptz' : 'timestamp', json: 'jsonb', binary: 'bytea', enum: 'text',
   }[c.kind]),
   mysql: (c) => ({
     int: { 2: 'smallint', 4: 'int', 8: 'bigint' }[c.size] + (c.auto ? ' AUTO_INCREMENT' : ''),
     bool: 'tinyint(1)', decimal: dec('decimal', c), float: c.size === 4 ? 'float' : 'double',
-    varchar: `varchar(${c.n})`, char: `char(${c.n})`, text: 'text', uuid: 'char(36)', date: 'date', time: 'time',
+    varchar: `varchar(${c.n})`, char: `char(${c.n})`, text: c.varchar ? 'varchar(255)' : 'text', uuid: 'char(36)', date: 'date', time: 'time',
     timestamp: c.tz ? 'timestamp' : 'datetime', json: 'json', binary: 'blob',
     enum: c.values && c.values.length ? `enum(${c.values.join(',')})` : 'varchar(255)',
   }[c.kind]),
@@ -79,7 +80,7 @@ const TYPES = {
   sqlserver: (c) => ({
     int: { 2: 'smallint', 4: 'int', 8: 'bigint' }[c.size] + (c.auto ? ' IDENTITY(1,1)' : ''),
     bool: 'bit', decimal: dec('decimal', c), float: c.size === 4 ? 'real' : 'float',
-    varchar: `nvarchar(${c.n})`, char: `nchar(${c.n})`, text: 'nvarchar(max)', uuid: 'uniqueidentifier', date: 'date', time: 'time',
+    varchar: `nvarchar(${c.n})`, char: `nchar(${c.n})`, text: c.varchar ? 'nvarchar(255)' : 'nvarchar(max)', uuid: 'uniqueidentifier', date: 'date', time: 'time',
     timestamp: c.tz ? 'datetimeoffset' : 'datetime2', json: 'nvarchar(max)', binary: 'varbinary(max)', enum: 'nvarchar(255)',
   }[c.kind]),
   snowflake: (c) => ({
@@ -90,25 +91,99 @@ const TYPES = {
 };
 
 // A column type translated for `dialect` (unchanged when it isn't recognised).
-export function convertType(raw, dialect) {
+// `auto`: the column auto-increments (DBML `increment`), whatever its type is called
+export function convertType(raw, dialect, { auto = false } = {}) {
   const c = classify(raw);
+  if (auto && c.kind === 'int') c.auto = true;
   const out = TYPES[dialect] && c.kind !== 'unknown' && c.kind !== 'array' ? TYPES[dialect](c) : null;
   return out || String(raw || '').trim() || (dialect === 'sqlite' ? 'TEXT' : 'text');
 }
 
-export function createTableSQL(t, dialect, relations = []) {
+const sqlStr = (v) => "'" + String(v).replace(/'/g, "''") + "'";
+
+// A column default written for `dialect`. Literals are kept; the "current time"
+// expression every database spells differently becomes CURRENT_TIMESTAMP, which
+// all five accept; a Postgres cast ('x'::type) is dropped elsewhere.
+function defaultSQL(raw, dialect) {
+  let v = String(raw).trim();
+  if (!v) return '';
+  if (/^(now\(\)|current_timestamp(\(\))?|getdate\(\)|sysdate\(\)|localtimestamp)$/i.test(v)) return 'CURRENT_TIMESTAMP';
+  if (dialect !== 'postgres') v = v.replace(/^('(?:[^']|'')*')::[\w. "]+$/, '$1');
+  if (/^(true|false)$/i.test(v) && (dialect === 'sqlserver' || dialect === 'sqlite')) return /^true$/i.test(v) ? '1' : '0';
+  return v;
+}
+
+// The enum (if any) a column's type names: { name, values }
+function enumOf(c, enums) {
+  const key = String(c.typeRaw || c.type || '').trim().toLowerCase().split('.').pop().replace(/^"|"$/g, '');
+  return enums && enums[key] && enums[key].length ? { name: key, values: enums[key] } : null;
+}
+
+// `ctx.enums`: the model's enum types, so enum columns come out valid everywhere:
+// a real type on PostgreSQL, enum(…) on MySQL, a CHECK constraint on SQLite and
+// SQL Server, plain text on Snowflake (which does not enforce CHECK).
+export function createTableSQL(t, dialect, relations = [], ctx = {}) {
   const q = QUOTE[dialect] || QUOTE.postgres;
   const pks = t.columns.filter((c) => c.pk);
   const lines = t.columns.map((c) => {
-    let s = `  ${q(c.name)} ${convertType(c.typeRaw || c.type, dialect)}`;
+    const en = enumOf(c, ctx.enums);
+    let type = convertType(c.typeRaw || c.type, dialect, { auto: !!c.increment });
+    let check = '';
+    if (en) {
+      const list = en.values.map(sqlStr).join(', ');
+      if (dialect === 'postgres') type = q(en.name);
+      else if (dialect === 'mysql') type = `enum(${list})`;
+      else {
+        const longest = Math.max(...en.values.map((v) => v.length), 1);
+        type = dialect === 'sqlite' ? 'TEXT' : dialect === 'sqlserver' ? `nvarchar(${longest})` : `VARCHAR(${longest})`;
+        if (dialect !== 'snowflake') check = ` CHECK (${q(c.name)} IN (${list}))`;
+      }
+    }
+    let s = `  ${q(c.name)} ${type}`;
     if (pks.length === 1 && c.pk) s += ' PRIMARY KEY';
     else if (c.nn) s += ' NOT NULL';
     if (c.unique && !(pks.length === 1 && c.pk)) s += ' UNIQUE';
+    const def = c.default !== undefined && !c.increment ? defaultSQL(c.default, dialect) : '';
+    if (def) s += ' DEFAULT ' + def;
+    s += check;
+    if (c.comment && dialect === 'mysql') s += ' COMMENT ' + sqlStr(c.comment);
     return s;
   });
   if (pks.length > 1) lines.push(`  PRIMARY KEY (${pks.map((c) => q(c.name)).join(', ')})`);
   for (const r of relations) lines.push('  ' + fkClause(r, q));       // inline FKs (SQLite)
-  return `CREATE TABLE ${q(t.name)} (\n${lines.join(',\n')}\n);`;
+  const tail = t.comment && dialect === 'mysql' ? ' COMMENT=' + sqlStr(t.comment) : '';
+  return `CREATE TABLE ${q(t.name)} (\n${lines.join(',\n')}\n)${tail};`;
+}
+
+// CREATE INDEX statements for a table's secondary indexes (named ones are
+// grouped across their columns; a single-column UNIQUE is already on the column).
+export function indexSQL(t, dialect) {
+  const q = QUOTE[dialect] || QUOTE.postgres;
+  const groups = new Map();
+  for (const c of t.columns) {
+    for (const n of new Set(c.indexes || [])) {
+      const generic = n === 'index' || n === 'unique index';
+      const key = generic ? `${n}:${c.name}` : n;
+      if (!groups.has(key)) groups.set(key, { name: generic ? `idx_${t.name}_${c.name}`.replace(/\W+/g, '_') : n, cols: [], unique: n === 'unique index' });
+      groups.get(key).cols.push(c);
+    }
+  }
+  const out = [];
+  for (const g of groups.values()) {
+    if (g.cols.length === 1 && g.cols[0].unique) continue;            // covered by the column's UNIQUE
+    out.push(`CREATE ${g.unique ? 'UNIQUE ' : ''}INDEX ${q(g.name)} ON ${q(t.name)} (${g.cols.map((c) => q(c.name)).join(', ')});`);
+  }
+  return out;
+}
+
+// COMMENT ON … statements (PostgreSQL / Snowflake); MySQL carries comments inline
+export function commentSQL(t, dialect) {
+  if (dialect !== 'postgres' && dialect !== 'snowflake') return [];
+  const q = QUOTE[dialect];
+  const out = [];
+  if (t.comment) out.push(`COMMENT ON TABLE ${q(t.name)} IS ${sqlStr(t.comment)};`);
+  for (const c of t.columns) if (c.comment) out.push(`COMMENT ON COLUMN ${q(t.name)}.${q(c.name)} IS ${sqlStr(c.comment)};`);
+  return out;
 }
 
 function fkClause(r, q) {
@@ -121,16 +196,23 @@ export function addForeignKeySQL(r, dialect) {
   return `ALTER TABLE ${q(r.fromTable)} ADD CONSTRAINT ${q(name)} ${fkClause(r, q)};`;
 }
 
-// Whole schema: tables first, then foreign keys (so table order never matters).
-// SQLite can't add a constraint afterwards, so its FKs go inside CREATE TABLE.
+// Whole schema, in an order that runs in one pass: enum types, tables, indexes,
+// comments, then foreign keys (so table order never matters). SQLite can't add
+// a constraint afterwards, so its FKs go inside CREATE TABLE.
 export function toSQL(model, dialect = 'postgres') {
+  const q = QUOTE[dialect] || QUOTE.postgres;
   const rels = model.relations.filter((r) => !r.toMissing && r.fromCols.length);
   const inline = dialect === 'sqlite';
+  const enums = model.enums || {};
   const out = [`-- ${SQL_DIALECTS[dialect] || dialect} schema · generated by sqltoerdiagram.com`, ''];
+  if (dialect === 'postgres') {
+    for (const [name, values] of Object.entries(enums)) if (values.length) out.push(`CREATE TYPE ${q(name)} AS ENUM (${values.map(sqlStr).join(', ')});`);
+    if (Object.keys(enums).length) out.push('');
+  }
   for (const t of model.tables) {
     const mine = inline ? rels.filter((r) => r.fromTable.toLowerCase() === t.key) : [];
-    out.push(createTableSQL(t, dialect, mine), '');
+    out.push(createTableSQL(t, dialect, mine, { enums }), ...indexSQL(t, dialect), ...commentSQL(t, dialect), '');
   }
   if (!inline) for (const r of rels) out.push(addForeignKeySQL(r, dialect));
-  return out.join('\n').trimEnd() + '\n';
+  return out.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd() + '\n';
 }

@@ -16,7 +16,8 @@ const R = {
   django: { href: '/django/', label: 'Django to ER diagram' },
   sql2mermaid: { href: '/sql-to-mermaid/', label: 'SQL to Mermaid' },
   prisma2dbml: { href: '/prisma-to-dbml/', label: 'Prisma to DBML' },
-  dbml2er: { href: '/dbml-to-er-diagram/', label: 'DBML to ER diagram' },
+  dbml2sql: { href: '/dbml-to-sql/', label: 'DBML to SQL' },
+  dbmlCheat: { href: '/dbml-cheat-sheet/', label: 'DBML cheat sheet' },
   mermaid2erd: { href: '/mermaid-to-erd/', label: 'Mermaid to ERD' },
   oracle: { href: '/oracle/', label: 'Oracle to ER diagram' },
   mariadb: { href: '/mariadb/', label: 'MariaDB to ER diagram' },
@@ -81,7 +82,7 @@ model Post {
       { q: 'What else is supported besides Prisma?', a: 'Raw SQL (<code>CREATE TABLE</code> for PostgreSQL, MySQL, SQLite, SQL Server, Oracle, Snowflake), plus DBML, Mermaid, SQLAlchemy and Sequelize models.' },
       FAQ_PRIVATE, FAQ_EXPORT, FAQ_FREE,
     ],
-    related: [R.prismaViz, R.prisma2dbml, R.sqlalchemy, R.sequelize, R.dbml2er, R.home],
+    related: [R.prismaViz, R.prisma2dbml, R.sqlalchemy, R.sequelize, R.dbml2sql, R.home],
   },
 
   // ---------------- DIALECTS ----------------
@@ -240,23 +241,162 @@ CREATE TABLE orders (
     ],
     exampleIntro: 'DBML like this:',
     example: `Table users {
-  id integer [pk]
-  email varchar [unique]
+  id integer [pk, increment]
+  email varchar [unique, not null]
 }
 
 Table posts {
   id integer [pk]
-  user_id integer [ref: > users.id]
+  user_id integer [not null, ref: > users.id]
+  title varchar [note: 'Shown in the feed']
+  published boolean [default: false]
 }`,
     exampleAfter: '…renders two tables with a relation from <code>posts.user_id</code> → <code>users.id</code>.',
     why: [PRIVATE, '<strong>Round-trip:</strong> import DBML and export it back, or convert to Mermaid / PlantUML / SVG.', INTERACTIVE, FREE],
     badges: ['DBML', 'Mermaid', 'PlantUML', 'SQL', 'Prisma'],
     faq: [
       { q: 'What is DBML?', a: 'DBML (Database Markup Language) is a simple, readable DSL for defining database schemas, popularized by dbdiagram.io. Paste it here to visualize it instantly.' },
-      { q: 'Can I convert DBML to SQL or Mermaid?', a: 'Paste your DBML, then use Export to get Mermaid or PlantUML, or a PNG/SVG image of the diagram.' },
+      { q: 'Can I convert DBML to SQL or Mermaid?', a: 'Yes. Paste your DBML, then use Export to get <code>CREATE TABLE</code> SQL for PostgreSQL, MySQL, SQLite, SQL Server or Snowflake, or Mermaid, PlantUML, PNG or SVG. See <a href="/dbml-to-sql/">DBML to SQL</a>.' },
+      { q: 'Which DBML features are supported?', a: 'Tables with schema names and aliases, column settings (<code>pk</code>, <code>increment</code>, <code>unique</code>, <code>not null</code>, <code>default</code>, <code>note</code>, inline <code>ref</code>), <code>Ref</code> lines in short and long form including multi-column refs, <code>Enum</code>, table notes, <code>indexes</code> blocks, <code>TableGroup</code> and <code>TablePartial</code>. The <a href="/dbml-cheat-sheet/">DBML cheat sheet</a> shows each one.' },
       FAQ_PRIVATE, FAQ_FREE,
     ],
-    related: [R.dbmlViewer, R.mermaid, R.dbml2mermaid, R.prisma2dbml, R.dbml2er, R.home],
+    related: [R.dbmlViewer, R.dbml2sql, R.dbmlCheat, R.dbml2mermaid, R.prisma2dbml, R.home],
+  },
+  {
+    slug: 'dbml-to-sql',
+    crumb: 'DBML to SQL',
+    title: 'DBML to SQL Converter — PostgreSQL, MySQL, SQLite, SQL Server',
+    description: 'Convert DBML to SQL CREATE TABLE statements for PostgreSQL, MySQL, SQLite, SQL Server or Snowflake. Free online DBML to SQL converter that runs in your browser — nothing uploaded.',
+    keywords: 'dbml to sql, dbml to sql converter, dbml to postgresql, dbml to mysql, dbml to sqlite, dbml to sql server, convert dbml to sql, dbml to ddl',
+    h1: 'DBML to <span class="a">SQL</span>',
+    lead: 'Paste <strong>DBML</strong> and get <code>CREATE TABLE</code> SQL for <strong>PostgreSQL, MySQL, SQLite, SQL Server or Snowflake</strong> — with keys, defaults and foreign keys, and column types translated for the database you pick. You also get the diagram, so you can check the schema before you run anything.',
+    steps: [
+      'Paste your DBML (or drop a <code>.dbml</code> file on the page). DBML is detected automatically.',
+      'Check the diagram: tables, keys and relations are drawn as they will be created.',
+      'Open <strong>Export</strong> and choose a database under <em>SQL for…</em>.',
+      'Copy or download the SQL. Tables come first and foreign keys after, so the script runs in one pass.',
+    ],
+    exampleIntro: 'This DBML:',
+    example: `Enum plan {
+  free
+  pro
+}
+
+Table accounts {
+  id integer [pk, increment]
+  email varchar(255) [unique, not null]
+  plan plan [default: 'free']
+  settings jsonb
+  created_at timestamp [default: \`now()\`]
+}
+
+Table projects {
+  id integer [pk, increment]
+  account_id integer [not null, ref: > accounts.id]
+  name varchar(120) [not null]
+  archived boolean [default: false]
+}`,
+    example2label: '…exports as this PostgreSQL:',
+    example2: `-- PostgreSQL schema · generated by sqltoerdiagram.com
+
+CREATE TYPE plan AS ENUM ('free', 'pro');
+
+CREATE TABLE accounts (
+  id serial PRIMARY KEY,
+  email varchar(255) NOT NULL UNIQUE,
+  plan plan DEFAULT 'free',
+  settings jsonb,
+  created_at timestamp DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE projects (
+  id serial PRIMARY KEY,
+  account_id integer NOT NULL,
+  name varchar(120) NOT NULL,
+  archived boolean DEFAULT false
+);
+
+ALTER TABLE projects ADD CONSTRAINT fk_projects_account_id FOREIGN KEY (account_id) REFERENCES accounts (id);`,
+    exampleAfter: 'Pick MySQL instead and the enum becomes an <code>enum(…)</code> column, <code>jsonb</code> becomes <code>json</code> and <code>boolean</code> becomes <code>tinyint(1)</code>; pick SQL Server and <code>varchar</code> becomes <code>nvarchar</code>.',
+    why: [PRIVATE, '<strong>Five dialects:</strong> PostgreSQL, MySQL, SQLite, SQL Server and Snowflake from the same DBML.', '<strong>Types translated:</strong> common types are mapped per database; a type it does not recognise is passed through unchanged rather than guessed.', INTERACTIVE, FREE],
+    badges: ['DBML', 'PostgreSQL', 'MySQL', 'SQLite', 'SQL Server'],
+    faq: [
+      { q: 'How do I convert DBML to SQL?', a: 'Paste the DBML into the editor, open Export and pick a database under “SQL for…”. You get <code>CREATE TABLE</code> statements followed by the foreign keys as <code>ALTER TABLE … ADD CONSTRAINT</code>.' },
+      { q: 'Which databases can it generate SQL for?', a: 'PostgreSQL, MySQL, SQLite, SQL Server and Snowflake. For SQLite the foreign keys are written inside <code>CREATE TABLE</code>, because SQLite cannot add them afterwards.' },
+      { q: 'What happens to DBML enums, notes and indexes?', a: 'They are carried into the SQL. An enum becomes <code>CREATE TYPE … AS ENUM</code> on PostgreSQL, <code>enum(…)</code> on MySQL and a <code>CHECK</code> constraint on SQLite and SQL Server. Indexes become <code>CREATE INDEX</code>. Notes become <code>COMMENT ON</code> statements on PostgreSQL and Snowflake and inline <code>COMMENT</code>s on MySQL; SQLite and SQL Server have no standard comment syntax, so notes are left out there.' },
+      { q: 'Can I go the other way, from SQL to DBML?', a: 'Yes — see <a href="/sql-to-dbml/">SQL to DBML</a>. That direction keeps enums, defaults, notes and indexes.' },
+      FAQ_PRIVATE, FAQ_FREE,
+    ],
+    related: [R.dbmlViewer, R.sql2dbml, R.dbmlCheat, R.dbml, R.dbml2mermaid, R.home],
+  },
+  {
+    slug: 'dbml-cheat-sheet',
+    crumb: 'DBML Cheat Sheet',
+    title: 'DBML Cheat Sheet — Syntax Reference with Examples',
+    description: 'A one-page DBML cheat sheet: tables, column settings, refs, enums, indexes, notes, table groups and partials, each with a copy-paste example you can render instantly.',
+    keywords: 'dbml cheat sheet, dbml syntax, dbml reference, dbml examples, dbml ref syntax, dbml enum, dbml indexes, dbml table group, database markup language syntax',
+    h1: 'DBML <span class="a">Cheat Sheet</span>',
+    lead: 'The <strong>DBML syntax</strong> you actually use, on one page: tables, column settings, relationships, enums, indexes, notes and table groups. Every snippet is valid DBML — paste any of them into the viewer to see it drawn.',
+    steps: [
+      'Find the construct you need below and copy the snippet.',
+      'Paste it into the editor — DBML is detected automatically and the diagram is drawn.',
+      'Anything that cannot be read is underlined and listed, with its line number.',
+      'Export the result as PNG or SVG, or convert it to SQL, Mermaid or PlantUML.',
+    ],
+    exampleIntro: 'A small schema that uses most of the language:',
+    example: `Enum order_status {
+  pending
+  paid
+  shipped
+}
+
+Table users {
+  id integer [pk, increment]
+  email varchar [unique, not null]
+  created_at timestamp [default: \`now()\`]
+}
+
+Table orders {
+  id integer [pk]
+  user_id integer [not null, ref: > users.id]
+  status order_status [default: 'pending']
+  total decimal(10,2)
+
+  Note: 'One row per checkout'
+}
+
+Table order_items {
+  order_id integer [ref: > orders.id]
+  product_id integer [ref: > products.id]
+  quantity integer [default: 1]
+
+  indexes {
+    (order_id, product_id) [pk]
+  }
+}
+
+Table products {
+  id integer [pk]
+  name varchar
+}
+
+TableGroup sales {
+  orders
+  order_items
+}`,
+    exampleAfter: 'It draws four tables, three relations, a composite primary key and a coloured table group.',
+    guideTitle: 'DBML syntax reference',
+    why: [PRIVATE, '<strong>Try as you read:</strong> every snippet renders in the viewer, so you can check your own variation immediately.', INTERACTIVE, EXPORT, FREE],
+    badges: ['DBML', 'dbdiagram', 'SQL', 'Mermaid'],
+    faq: [
+      { q: 'What is DBML?', a: 'DBML (Database Markup Language) is an open-source, human-readable language for describing a database schema: tables, columns, keys and relationships. It is the language behind dbdiagram.io and dbdocs.' },
+      { q: 'What do the relationship symbols mean?', a: '<code>&gt;</code> is many-to-one (the left side holds the foreign key), <code>&lt;</code> is one-to-many (the right side holds it), <code>-</code> is one-to-one and <code>&lt;&gt;</code> is many-to-many.' },
+      { q: 'How do I write a composite primary key in DBML?', a: 'Put it in the table’s <code>indexes</code> block: <code>indexes { (order_id, product_id) [pk] }</code>.' },
+      { q: 'How do I write a multi-column foreign key?', a: 'List the columns in parentheses on both sides: <code>Ref: orders.(merchant_id, country) &gt; merchants.(id, country)</code>.' },
+      { q: 'Is this the official DBML documentation?', a: 'No. It is a quick reference written by the maintainers of this viewer, covering the syntax the viewer reads. The full specification is on the DBML project’s own site.' },
+      FAQ_FREE,
+    ],
+    related: [R.dbmlViewer, R.dbml2sql, R.dbml, R.sql2dbml, R.dbml2mermaid, R.home],
   },
   {
     slug: 'mermaid',
@@ -510,15 +650,17 @@ model Post {
   author   User @relation(fields: [authorId], references: [id])
   authorId Int
 }`,
-    example2: `Table "User" {
-  "id" Int [pk]
-  "email" String [unique]
+    example2: `Table User {
+  id Int [pk]
+  email String [unique, not null]
 }
-Table "Post" {
-  "id" Int [pk]
-  "authorId" Int
+
+Table Post {
+  id Int [pk]
+  authorId Int [not null]
 }
-Ref: "Post"."authorId" > "User"."id"`,
+
+Ref: Post.authorId > User.id`,
     example2label: '…exports as this DBML:',
     exampleAfter: 'Copy it from <strong>Export → DBML</strong>.',
     why: [PRIVATE, '<strong>dbdiagram.io-ready</strong> DBML output.', '<strong>Preview first</strong> — see the relations drawn before exporting.', FREE],
@@ -527,41 +669,7 @@ Ref: "Post"."authorId" > "User"."id"`,
       { q: 'How do I convert a Prisma schema to DBML?', a: 'Paste your schema.prisma, then click Export → DBML and copy the output. Models become Tables and @relation fields become Refs.' },
       FAQ_PRIVATE, FAQ_FREE,
     ],
-    related: [R.prisma, R.dbml, R.sql2mermaid, R.dbml2er, R.home],
-  },
-  {
-    slug: 'dbml-to-er-diagram',
-    crumb: 'DBML to ER Diagram',
-    title: 'DBML to ER Diagram — Render DBML Online, Free',
-    description: 'Paste DBML and render an interactive ER diagram instantly — a free dbdiagram-style DBML viewer that runs in your browser. Export PNG, SVG, Mermaid.',
-    keywords: 'dbml to er diagram, render dbml online, dbml viewer, dbml diagram generator, dbdiagram alternative, visualize dbml',
-    h1: 'DBML to <span class="a">ER Diagram</span>',
-    lead: 'Paste <strong>DBML</strong> and instantly render an interactive entity-relationship diagram — drag, arrange, and export. A free, in-browser DBML viewer.',
-    steps: [
-      'Copy your DBML (from dbdiagram.io or a <code>.dbml</code> file).',
-      'Paste it into the editor — DBML is auto-detected.',
-      'Tables and <code>Ref:</code> relations are drawn immediately.',
-      'Arrange, hide tables, then export PNG/SVG or convert to Mermaid/PlantUML.',
-    ],
-    exampleIntro: 'DBML like this:',
-    example: `Table users {
-  id integer [pk]
-  email varchar [unique]
-}
-Table orders {
-  id integer [pk]
-  user_id integer [ref: > users.id]
-  total decimal
-}`,
-    exampleAfter: '…renders two tables with a relation from <code>orders.user_id</code> → <code>users.id</code>.',
-    why: [PRIVATE, INTERACTIVE, '<strong>Convert</strong> DBML to Mermaid, PlantUML, PNG or SVG.', FREE],
-    badges: ['DBML', 'Mermaid', 'PlantUML', 'SQL'],
-    faq: [
-      { q: 'Is this a free dbdiagram alternative?', a: 'Yes — paste DBML and get an interactive diagram for free, with no account. You can also export to Mermaid, PlantUML, PNG or SVG.' },
-      { q: 'Does it support Ref and inline references?', a: 'Yes — both standalone <code>Ref:</code> lines and inline <code>[ref: &gt; table.col]</code> settings are parsed.' },
-      FAQ_PRIVATE, FAQ_FREE,
-    ],
-    related: [R.dbmlViewer, R.dbml, R.mermaid2erd, R.prisma2dbml, R.sql2mermaid, R.home],
+    related: [R.prisma, R.dbml, R.sql2mermaid, R.dbml2sql, R.home],
   },
   {
     slug: 'mermaid-to-erd',
@@ -595,7 +703,7 @@ Table orders {
       { q: 'How do I turn Mermaid text into a diagram I can edit?', a: 'Paste the Mermaid erDiagram here — it renders as draggable tables you can arrange, then export as an image or convert to DBML/PlantUML.' },
       FAQ_PRIVATE, FAQ_FREE,
     ],
-    related: [R.mermaid, R.dbml2er, R.sql2mermaid, R.prisma, R.home],
+    related: [R.mermaid, R.dbml2sql, R.sql2mermaid, R.prisma, R.home],
   },
 
   // ---------------- DIALECTS (expansion) ----------------
@@ -828,27 +936,46 @@ ALTER TABLE books
       'Paste it into dbdiagram.io or any DBML-based workflow.',
     ],
     exampleIntro: 'This SQL:',
-    example: `CREATE TABLE customers (
+    example: `CREATE TYPE invoice_status AS ENUM ('draft', 'sent', 'paid');
+
+CREATE TABLE customers (
   id BIGINT PRIMARY KEY,
   name VARCHAR(120) NOT NULL
 );
+COMMENT ON TABLE customers IS 'Billing contacts';
+
 CREATE TABLE invoices (
   id BIGINT PRIMARY KEY,
   customer_id BIGINT NOT NULL REFERENCES customers(id),
+  status invoice_status DEFAULT 'draft',
   total NUMERIC(10,2)
-);`,
-    example2: `Table "customers" {
-  "id" bigint [pk]
-  "name" varchar(120) [not null]
+);
+CREATE INDEX idx_invoices_customer ON invoices(customer_id);`,
+    example2: `Enum invoice_status {
+  draft
+  sent
+  paid
 }
 
-Table "invoices" {
-  "id" bigint [pk]
-  "customer_id" bigint [not null]
-  "total" "numeric(10,2)"
+Table customers {
+  id BIGINT [pk]
+  name VARCHAR(120) [not null]
+
+  Note: 'Billing contacts'
 }
 
-Ref: "invoices"."customer_id" > "customers"."id"`,
+Table invoices {
+  id BIGINT [pk]
+  customer_id BIGINT [not null]
+  status invoice_status [default: 'draft']
+  total NUMERIC(10,2)
+
+  indexes {
+    customer_id [name: 'idx_invoices_customer']
+  }
+}
+
+Ref: invoices.customer_id > customers.id`,
     example2label: '…exports as this DBML:',
     exampleAfter: 'Copy it from <strong>Export → DBML</strong>.',
     why: [PRIVATE, '<strong>dbdiagram.io-ready</strong> DBML output.', '<strong>Verify visually</strong> — see the live diagram before you copy.', FREE],
@@ -858,7 +985,7 @@ Ref: "invoices"."customer_id" > "customers"."id"`,
       { q: 'Is this a free dbdiagram importer?', a: 'Yes — convert SQL to DBML for free and paste it straight into dbdiagram.io, with no account.' },
       FAQ_PRIVATE, FAQ_FREE,
     ],
-    related: [R.dbml, R.sql2mermaid, R.sql2plantuml, R.dbml2er, R.home],
+    related: [R.dbml, R.sql2mermaid, R.sql2plantuml, R.dbml2sql, R.home],
   },
   {
     slug: 'sql-to-plantuml',
@@ -955,7 +1082,7 @@ Table posts {
       { q: 'Where can I use the Mermaid output?', a: 'Anywhere Mermaid renders: GitHub & GitLab Markdown, Notion, Obsidian, docs sites, and the Mermaid Live Editor.' },
       FAQ_PRIVATE, FAQ_FREE,
     ],
-    related: [R.dbml, R.mermaid, R.sql2mermaid, R.dbml2er, R.home],
+    related: [R.dbml, R.mermaid, R.sql2mermaid, R.dbml2sql, R.home],
   },
 
   // ---------------- VIEWER / VISUALIZER INTENT ----------------
@@ -970,21 +1097,51 @@ Table posts {
     steps: [
       'Open your <code>.dbml</code> file (or copy DBML from dbdiagram.io).',
       'Paste it into the viewer — DBML is auto-detected.',
-      'Every <code>Table</code> renders with its columns; <code>Ref:</code> and inline <code>[ref: &gt; …]</code> become relations.',
-      'Drag to arrange, then export PNG/SVG or convert to Mermaid/PlantUML.',
+      'Every <code>Table</code> renders with its columns; <code>Ref</code> lines, inline <code>[ref: &gt; …]</code>, enums, notes, indexes and <code>TableGroup</code>s are all read.',
+      'Drag to arrange, then export PNG/SVG, or convert to SQL, Mermaid or PlantUML.',
     ],
     exampleIntro: 'Paste DBML like this:',
-    example: `Table projects {
-  id integer [pk]
-  name varchar [not null]
+    example: `Enum order_status {
+  pending
+  paid
+  shipped
 }
-Table tasks {
+
+Table users {
+  id integer [pk, increment]
+  email varchar [unique, not null]
+  created_at timestamp [default: \`now()\`]
+}
+
+Table orders {
   id integer [pk]
-  project_id integer [ref: > projects.id]
-  title varchar
-  done boolean
+  user_id integer [not null, ref: > users.id]
+  status order_status [default: 'pending']
+  total decimal(10,2)
+
+  Note: 'One row per checkout'
+}
+
+Table order_items {
+  order_id integer [ref: > orders.id]
+  product_id integer [ref: > products.id]
+  quantity integer [default: 1]
+
+  indexes {
+    (order_id, product_id) [pk]
+  }
+}
+
+Table products {
+  id integer [pk]
+  name varchar
+}
+
+TableGroup sales {
+  orders
+  order_items
 }`,
-    exampleAfter: '…and the viewer draws two tables with a relation from <code>tasks.project_id</code> → <code>projects.id</code>.',
+    exampleAfter: '…and the viewer draws four tables with their relations, the composite key on <code>order_items</code>, and the <code>sales</code> group’s tables in one colour. Hover a column to see its default, its note or its enum values.',
     why: [PRIVATE, '<strong>Opens any DBML</strong> — dbdiagram.io exports, <code>.dbml</code> files or snippets.', INTERACTIVE, '<strong>Convert</strong> what you view to Mermaid, PlantUML, PNG or SVG.', FREE],
     badges: ['DBML', 'Mermaid', 'PlantUML', 'SQL'],
     faq: [
@@ -992,7 +1149,7 @@ Table tasks {
       { q: 'Is this a free dbdiagram viewer?', a: 'Yes — paste DBML and view it as an interactive ER diagram for free, with no account, and export to Mermaid, PlantUML, PNG or SVG.' },
       FAQ_PRIVATE, FAQ_EXPORT, FAQ_FREE,
     ],
-    related: [R.dbml2er, R.dbml, R.dbml2mermaid, R.prisma2dbml, R.home],
+    related: [R.dbml2sql, R.dbmlCheat, R.dbml, R.dbml2mermaid, R.prisma2dbml, R.home],
   },
   {
     slug: 'prisma-schema-visualizer',
@@ -1028,7 +1185,7 @@ model Member {
       { q: 'Do I need to run Prisma or install anything?', a: 'No. It reads the schema text directly in your browser — nothing is generated, executed or uploaded.' },
       FAQ_PRIVATE, FAQ_EXPORT, FAQ_FREE,
     ],
-    related: [R.prisma, R.prisma2dbml, R.dbml2er, R.sqlalchemy, R.home],
+    related: [R.prisma, R.prisma2dbml, R.dbml2sql, R.sqlalchemy, R.home],
   },
   {
     slug: 'plantuml-viewer',
@@ -1125,7 +1282,9 @@ export const GLANCE = {
   postgresql: { thing: 'a PostgreSQL schema', input: 'PostgreSQL <code>CREATE TABLE</code> and <code>ALTER TABLE</code> statements, or the output of <code>pg_dump --schema-only</code>.' },
   sqlite: { thing: 'a SQLite schema', input: 'SQLite <code>CREATE TABLE</code> statements, such as the output of <code>.schema</code>.' },
   'sql-server': { thing: 'a SQL Server schema', input: 'SQL Server (T-SQL) <code>CREATE TABLE</code> statements.' },
-  dbml: { thing: 'DBML', input: 'DBML (Database Markup Language) text.' },
+  dbml: { thing: 'DBML', input: 'DBML (Database Markup Language) text, including enums, notes, indexes, multi-column refs and table groups.' },
+  'dbml-to-sql': { thing: 'DBML', input: 'DBML (Database Markup Language) text.', output: 'SQL <code>CREATE TABLE</code> statements for PostgreSQL, MySQL, SQLite, SQL Server or Snowflake, with column types translated, plus the interactive ER diagram.' },
+  'dbml-cheat-sheet': { thing: 'DBML', input: 'Any DBML snippet from this page, or your own DBML.' },
   mermaid: { thing: 'a Mermaid <code>erDiagram</code>', input: 'A Mermaid <code>erDiagram</code> block.' },
   sqlalchemy: { thing: 'SQLAlchemy models', input: 'SQLAlchemy declarative model classes (Python source).' },
   sequelize: { thing: 'Sequelize models', input: 'Sequelize model definitions (JavaScript source).' },
